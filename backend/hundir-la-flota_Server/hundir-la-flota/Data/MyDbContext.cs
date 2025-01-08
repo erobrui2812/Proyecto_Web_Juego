@@ -1,6 +1,9 @@
-﻿namespace hundir_la_flota.Data
+﻿using Microsoft.EntityFrameworkCore;
+using hundir_la_flota.Models;
+
+public class AppDbContext : DbContext
 {
-    public class Class
-    {
-    }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<User> Users { get; set; }
 }

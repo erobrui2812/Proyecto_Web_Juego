@@ -1,6 +1,17 @@
-﻿namespace hundir_la_flota.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+public class User
 {
-    public class User
-    {
-    }
+    public int Id { get; set; }
+
+    [Required]
+    public string Nickname { get; set; }
+
+    [Required]
+    public string Email { get; set; }
+
+    [Required]
+    public string Password { get; set; }
+
+    public string AvatarUrl { get; set; }
 }
