@@ -1,0 +1,6 @@
+@hundir_la_flota_HostAddress = http://localhost:5182
+
+GET {{hundir_la_flota_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
