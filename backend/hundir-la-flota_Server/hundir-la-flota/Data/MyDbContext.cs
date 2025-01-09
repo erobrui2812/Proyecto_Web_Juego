@@ -1,9 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using hundir_la_flota.Models;
 
-public class AppDbContext : DbContext
+public class MyDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
 
     public DbSet<User> Users { get; set; }
 }
