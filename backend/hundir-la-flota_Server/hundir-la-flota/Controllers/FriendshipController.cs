@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -16,18 +18,19 @@ public class FriendshipController : ControllerBase
     [HttpPost("send")]
     public async Task<IActionResult> SendFriendRequest([FromBody] FriendRequestDto request)
     {
-        var userId = GetUserId();  
+        var userId = GetUserId();
 
-        
         if (string.IsNullOrEmpty(request.Nickname) && string.IsNullOrEmpty(request.Email))
             return BadRequest("Debes proporcionar un nickname o un correo electrónico.");
 
-        
         User friend = null;
         if (!string.IsNullOrEmpty(request.Nickname))
         {
-            friend = await _dbContext.Users.FirstOrDefaultAsync(u => u.Nickname == request.Nickname);
+            var normalizedNickname = NormalizeString(request.Nickname);
+            friend = await _dbContext.Users
+                .FirstOrDefaultAsync(u => NormalizeString(u.Nickname) == normalizedNickname);
         }
+
         if (friend == null && !string.IsNullOrEmpty(request.Email))
         {
             friend = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -36,13 +39,11 @@ public class FriendshipController : ControllerBase
         if (friend == null)
             return NotFound("No se encontró el usuario.");
 
-        var friendId = friend.Id; 
+        var friendId = friend.Id;
 
-        
         if (userId == friendId)
             return BadRequest("No puedes enviarte una solicitud de amistad a ti mismo.");
 
-       
         var existingFriendship = await _dbContext.Friendships
             .FirstOrDefaultAsync(f =>
                 (f.UserId == userId && f.FriendId == friendId) ||
@@ -51,7 +52,6 @@ public class FriendshipController : ControllerBase
         if (existingFriendship != null)
             return BadRequest("Ya existe una solicitud de amistad o ya sois amigos.");
 
-        // Crear la solicitud de amistad
         var friendship = new Friendship
         {
             UserId = userId,
@@ -137,21 +137,27 @@ public class FriendshipController : ControllerBase
         if (string.IsNullOrEmpty(nickname))
             return BadRequest("El nickname no puede estar vacío.");
 
-        var user = await _dbContext.Users
-            .Where(u => u.Nickname.Contains(nickname))
+        var normalizedNickname = NormalizeString(nickname);
+
+        var users = await _dbContext.Users
+            .ToListAsync();
+
+        var filteredUsers = users
+            .Where(u => NormalizeString(u.Nickname).Contains(normalizedNickname))
             .Select(u => new
             {
                 u.Id,
                 u.Nickname,
                 u.AvatarUrl
             })
-            .ToListAsync();
+            .ToList();
 
-        if (user.Count == 0)
+        if (filteredUsers.Count == 0)
             return NotFound("No se encontraron usuarios con ese nickname.");
 
-        return Ok(user);
+        return Ok(filteredUsers);
     }
+
 
     // Método auxiliar para obtener el ID del usuario autenticado
     private int GetUserId()
@@ -167,6 +173,22 @@ public class FriendshipController : ControllerBase
         return int.Parse(userIdClaim.Value);
     }
 
+    //Metodo auxiliar normalizar texto
+    private string NormalizeString(string input)
+    {
+        var normalizedString = input.Normalize(NormalizationForm.FormD);
+        var stringBuilder = new StringBuilder();
+
+        foreach (var character in normalizedString)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+            {
+                stringBuilder.Append(character);
+            }
+        }
+
+        return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower();
+    }
 }
 
 
