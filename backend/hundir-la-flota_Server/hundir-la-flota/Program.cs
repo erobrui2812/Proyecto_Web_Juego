@@ -1,4 +1,7 @@
 
+using Microsoft.EntityFrameworkCore;
+using System;
+
 namespace hundir_la_flota
 {
     public class Program
@@ -9,8 +12,13 @@ namespace hundir_la_flota
 
             // Add services to the container.
 
+            builder.Services.AddDbContext<MyDbContext>(options =>
+            options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+
+
+            builder.Services.AddSingleton<AuthService>(new AuthService("SecretJWTKey"));
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
