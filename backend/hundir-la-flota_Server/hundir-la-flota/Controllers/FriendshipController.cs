@@ -104,7 +104,7 @@ public class FriendshipController : ControllerBase
                 FriendId = f.UserId == userId ? f.FriendId : f.UserId,
                 FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
                 AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
-                Status = "Desconectado"
+                Status = "Desconectado" //aqui dependera del websocket
             })
             .ToListAsync();
 
