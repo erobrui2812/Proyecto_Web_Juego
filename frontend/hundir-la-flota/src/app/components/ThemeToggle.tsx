@@ -8,7 +8,7 @@ const ThemeToggle = () => {
 
   useEffect(() => {
     const preferredTheme =
-      window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      window.matchMedia("(prefers-color-scheme: light)").matches ? "dark" : "light";
     setTheme(preferredTheme);
     document.documentElement.classList.toggle("dark", preferredTheme === "dark");
   }, []);
