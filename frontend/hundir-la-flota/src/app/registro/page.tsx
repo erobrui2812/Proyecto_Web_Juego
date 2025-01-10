@@ -1,5 +1,5 @@
 'use client'
-
+import Layout from "../page";
 import React, { useState } from "react";
 //import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -55,79 +55,81 @@ export default function Hola() {
 
     return (
         <>
-            <main className="form-container texto-mediano">
-                <h1 className="texto-grande">Registro</h1>
-                <form onSubmit={handleRegister} className="form">
-                    {error && <p className="error">{error}</p>}
-                    <div className="campo-formulario">
-                        <label htmlFor="nombre">Nombre</label>
-                        <input
-                            type="text"
-                            id="nombre"
-                            value={nombre}
-                            onChange={(e) => setNombre(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="apellidos">Apellidos</label>
-                        <input
-                            type="text"
-                            id="apellidos"
-                            value={apellidos}
-                            onChange={(e) => setApellidos(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="email">Correo Electrónico</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="direccion">Dirección</label>
-                        <input
-                            type="text"
-                            id="direccion"
-                            value={direccion}
-                            onChange={(e) => setDireccion(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="password">Contraseña</label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <Button label="Registrarse" type="submit" styleType="btnDefault" />
-                </form>
-                <p className="texto-pequeño">
-                    ¿Ya tienes cuenta?{" "}
-                    <a href="/login" className="link">
-                        Inicia sesión aquí.
-                    </a>
-                </p>
-            </main>
+            <Layout>
+                <main className="form-container texto-mediano">
+                    <h1 className="texto-grande">Registro</h1>
+                    <form onSubmit={handleRegister} className="form">
+                        {error && <p className="error">{error}</p>}
+                        <div className="campo-formulario">
+                            <label htmlFor="nombre">Nombre</label>
+                            <input
+                                type="text"
+                                id="nombre"
+                                value={nombre}
+                                onChange={(e) => setNombre(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="campo-formulario">
+                            <label htmlFor="apellidos">Apellidos</label>
+                            <input
+                                type="text"
+                                id="apellidos"
+                                value={apellidos}
+                                onChange={(e) => setApellidos(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="campo-formulario">
+                            <label htmlFor="email">Correo Electrónico</label>
+                            <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="campo-formulario">
+                            <label htmlFor="direccion">Dirección</label>
+                            <input
+                                type="text"
+                                id="direccion"
+                                value={direccion}
+                                onChange={(e) => setDireccion(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="campo-formulario">
+                            <label htmlFor="password">Contraseña</label>
+                            <input
+                                type="password"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="campo-formulario">
+                            <label htmlFor="confirmPassword">Confirmar Contraseña</label>
+                            <input
+                                type="password"
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <Button label="Registrarse" type="submit" styleType="btnDefault" />
+                    </form>
+                    <p className="texto-pequeño">
+                        ¿Ya tienes cuenta?{" "}
+                        <a href="/login" className="link">
+                            Inicia sesión aquí.
+                        </a>
+                    </p>
+                </main>
+            </Layout>
         </>
     );
 
