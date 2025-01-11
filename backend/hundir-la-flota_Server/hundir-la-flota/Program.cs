@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using hundir_la_flota.Repositories;
 
 namespace hundir_la_flota
 {
@@ -13,7 +14,7 @@ namespace hundir_la_flota
         {
             var builder = WebApplication.CreateBuilder(args);
 
- 
+
 
             // Add services to the container.
 
@@ -27,6 +28,10 @@ namespace hundir_la_flota
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+
+            builder.Services.AddScoped<IGameService, GameService>();
+            builder.Services.AddScoped<IGameRepository, GameRepository>();
+
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -45,7 +50,7 @@ namespace hundir_la_flota
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Hundir la Flota API", Version = "v1" });
 
-               
+
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
