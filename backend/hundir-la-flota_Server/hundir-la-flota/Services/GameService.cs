@@ -109,7 +109,8 @@ public class GameService : IGameService
         return new ServiceResponse<string> { Success = true, Message = "Disparo realizado." };
     }
 
-    public async Task<ServiceResponse<Game>> GetGameStateAsync(string userId, int gameId)
+    public async Task<ServiceResponse<Game>> GetGameStateAsync(string userId, Guid gameId)
+
     {
         var game = await _gameRepository.GetByIdAsync(gameId);
 
