@@ -29,12 +29,17 @@ const Header = () => {
         {auth.isAuthenticated ? (
           <div className="flex items-center space-x-2">
             <Image
-              src="https://s3.amazonaws.com/comicgeeks/characters/avatars/23353.jpg"
+              src={auth.userDetail?.avatarUrl || '/default-avatar.png'} // Usar una imagen predeterminada si es undefined
               alt="Perfil"
               width={30}
               height={30}
               className="rounded-full"
             />
+
+            <button onClick={auth.cerrarSesion} type="button">
+            Cerrar sesión
+            </button>
+
             <span className="text-lg">{auth.userDetail?.nickname}</span>
           </div>
         ) : (
