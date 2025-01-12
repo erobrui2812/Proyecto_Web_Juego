@@ -1,134 +1,78 @@
 'use client'
-
 import React, { useState } from "react";
-//import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import Button from "../components/Button";
+import { useAuth } from "../contexts/AuthContext";
 
-export default function Hola() {
-    const [nombre, setNombre] = useState("");
-    const [apellidos, setApellidos] = useState("");
-    const [email, setEmail] = useState("");
-    const [direccion, setDireccion] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [error, setError] = useState(null);
-    //const navigate = useNavigate();
-    //const from = location.state?.from?.pathname || "/";
+const LoginForm = () => {
+  const { iniciarSesion } = useAuth();
+  const [identificador, setIdentificador] = useState("");
+  const [password, setPassword] = useState("");
+  const [mantenerSesion, setMantenerSesion] = useState(false);
+  const [error, setError] = useState("");
 
-    const handleRegister = async (e: { preventDefault: () => void; }) => {
-        e.preventDefault();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await iniciarSesion(identificador, password, mantenerSesion);
+      
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
 
-        if (password !== confirmPassword) {
-            toast.error("Las contraseñas no coinciden.");
-            return;
-        }
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <div className="bg-white shadow-md rounded-lg p-6 w-full sm:w-96">
+        <h2 className="text-2xl font-bold text-center mb-4">Iniciar sesión</h2>
+        <form onSubmit={handleLogin}>
+          <div className="mb-4">
+            <label htmlFor="identificador" className="block text-sm font-medium text-gray-700">
+              Nickname/Email
+            </label>
+            <input
+              type="text"
+              id="identificador"
+              value={identificador}
+              onChange={(e) => setIdentificador(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
+          <div className="flex items-center mb-4">
+            <input
+              type="checkbox"
+              id="mantenerSesion"
+              checked={mantenerSesion}
+              onChange={(e) => setMantenerSesion(e.target.checked)}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="mantenerSesion" className="ml-2 block text-sm text-gray-900">
+              Mantener sesión activa
+            </label>
+          </div>
+          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+          >
+            Iniciar sesión
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
-        try {
-            const response = await fetch(`/api/User/crear`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    nombre,
-                    apellidos,
-                    email,
-                    direccion,
-                    rol: "usuario",
-                    password,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error("Error al registrar el usuario.");
-            }
-
-            toast.success("Usuario registrado correctamente.");
-            //navigate("/login");
-            setError(null);
-        } catch (err) {
-            //setError(err.message);
-        }
-    };
-
-    return (
-        <>
-            <main className="form-container texto-mediano">
-                <h1 className="texto-grande">Login</h1>
-                <form onSubmit={handleRegister} className="form">
-                    {error && <p className="error">{error}</p>}
-                    <div className="campo-formulario">
-                        <label htmlFor="nombre">Nombre</label>
-                        <input
-                            type="text"
-                            id="nombre"
-                            value={nombre}
-                            onChange={(e) => setNombre(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="apellidos">Apellidos</label>
-                        <input
-                            type="text"
-                            id="apellidos"
-                            value={apellidos}
-                            onChange={(e) => setApellidos(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="email">Correo Electrónico</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="direccion">Dirección</label>
-                        <input
-                            type="text"
-                            id="direccion"
-                            value={direccion}
-                            onChange={(e) => setDireccion(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="password">Contraseña</label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="campo-formulario">
-                        <label htmlFor="confirmPassword">Confirmar Contraseña</label>
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <Button label="Registrarse" type="submit" styleType="btnDefault" />
-                </form>
-                <p className="texto-pequeño">
-                ¿No tienes cuenta?{" "}
-                    <a href="/registro" className="link">
-                    Create una aquí.
-                    </a>
-                </p>
-            </main>
-        </>
-    );
-
-}
+export default LoginForm;

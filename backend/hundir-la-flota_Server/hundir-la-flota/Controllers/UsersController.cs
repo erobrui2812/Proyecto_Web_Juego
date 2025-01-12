@@ -38,7 +38,7 @@ namespace hundir_la_flota.Controllers
         public IActionResult Login([FromBody] UserLoginDTO dto)
         {
             var user = _context.Users.FirstOrDefault(u =>
-                u.Email == dto.Email || u.Nickname.ToLower() == dto.Nickname.ToLower());
+                u.Email == dto.NicknameMail || u.Nickname.ToLower() == dto.NicknameMail.ToLower());
 
             if (user == null || !_authService.VerifyPassword(dto.Password, user.PasswordHash))
                 return Unauthorized("Invalid credentials");

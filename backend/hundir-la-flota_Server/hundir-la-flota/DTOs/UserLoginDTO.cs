@@ -2,10 +2,7 @@
 
 public class UserLoginDTO
 {
-    public string Nickname { get; set; }
-
-    [EmailAddress]
-    public string Email { get; set; }
+    public string NicknameMail { get; set; }
 
     [Required]
     public string Password { get; set; }
