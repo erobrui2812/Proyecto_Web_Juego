@@ -1,4 +1,5 @@
-"use client"
+"use client";
+import { Link } from "lucide-react";
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -18,8 +19,13 @@ const RegisterPage = () => {
         throw new Error("Las contraseñas no coinciden");
       }
 
-      await registrarUsuario(nickname, email, password, confirmPassword, avatarUrl);
-
+      await registrarUsuario(
+        nickname,
+        email,
+        password,
+        confirmPassword,
+        avatarUrl
+      );
     } catch (error: any) {
       setError(error.message || "Error desconocido");
     }
@@ -31,7 +37,10 @@ const RegisterPage = () => {
         <h2 className="text-2xl font-bold text-center mb-4">Registrarse</h2>
         <form onSubmit={handleRegister}>
           <div className="mb-4">
-            <label htmlFor="nickname" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="nickname"
+              className="block text-sm font-medium text-gray-700"
+            >
               Nickname
             </label>
             <input
@@ -44,7 +53,10 @@ const RegisterPage = () => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700"
+            >
               Email
             </label>
             <input
@@ -57,7 +69,10 @@ const RegisterPage = () => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700"
+            >
               Contraseña
             </label>
             <input
@@ -70,7 +85,10 @@ const RegisterPage = () => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-gray-700"
+            >
               Confirmar Contraseña
             </label>
             <input
@@ -83,7 +101,10 @@ const RegisterPage = () => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="avatarUrl" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="avatarUrl"
+              className="block text-sm font-medium text-gray-700"
+            >
               URL del Avatar
             </label>
             <input
@@ -102,6 +123,17 @@ const RegisterPage = () => {
             Registrarse
           </button>
         </form>
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600">
+            ¿Ya tienes cuenta?{" "}
+            <Link
+              href="/login"
+              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+            >
+              Inicia sesión
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
