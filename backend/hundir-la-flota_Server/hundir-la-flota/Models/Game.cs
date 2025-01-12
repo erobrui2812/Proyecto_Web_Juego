@@ -4,13 +4,13 @@ namespace hundir_la_flota.Models
 {
     public class Game
     {
-        public Guid GameId { get; set; } = Guid.NewGuid(); // Usamos GameId en lugar de Id
+        public Guid GameId { get; set; } = Guid.NewGuid();
         public int Player1Id { get; set; }
         public int Player2Id { get; set; }
         public GameState State { get; set; } = GameState.WaitingForPlayers;
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();
-        public int CurrentPlayerId { get; set; } // Jugador con el turno actual
+        public int CurrentPlayerId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 
