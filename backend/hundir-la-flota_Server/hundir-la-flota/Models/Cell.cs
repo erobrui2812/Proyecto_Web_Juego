@@ -6,5 +6,13 @@
         public int Y { get; set; }
         public bool HasShip { get; set; }
         public bool IsHit { get; set; }
+        public CellStatus Status { get; set; }
+    }
+
+    public enum CellStatus
+    {
+        Empty,
+        Hit,
+        Miss
     }
 }

@@ -23,8 +23,8 @@ public class GameService : IGameService
     {
         var newGame = new Game
         {
-            Player1Id = Convert.ToInt32(userId), // Convertir userId a int
-            CurrentPlayerId = Convert.ToInt32(userId) // El primer jugador comienza
+            Player1Id = Convert.ToInt32(userId),
+            CurrentPlayerId = Convert.ToInt32(userId)
         };
 
         await _gameRepository.AddAsync(newGame);
@@ -56,13 +56,24 @@ public class GameService : IGameService
 
         var board = playerId == game.Player1Id ? game.Player1Board : game.Player2Board;
 
-        board.Ships = ships;
 
-        // Validar posiciones de los barcos
-        if (!AreShipsValid(board))
-            return new ServiceResponse<string> { Success = false, Message = "Las posiciones de los barcos no son válidas." };
+        foreach (var ship in ships)
+        {
+            if (!board.IsShipPlacementValid(ship))
+            {
+                return new ServiceResponse<string> { Success = false, Message = "Las posiciones de los barcos no son válidas." };
+            }
 
-        // Cambiar el estado según los barcos colocados
+            // Marcar las celdas donde se colocará el barco
+            foreach (var coord in ship.Coordinates)
+            {
+                board.Grid[coord.X, coord.Y].HasShip = true;
+            }
+
+            board.Ships.Add(ship);
+        }
+
+
         if (game.Player1Board.Ships.Count > 0 && game.Player2Board.Ships.Count > 0)
             game.State = GameState.WaitingForPlayer1Shot;
 
@@ -122,7 +133,27 @@ public class GameService : IGameService
 
     private bool AreShipsValid(Board board)
     {
-        // Implementar validación de la colocación de los barcos
+
         return true;
     }
+
+    private List<Ship> GenerateShipsForPlayer()
+    {
+        var ships = new List<Ship>
+    {
+        new Ship { Name = "Barco 4x1", Size = 4, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 3x1", Size = 3, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 3x2", Size = 3, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 2x1", Size = 2, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 2x2", Size = 2, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 2x3", Size = 2, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 1x1", Size = 1, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 1x2", Size = 1, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 1x3", Size = 1, Coordinates = new List<Coordinate>() },
+        new Ship { Name = "Barco 1x4", Size = 1, Coordinates = new List<Coordinate>() },
+    };
+
+        return ships;
+    }
+
 }

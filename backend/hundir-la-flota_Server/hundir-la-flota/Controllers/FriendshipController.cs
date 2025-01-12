@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 
 [ApiController]
@@ -159,10 +160,10 @@ public class FriendshipController : ControllerBase
     }
 
 
-    // Método auxiliar para obtener el ID del usuario autenticado
+
     private int GetUserId()
     {
-        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
 
         if (userIdClaim == null)
         {
@@ -173,7 +174,7 @@ public class FriendshipController : ControllerBase
         return int.Parse(userIdClaim.Value);
     }
 
-    //Metodo auxiliar normalizar texto
+
     private string NormalizeString(string input)
     {
         var normalizedString = input.Normalize(NormalizationForm.FormD);
@@ -192,8 +193,6 @@ public class FriendshipController : ControllerBase
 }
 
 
-
-// DTO para responder solicitudes de amistad
 public class FriendRequestResponseDto
 {
     public int SenderId { get; set; }

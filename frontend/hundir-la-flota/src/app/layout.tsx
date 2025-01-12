@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Layout from "./page-layout";
 import { GlobalProvider } from "./contexts/GlobalContext";
 import "./globals.css";
+import { ToastContainer, Slide } from "react-toastify";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,10 +29,25 @@ export default function RootLayout({
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      ><GlobalProvider>
+        <ToastContainer
+          position="top-left"
+          autoClose={5000}
+          limit={5}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss={false}
+          draggable={false}
+          pauseOnHover={false}
+          theme="dark"
+          transition={Slide}
+        />
         <Layout>
-          <GlobalProvider>{children}</GlobalProvider>
+          {children}
         </Layout>
+        </GlobalProvider>
       </body>
     </html>
   );
