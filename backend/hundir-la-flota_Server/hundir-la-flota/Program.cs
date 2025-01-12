@@ -6,17 +6,15 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using hundir_la_flota.Repositories;
 
+
 namespace hundir_la_flota
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
-
-
-            // Add services to the container.
 
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
@@ -31,6 +29,7 @@ namespace hundir_la_flota
 
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
+            builder.Services.AddScoped<GameSimulation>();
 
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -114,6 +113,13 @@ namespace hundir_la_flota
             app.UseAuthorization();
 
             app.MapControllers();
+
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var simulation = scope.ServiceProvider.GetRequiredService<GameSimulation>();
+                await simulation.RunSimulationAsync();  // Ejecutar la simulación
+            }
 
             app.Run();
         }
