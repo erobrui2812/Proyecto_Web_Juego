@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 type AuthContextType = {
@@ -54,6 +54,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return "usuario";
     }
   });
+
+  useEffect(() => {
+    if (auth.token) {
+      setAuthenticated(true);
+      obtenerUserDetail();
+    } else {
+      setAuthenticated(false);
+      setUserDetail(null); // Limpiar los detalles si no hay token
+    }
+  }, [auth.token]);
 
   const iniciarSesion = async (
     nicknameMail: string,
@@ -154,7 +164,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data = await response.json();
       setUserDetail(data);
     } catch (error) {
-      toast.error(`Error al obtener detalles del usuario: ${error}`);
       setUserDetail(null);
       throw error;
     }

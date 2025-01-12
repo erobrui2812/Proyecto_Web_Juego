@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 
 [ApiController]
@@ -162,7 +163,7 @@ public class FriendshipController : ControllerBase
 
     private int GetUserId()
     {
-        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userId");
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
 
         if (userIdClaim == null)
         {

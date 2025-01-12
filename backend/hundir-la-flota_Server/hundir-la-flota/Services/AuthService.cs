@@ -37,7 +37,7 @@ public class AuthService
 
             var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
 
-            var userIdClaim = jwtToken?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            var userIdClaim = jwtToken?.Claims.FirstOrDefault(c => c.Type == "nameid");
 
             return userIdClaim?.Value;
         }
@@ -47,6 +47,7 @@ public class AuthService
             return null;
         }
     }
+
 
     public string GenerateJwtToken(User user)
     {

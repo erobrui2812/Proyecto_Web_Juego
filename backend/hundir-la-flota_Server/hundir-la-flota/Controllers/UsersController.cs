@@ -91,16 +91,16 @@ namespace hundir_la_flota.Controllers
         [HttpGet("detail")]
         public async Task<IActionResult> GetUserDetail()
         {
-            var userIdString = _authService.GetUserIdFromToken(Request.Headers["Authorization"]);
+            var userId = _authService.GetUserIdFromToken(Request.Headers["Authorization"].ToString());
 
-            if (string.IsNullOrEmpty(userIdString))
+            if (string.IsNullOrEmpty(userId))
                 return Unauthorized("Invalid or missing token");
 
-            if (!int.TryParse(userIdString, out var userId))
+            if (!int.TryParse(userId, out var userIdInt))
                 return BadRequest("Invalid user ID in token");
 
             var user = await _context.Users
-                .Where(u => u.Id == userId)
+                .Where(u => u.Id == userIdInt)
                 .Select(u => new
                 {
                     u.Nickname,
