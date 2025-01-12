@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace hundir_la_flota.Controllers
 {
@@ -37,15 +38,56 @@ namespace hundir_la_flota.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginDTO dto)
         {
-            var user = _context.Users.FirstOrDefault(u =>
-                u.Email == dto.NicknameMail || u.Nickname.ToLower() == dto.NicknameMail.ToLower());
+            try
+            {
+                // Log de entrada
+                Console.WriteLine($"Login request: NicknameMail={dto.NicknameMail}, Password={dto.Password}");
 
-            if (user == null || !_authService.VerifyPassword(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid credentials");
+                var user = _context.Users.FirstOrDefault(u =>
+                    u.Email == dto.NicknameMail || u.Nickname.ToLower() == dto.NicknameMail.ToLower());
 
-            var token = _authService.GenerateJwtToken(user);
-            return Ok(new { Token = token });
+                if (user == null)
+                {
+                    Console.WriteLine("User not found");
+                    return Unauthorized("Invalid credentials");
+                }
+
+                if (!_authService.VerifyPassword(dto.Password, user.PasswordHash))
+                {
+                    Console.WriteLine("Invalid password");
+                    return Unauthorized("Invalid credentials");
+                }
+
+                var token = _authService.GenerateJwtToken(user);
+                Console.WriteLine($"Generated token: {token}");
+
+                return Ok(new { Token = token });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in login: {ex.Message}");
+                return StatusCode(500, "An error occurred during login");
+            }
         }
+
+
+        [HttpGet("list")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _context.Users
+                .Select(u => new
+                {
+                    u.Id,
+                    u.Nickname,
+                    u.Email,
+                    u.PasswordHash,
+                    u.AvatarUrl
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
 
 
     }

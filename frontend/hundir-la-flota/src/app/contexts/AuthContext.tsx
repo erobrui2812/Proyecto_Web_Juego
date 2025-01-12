@@ -1,10 +1,20 @@
-"use client"
+"use client";
 import { createContext, useContext, useState } from "react";
 
 type AuthContextType = {
   auth: { token: string | null };
-  iniciarSesion: (identificador: string, password: string, mantenerSesion: boolean) => Promise<void>;
-  registrarUsuario: (nickname: string, email: string, password: string, confirmPassword: string, avatarUrl: string) => Promise<void>;
+  iniciarSesion: (
+    nicknameMail: string,
+    password: string,
+    mantenerSesion: boolean
+  ) => Promise<void>;
+  registrarUsuario: (
+    nickname: string,
+    email: string,
+    password: string,
+    confirmPassword: string,
+    avatarUrl: string
+  ) => Promise<void>;
   cerrarSesion: () => void;
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   isAuthenticated: boolean;
@@ -15,13 +25,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [auth, setAuth] = useState<{ token: string | null }>({
-    token: sessionStorage.getItem("token") || localStorage.getItem("token") || null,
+    token:
+      sessionStorage.getItem("token") || localStorage.getItem("token") || null,
   });
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [rol, setRol] = useState<string>(() => {
     try {
       const payload = JSON.parse(atob(auth?.token?.split(".")[1] || ""));
-      return payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "usuario";
+      return (
+        payload[
+          "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+        ] || "usuario"
+      );
     } catch (error) {
       if (!auth.token) return "usuario";
       console.error("Error al decodificar el token:", error);
@@ -29,26 +44,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   });
 
-  const iniciarSesion = async (identificador: string, password: string, mantenerSesion: boolean) => {
+  const iniciarSesion = async (
+    nicknameMail: string,
+    password: string,
+    mantenerSesion: boolean
+  ) => {
     try {
+      console.log("Attempting login with:", { nicknameMail, password });
+
       const response = await fetch(`https://localhost:7162/api/Users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ identificador, password }),
+        body: JSON.stringify({ nicknameMail, password }), // Campos correctos
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error in login response:", errorText);
         throw new Error("Credenciales incorrectas o error de servidor");
       }
 
       const { token } = await response.json();
 
       if (token) {
+        console.log("Login successful, token:", token);
         setAuth({ token });
         const decoded = JSON.parse(atob(token.split(".")[1]));
-        const roleDecoded = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+        const roleDecoded =
+          decoded[
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+          ];
         setRol(roleDecoded);
 
         if (mantenerSesion) {
@@ -59,33 +86,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         throw new Error("Token no recibido del servidor");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al iniciar sesión:", error);
       throw error;
     }
   };
 
-  const registrarUsuario = async (nickname: string, email: string, password: string, confirmPassword: string, avatarUrl: string) => {
+  const registrarUsuario = async (
+    nickname: string,
+    email: string,
+    password: string,
+    confirmPassword: string,
+    avatarUrl: string
+  ) => {
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ nickname, email, password, confirmPassword, avatarUrl }),
-      });
-  
+      const response = await fetch(
+        `https://localhost:7162/api/Users/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nickname,
+            email,
+            password,
+            confirmPassword,
+            avatarUrl,
+          }),
+        }
+      );
+
       if (!response.ok) {
         throw new Error("Error al registrar usuario");
       }
-  
+
       console.log("Usuario registrado correctamente");
     } catch (error) {
       console.error("Error al registrar usuario:", error);
       throw error;
     }
   };
-  
 
   const cerrarSesion = () => {
     setAuth({ token: null });
@@ -95,7 +136,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ auth, iniciarSesion, registrarUsuario, cerrarSesion, setAuthenticated, isAuthenticated, rol }}
+      value={{
+        auth,
+        iniciarSesion,
+        registrarUsuario,
+        cerrarSesion,
+        setAuthenticated,
+        isAuthenticated,
+        rol,
+      }}
     >
       {children}
     </AuthContext.Provider>
