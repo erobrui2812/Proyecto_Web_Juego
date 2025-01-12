@@ -1,7 +1,9 @@
 "use client";
+
 import { Link } from "lucide-react";
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+
 
 const LoginForm = () => {
   const { iniciarSesion } = useAuth();
@@ -82,12 +84,13 @@ const LoginForm = () => {
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
             ¿No tienes cuenta?{" "}
-            <Link
+            <a
               href="/register"
               className="text-indigo-600 hover:text-indigo-700 font-semibold"
             >
-              Regístrate
-            </Link>
+              <Link /> Regístrate
+              
+            </a>
           </p>
         </div>
       </div>
