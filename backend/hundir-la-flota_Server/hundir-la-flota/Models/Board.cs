@@ -20,7 +20,7 @@ public class Board
 
     public bool IsShipPlacementValid(Ship ship)
     {
-        // Verificar si las coordenadas están dentro de los límites del tablero
+
         foreach (var coord in ship.Coordinates)
         {
             if (coord.X < 0 || coord.X >= Size || coord.Y < 0 || coord.Y >= Size)
@@ -29,7 +29,7 @@ public class Board
             }
         }
 
-        // Verificar si las coordenadas están libres (sin barcos)
+
         foreach (var coord in ship.Coordinates)
         {
             if (Grid[coord.X, coord.Y].HasShip)

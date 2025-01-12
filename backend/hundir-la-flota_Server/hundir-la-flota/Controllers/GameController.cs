@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/game")]
-[Authorize] // Solo usuarios autenticados pueden acceder a estos endpoints
+[Authorize]
 public class GameController : ControllerBase
 {
     private readonly IGameService _gameService;
