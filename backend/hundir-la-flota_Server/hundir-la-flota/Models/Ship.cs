@@ -5,7 +5,7 @@
         public string Name { get; set; }
         public int Size { get; set; }
         public List<Coordinate> Coordinates { get; set; }
-        public bool IsSunk => Coordinates.All(coord => coord.IsHit); // Verificar si todas las celdas están marcadas como golpeadas
+        public bool IsSunk => Coordinates.All(coord => coord.IsHit);
     }
 
     public class Coordinate
