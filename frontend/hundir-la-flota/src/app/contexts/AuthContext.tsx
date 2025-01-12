@@ -1,8 +1,10 @@
 "use client";
 import { createContext, useContext, useState } from "react";
+import { toast } from "react-toastify";
 
 type AuthContextType = {
   auth: { token: string | null };
+  userDetail: { avatarUrl: string; nickname: string; mail: string } | null;
   iniciarSesion: (
     nicknameMail: string,
     password: string,
@@ -16,6 +18,7 @@ type AuthContextType = {
     avatarUrl: string
   ) => Promise<void>;
   cerrarSesion: () => void;
+  obtenerUserDetail: () => Promise<void>;
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   isAuthenticated: boolean;
   rol: string;
@@ -28,7 +31,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     token:
       sessionStorage.getItem("token") || localStorage.getItem("token") || null,
   });
+
+  const [userDetail, setUserDetail] = useState<{
+    avatarUrl: string;
+    nickname: string;
+    mail: string;
+  } | null>(null);
+
   const [isAuthenticated, setAuthenticated] = useState(false);
+
   const [rol, setRol] = useState<string>(() => {
     try {
       const payload = JSON.parse(atob(auth?.token?.split(".")[1] || ""));
@@ -50,26 +61,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     mantenerSesion: boolean
   ) => {
     try {
-      console.log("Attempting login with:", { nicknameMail, password });
-
       const response = await fetch(`https://localhost:7162/api/Users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ nicknameMail, password }), // Campos correctos
+        body: JSON.stringify({ nicknameMail, password }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error in login response:", errorText);
-        throw new Error("Credenciales incorrectas o error de servidor");
+        toast.error("Credenciales incorrectas o error de servidor");
+      } else {
+        toast.success("Se ha autenticado de forma exitosa.");
       }
 
       const { token } = await response.json();
 
       if (token) {
-        console.log("Login successful, token:", token);
         setAuth({ token });
         const decoded = JSON.parse(atob(token.split(".")[1]));
         const roleDecoded =
@@ -83,6 +91,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           sessionStorage.setItem("token", token);
         }
+
+        await obtenerUserDetail();
       } else {
         throw new Error("Token no recibido del servidor");
       }
@@ -121,15 +131,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("Error al registrar usuario");
       }
 
-      console.log("Usuario registrado correctamente");
+      toast.success("Usuario registrado correctamente");
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
+      toast.error(`Error al registrar usuario:, ${error}`);
+      throw error;
+    }
+  };
+
+  const obtenerUserDetail = async () => {
+    try {
+      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al obtener los detalles del usuario");
+      }
+
+      const data = await response.json();
+      setUserDetail(data);
+    } catch (error) {
+      toast.error(`Error al obtener detalles del usuario: ${error}`);
+      setUserDetail(null);
       throw error;
     }
   };
 
   const cerrarSesion = () => {
     setAuth({ token: null });
+    setUserDetail(null);
     sessionStorage.removeItem("token");
     localStorage.removeItem("token");
   };
@@ -138,9 +171,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider
       value={{
         auth,
+        userDetail,
         iniciarSesion,
         registrarUsuario,
         cerrarSesion,
+        obtenerUserDetail,
         setAuthenticated,
         isAuthenticated,
         rol,

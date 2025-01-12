@@ -88,7 +88,32 @@ namespace hundir_la_flota.Controllers
             return Ok(users);
         }
 
+        [HttpGet("detail")]
+        public async Task<IActionResult> GetUserDetail()
+        {
+            var userIdString = _authService.GetUserIdFromToken(Request.Headers["Authorization"]);
 
+            if (string.IsNullOrEmpty(userIdString))
+                return Unauthorized("Invalid or missing token");
+
+            if (!int.TryParse(userIdString, out var userId))
+                return BadRequest("Invalid user ID in token");
+
+            var user = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new
+                {
+                    u.Nickname,
+                    u.Email,
+                    u.AvatarUrl
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                return NotFound("User not found");
+
+            return Ok(user);
+        }
 
     }
 }

@@ -22,6 +22,32 @@ public class AuthService
         return BCrypt.Net.BCrypt.Verify(password, passwordHash);
     }
 
+    public string? GetUserIdFromToken(string authorizationHeader)
+    {
+        if (string.IsNullOrWhiteSpace(authorizationHeader))
+            return null;
+
+        try
+        {
+            var token = authorizationHeader.Replace("Bearer ", string.Empty);
+            var handler = new JwtSecurityTokenHandler();
+
+            if (!handler.CanReadToken(token))
+                return null;
+
+            var jwtToken = handler.ReadToken(token) as JwtSecurityToken;
+
+            var userIdClaim = jwtToken?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+
+            return userIdClaim?.Value;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decoding token: {ex.Message}");
+            return null;
+        }
+    }
+
     public string GenerateJwtToken(User user)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
