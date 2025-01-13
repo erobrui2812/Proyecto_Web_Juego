@@ -1,5 +1,9 @@
 ﻿using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 public interface IGameService
 {
@@ -8,6 +12,8 @@ public interface IGameService
     Task<ServiceResponse<string>> JoinGameAsync(Guid gameId, int playerId);
     Task<ServiceResponse<string>> PlaceShipsAsync(Guid gameId, int playerId, List<Ship> ships);
     Task<ServiceResponse<string>> AttackAsync(Guid gameId, int playerId, int x, int y);
+    Task<ServiceResponse<Game>> FindRandomOpponentAsync(string userId);
+    Task<ServiceResponse<Game>> CreateBotGameAsync(string userId);
 }
 
 public class GameService : IGameService
@@ -56,7 +62,6 @@ public class GameService : IGameService
 
         var board = playerId == game.Player1Id ? game.Player1Board : game.Player2Board;
 
-
         foreach (var ship in ships)
         {
             if (!board.IsShipPlacementValid(ship))
@@ -64,7 +69,6 @@ public class GameService : IGameService
                 return new ServiceResponse<string> { Success = false, Message = "Las posiciones de los barcos no son válidas." };
             }
 
-            // Marcar las celdas donde se colocará el barco
             foreach (var coord in ship.Coordinates)
             {
                 board.Grid[coord.X, coord.Y].HasShip = true;
@@ -72,7 +76,6 @@ public class GameService : IGameService
 
             board.Ships.Add(ship);
         }
-
 
         if (game.Player1Board.Ships.Count > 0 && game.Player2Board.Ships.Count > 0)
             game.State = GameState.WaitingForPlayer1Shot;
@@ -121,7 +124,6 @@ public class GameService : IGameService
     }
 
     public async Task<ServiceResponse<Game>> GetGameStateAsync(string userId, Guid gameId)
-
     {
         var game = await _gameRepository.GetByIdAsync(gameId);
 
@@ -131,29 +133,40 @@ public class GameService : IGameService
         return new ServiceResponse<Game> { Success = true, Data = game };
     }
 
-    private bool AreShipsValid(Board board)
+    public async Task<ServiceResponse<Game>> FindRandomOpponentAsync(string userId)
     {
+        var userIdInt = Convert.ToInt32(userId);
 
-        return true;
+        var games = await _gameRepository.GetAllAsync();
+        var availableGame = games.FirstOrDefault(g => g.State == GameState.WaitingForPlayers && g.Player1Id != userIdInt);
+
+        if (availableGame == null)
+        {
+            return new ServiceResponse<Game> { Success = false, Message = "No hay partidas disponibles." };
+        }
+
+        availableGame.Player2Id = userIdInt;
+        availableGame.State = GameState.WaitingForPlayer1Ships;
+
+        await _gameRepository.UpdateAsync(availableGame);
+
+        return new ServiceResponse<Game> { Success = true, Data = availableGame };
     }
 
-    private List<Ship> GenerateShipsForPlayer()
+    public async Task<ServiceResponse<Game>> CreateBotGameAsync(string userId)
     {
-        var ships = new List<Ship>
-    {
-        new Ship { Name = "Barco 4x1", Size = 4, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 3x1", Size = 3, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 3x2", Size = 3, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 2x1", Size = 2, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 2x2", Size = 2, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 2x3", Size = 2, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 1x1", Size = 1, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 1x2", Size = 1, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 1x3", Size = 1, Coordinates = new List<Coordinate>() },
-        new Ship { Name = "Barco 1x4", Size = 1, Coordinates = new List<Coordinate>() },
-    };
+        var userIdInt = Convert.ToInt32(userId);
 
-        return ships;
+        var newGame = new Game
+        {
+            Player1Id = userIdInt,
+            Player2Id = -1, // Representa al bot
+            CurrentPlayerId = userIdInt,
+            State = GameState.WaitingForPlayer1Ships
+        };
+
+        await _gameRepository.AddAsync(newGame);
+
+        return new ServiceResponse<Game> { Success = true, Data = newGame };
     }
-
 }

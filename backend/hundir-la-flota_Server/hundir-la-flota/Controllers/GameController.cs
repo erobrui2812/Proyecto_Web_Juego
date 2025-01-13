@@ -1,6 +1,11 @@
-﻿using hundir_la_flota.Models;
+﻿using hundir_la_flota.Hubs;
+using hundir_la_flota.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/game")]
@@ -8,12 +13,13 @@ using Microsoft.AspNetCore.Mvc;
 public class GameController : ControllerBase
 {
     private readonly IGameService _gameService;
+    private readonly IHubContext<MatchmakingHub> _hubContext;
 
-    public GameController(IGameService gameService)
+    public GameController(IGameService gameService, IHubContext<MatchmakingHub> hubContext)
     {
         _gameService = gameService;
+        _hubContext = hubContext;
     }
-
 
     [HttpPost("create")]
     public async Task<IActionResult> CreateGame()
@@ -42,7 +48,6 @@ public class GameController : ControllerBase
         return Ok(result.Message);
     }
 
-
     [HttpPost("{gameId}/place-ships")]
     public IActionResult PlaceShips(Guid gameId, int playerId, List<Ship> ships)
     {
@@ -55,8 +60,6 @@ public class GameController : ControllerBase
 
         return Ok(result.Message);
     }
-
-
 
     [HttpPost("{gameId}/attack")]
     public IActionResult Attack(Guid gameId, int playerId, int x, int y)
@@ -71,7 +74,6 @@ public class GameController : ControllerBase
         return Ok(result.Message);
     }
 
-
     [HttpGet("{gameId}")]
     public async Task<IActionResult> GetGameState(Guid gameId)
     {
@@ -85,4 +87,75 @@ public class GameController : ControllerBase
 
         return Ok(result.Data);
     }
+
+    [HttpPost("invite")] 
+    public async Task<IActionResult> InviteFriend(string friendId)
+    {
+        var userId = User.FindFirst("id")?.Value;
+
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(friendId))
+        {
+            return BadRequest("Usuario o amigo no válido.");
+        }
+
+        await _hubContext.Clients.User(friendId).SendAsync("ReceiveInvitation", userId);
+        return Ok("Invitación enviada.");
+    }
+
+    [HttpPost("accept-invitation")] 
+    public async Task<IActionResult> AcceptInvitation(string hostId)
+    {
+        var userId = User.FindFirst("id")?.Value;
+
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(hostId))
+        {
+            return BadRequest("Host o usuario no válido.");
+        }
+
+        await _hubContext.Clients.User(hostId).SendAsync("InvitationAccepted", userId);
+        return Ok("Invitación aceptada.");
+    }
+
+    [HttpPost("join-random-match")] 
+    public async Task<IActionResult> JoinRandomMatch()
+    {
+        var userId = User.FindFirst("id")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return BadRequest("Usuario no válido.");
+        }
+
+        var opponent = await _gameService.FindRandomOpponentAsync(userId);
+
+        if (opponent == null)
+        {
+            return Ok("Esperando a un oponente...");
+        }
+
+        await _hubContext.Clients.User(opponent.Data.GameId.ToString()).SendAsync("Matched", userId);
+
+        return Ok(new { OpponentId = opponent.Data.GameId.ToString() });
+    }
+
+    [HttpPost("play-with-bot")]
+    public async Task<IActionResult> PlayWithBot()
+    {
+        var userId = User.FindFirst("id")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return BadRequest("Usuario no válido.");
+        }
+
+        var result = await _gameService.CreateBotGameAsync(userId);
+
+        if (!result.Success)
+        {
+            return BadRequest(result.Message);
+        }
+
+        return Ok(result.Data);
+    }
+
 }

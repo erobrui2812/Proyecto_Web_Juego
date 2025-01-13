@@ -1,10 +1,11 @@
-﻿namespace hundir_la_flota.Repositories;
-using hundir_la_flota.Models;
+﻿using hundir_la_flota.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public interface IGameRepository
 {
-    Task AddAsync(Game game);
+    Task<List<Game>> GetAllAsync();
     Task<Game> GetByIdAsync(Guid gameId);
+    Task AddAsync(Game game);
     Task UpdateAsync(Game game);
 }
-
