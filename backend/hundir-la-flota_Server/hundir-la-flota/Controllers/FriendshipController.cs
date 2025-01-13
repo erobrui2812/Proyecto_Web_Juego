@@ -1,20 +1,26 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
+using hundir_la_flota.Hubs;
 
 [ApiController]
 [Route("api/[controller]")]
 public class FriendshipController : ControllerBase
 {
     private readonly MyDbContext _dbContext;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public FriendshipController(MyDbContext dbContext)
+    public FriendshipController(MyDbContext dbContext, IHubContext<NotificationHub> hubContext)
     {
         _dbContext = dbContext;
+        _hubContext = hubContext;
     }
-
     // 1. Enviar una solicitud de amistad
     [HttpPost("send")]
     public async Task<IActionResult> SendFriendRequest([FromBody] FriendRequestDto request)
@@ -28,8 +34,10 @@ public class FriendshipController : ControllerBase
         if (!string.IsNullOrEmpty(request.Nickname))
         {
             var normalizedNickname = NormalizeString(request.Nickname);
-            friend = await _dbContext.Users
-                .FirstOrDefaultAsync(u => NormalizeString(u.Nickname) == normalizedNickname);
+            // Traemos todos los usuarios y filtramos en memoria
+            friend = _dbContext.Users
+                .AsEnumerable()  // Esto asegura que la normalización se haga en memoria
+                .FirstOrDefault(u => NormalizeString(u.Nickname) == normalizedNickname);
         }
 
         if (friend == null && !string.IsNullOrEmpty(request.Email))
@@ -63,8 +71,14 @@ public class FriendshipController : ControllerBase
 
         _dbContext.Friendships.Add(friendship);
         await _dbContext.SaveChangesAsync();
+
+        // Notificar al usuario amigo sobre la nueva solicitud
+        await _hubContext.Clients.User(friendId.ToString()).SendAsync("ReceiveFriendRequest", userId);
+
         return Ok("Solicitud de amistad enviada.");
     }
+
+
 
     // 2. Aceptar o rechazar una solicitud de amistad
     [HttpPost("respond")]
@@ -89,6 +103,10 @@ public class FriendshipController : ControllerBase
         }
 
         await _dbContext.SaveChangesAsync();
+
+        // Notificar al usuario que envió la solicitud sobre la respuesta
+        await _hubContext.Clients.User(response.SenderId.ToString()).SendAsync("FriendRequestResponse", response.Accept);
+
         return Ok(response.Accept ? "Solicitud de amistad aceptada." : "Solicitud de amistad rechazada.");
     }
 
@@ -105,7 +123,7 @@ public class FriendshipController : ControllerBase
                 FriendId = f.UserId == userId ? f.FriendId : f.UserId,
                 FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
                 AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
-                Status = "Desconectado" //aqui dependera del websocket
+                Status = "Desconectado" //esto dependerá del websocket
             })
             .ToListAsync();
 
@@ -128,6 +146,11 @@ public class FriendshipController : ControllerBase
 
         _dbContext.Friendships.Remove(friendship);
         await _dbContext.SaveChangesAsync();
+
+        // Notificar a ambos usuarios sobre la eliminación de la amistad
+        await _hubContext.Clients.User(friendId.ToString()).SendAsync("FriendRemoved", userId);
+        await _hubContext.Clients.User(userId.ToString()).SendAsync("FriendRemoved", friendId);
+
         return Ok("Amigo eliminado.");
     }
 
@@ -159,8 +182,6 @@ public class FriendshipController : ControllerBase
         return Ok(filteredUsers);
     }
 
-
-
     private int GetUserId()
     {
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
@@ -173,7 +194,6 @@ public class FriendshipController : ControllerBase
         Console.WriteLine($"userIdClaim: {userIdClaim.Value}");
         return int.Parse(userIdClaim.Value);
     }
-
 
     private string NormalizeString(string input)
     {
@@ -191,7 +211,6 @@ public class FriendshipController : ControllerBase
         return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower();
     }
 }
-
 
 public class FriendRequestResponseDto
 {

@@ -1,11 +1,11 @@
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.SignalR;
 using hundir_la_flota.Repositories;
-
+using hundir_la_flota.Hubs;
 
 namespace hundir_la_flota
 {
@@ -15,7 +15,7 @@ namespace hundir_la_flota
         {
             var builder = WebApplication.CreateBuilder(args);
 
-
+            
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
 
@@ -27,28 +27,29 @@ namespace hundir_la_flota
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
+            
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<GameSimulation>();
 
-
+            // Configuración de autenticación con JWT
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-               {
-                   options.TokenValidationParameters = new TokenValidationParameters
-                   {
-                       ValidateIssuer = false,
-                       ValidateAudience = false,
-                       ValidateLifetime = true,
-                       IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
-                       ClockSkew = TimeSpan.Zero
-                   };
-               });
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
 
+            // Configuración de Swagger
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Hundir la Flota API", Version = "v1" });
-
 
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
@@ -76,6 +77,7 @@ namespace hundir_la_flota
                 });
             });
 
+            // Configuración de CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowReactApp",
@@ -87,15 +89,19 @@ namespace hundir_la_flota
                     });
             });
 
+          
+            builder.Services.AddSignalR(); 
+
             var app = builder.Build();
 
+           
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
                 dbContext.Database.EnsureCreated();
             }
 
-            // Configure the HTTP request pipeline.
+            
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -106,13 +112,19 @@ namespace hundir_la_flota
 
             app.UseRouting();
 
+          
             app.UseCors("AllowReactApp");
 
+            
             app.UseAuthentication();
-
             app.UseAuthorization();
 
+           
             app.MapControllers();
+
+            // Mapear hubs de SignalR
+            app.MapHub<StatusHub>("/statusHub");
+            app.MapHub<NotificationHub>("/notificationHub");
 
 
             using (var scope = app.Services.CreateScope())
