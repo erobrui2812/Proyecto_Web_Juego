@@ -44,7 +44,23 @@ namespace hundir_la_flota
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
                         ClockSkew = TimeSpan.Zero
                     };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            // Permite pasar el token en las conexiones SignalR
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
+
 
             // Configuración de Swagger
             builder.Services.AddSwaggerGen(c =>
@@ -80,16 +96,16 @@ namespace hundir_la_flota
             // Configuración de CORS
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowReactApp",
-                    builder =>
-                    {
-                        builder.WithOrigins("http://localhost:3000")
-                               .AllowAnyHeader()
-                               .AllowAnyMethod();
-                    });
+                options.AddPolicy("AllowReactApp", builder =>
+                {
+                    builder.AllowAnyOrigin()    // Permite cualquier origen
+                           .AllowAnyHeader()   // Permite cualquier encabezado
+                           .AllowAnyMethod();  // Permite cualquier método (GET, POST, PUT, etc.)
+                });
             });
 
-          
+
+
             builder.Services.AddSignalR(); 
 
             var app = builder.Build();

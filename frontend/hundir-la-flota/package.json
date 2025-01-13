@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@microsoft/signalr": "^8.0.7",
     "lucide-react": "^0.471.0",
     "next": "15.1.4",
     "prop-types": "^15.8.1",
@@ -24,6 +25,7 @@
     "@types/prop-types": "^15.7.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/signalr": "^2.4.3",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "postcss": "^8",

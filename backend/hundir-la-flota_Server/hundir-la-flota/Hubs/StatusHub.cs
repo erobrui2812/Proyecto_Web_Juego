@@ -15,12 +15,23 @@ namespace hundir_la_flota.Hubs
         }
 
         // Cuando un cliente se conecta
-        public override async Task OnConnectedAsync()
+        public override Task OnConnectedAsync()
         {
-            var userId = Context.UserIdentifier;                                      
-            await UpdateUserStatus(int.Parse(userId), "Conectado");
-            await base.OnConnectedAsync();
+            var userId = Context.User?.Identity?.Name; // Usa el nombre del usuario (debe coincidir con tu lógica de autenticación)
+            if (userId != null)
+            {
+                Groups.AddToGroupAsync(Context.ConnectionId, userId);
+            }
+            return base.OnConnectedAsync();
         }
+
+
+        //public override async Task OnMatchAsync()
+        //{
+        //    var userId = Context.UserIdentifier;
+        //    await UpdateUserStatus(int.Parse(userId), "Jugando");
+        //    await base.OnMatchAsync();
+        //}
 
         // Cuando un cliente se desconecta
         public override async Task OnDisconnectedAsync(Exception exception)
