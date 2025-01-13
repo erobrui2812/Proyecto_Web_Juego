@@ -1,17 +1,24 @@
-import React, { createContext, useContext, useEffect } from "react";
-import { HttpTransportType, HubConnectionBuilder, LogLevel } from "@microsoft/signalr"; // Nueva biblioteca
+//implementar metodos faltantes
+//websocket pausado por ahora
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { HttpTransportType, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-//implementar metodos faltantes
-//crear array de amigos como objeto(id, nombre,mail,urlAvatar)
-//websocket pausado por ahora
-
 // Tipos
+type Friend = {
+  id: string;
+  nickname: string;
+  email: string;
+  urlAvatar: string;
+};
+
 type FriendshipContextType = {
+  friends: Friend[];
   sendFriendRequest: (friendId: string) => void;
   acceptFriendRequest: (friendId: string) => void;
   declineFriendRequest: (friendId: string) => void;
+  removeFriend: (friendId: string) => void;
 };
 
 // Contexto
@@ -56,12 +63,11 @@ const FriendRequestNotification = () => {
   useEffect(() => {
     const connection = new HubConnectionBuilder()
       .withUrl("https://localhost:7162/notificationHub", {
-        skipNegotiation: true, // Desactiva la negociación para WebSockets si SignalR lo permite
-        transport: HttpTransportType.WebSockets, // Fuerza el uso de WebSocket
+        skipNegotiation: true,
+        transport: HttpTransportType.WebSockets,
       })
       .configureLogging(LogLevel.Information)
       .build();
-
 
     // Métodos del servidor
     connection.on("ReceiveFriendRequest", (senderId: string) => {
@@ -86,7 +92,6 @@ const FriendRequestNotification = () => {
       toast.info(`Amigo eliminado: ${friendId}`);
     });
 
-    // Iniciar conexión
     connection
       .start()
       .then(() => console.log("Conexión establecida con SignalR"))
@@ -97,28 +102,41 @@ const FriendRequestNotification = () => {
     };
   }, []);
 
-  return null; // Este componente no renderiza nada
+  return null;
 };
 
 // Proveedor de contexto
 export const FriendshipProvider = ({ children }: { children: React.ReactNode }) => {
+  // Estado para manejar amigos
+  const [friends, setFriends] = useState<Friend[]>([
+    { id: "1", nickname: "amigo1", email: "amigo1@mail.com", urlAvatar: "https://i.pravatar.cc/30?img=1" },
+    { id: "2", nickname: "amigo2", email: "amigo2@mail.com", urlAvatar: "https://i.pravatar.cc/30?img=2" },
+    { id: "3", nickname: "amigo3", email: "amigo3@mail.com", urlAvatar: "https://i.pravatar.cc/30?img=3" },
+  ]);
+
+  // Funciones para manejar la amistad
   const sendFriendRequest = (friendId: string) => {
     console.log(`Enviando solicitud de amistad a: ${friendId}`);
-    // Llama a tu endpoint o lógica para enviar solicitudes
+    // Aquí iría tu lógica para enviar solicitudes
   };
 
   const acceptFriendRequest = (friendId: string) => {
     console.log(`Aceptando solicitud de amistad de: ${friendId}`);
-    // Llama a tu endpoint o lógica para aceptar solicitudes
+    // Aquí iría tu lógica para aceptar solicitudes
   };
 
   const declineFriendRequest = (friendId: string) => {
     console.log(`Rechazando solicitud de amistad de: ${friendId}`);
-    // Llama a tu endpoint o lógica para rechazar solicitudes
+    // Aquí iría tu lógica para rechazar solicitudes
+  };
+
+  const removeFriend = (friendId: string) => {
+    console.log(`Eliminando amigo con id: ${friendId}`);
+    setFriends((prevFriends) => prevFriends.filter((friend) => friend.id !== friendId));
   };
 
   return (
-    <FriendshipContext.Provider value={{ sendFriendRequest, acceptFriendRequest, declineFriendRequest }}>
+    <FriendshipContext.Provider value={{ friends, sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend }}>
       <FriendRequestNotification />
       {children}
     </FriendshipContext.Provider>
