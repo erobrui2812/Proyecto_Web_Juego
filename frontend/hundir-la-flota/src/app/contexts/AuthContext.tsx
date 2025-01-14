@@ -81,31 +81,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!response.ok) {
         toast.error("Credenciales incorrectas o error de servidor");
-      } else {
-        toast.success("Se ha autenticado de forma exitosa.");
+        return;
       }
 
       const { token } = await response.json();
+      setAuth({ token });
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      const roleDecoded =
+        decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+      setRol(roleDecoded);
 
-      if (token) {
-        setAuth({ token });
-        const decoded = JSON.parse(atob(token.split(".")[1]));
-        const roleDecoded =
-          decoded[
-            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-          ];
-        setRol(roleDecoded);
-
-        if (mantenerSesion) {
-          localStorage.setItem("token", token);
-        } else {
-          sessionStorage.setItem("token", token);
-        }
-
-        await obtenerUserDetail();
+      if (mantenerSesion) {
+        localStorage.setItem("token", token);
       } else {
-        throw new Error("Token no recibido del servidor");
+        sessionStorage.setItem("token", token);
       }
+
+      setAuthenticated(true);
+      await obtenerUserDetail();
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error);
       throw error;
@@ -143,7 +136,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       toast.success("Usuario registrado correctamente");
     } catch (error) {
-      toast.error(`Error al registrar usuario:, ${error}`);
+      toast.error(`Error al registrar usuario: ${error}`);
       throw error;
     }
   };
@@ -174,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUserDetail(null);
     sessionStorage.removeItem("token");
     localStorage.removeItem("token");
+    setAuthenticated(false);
   };
 
   return (

@@ -210,6 +210,15 @@ public class FriendshipController : ControllerBase
 
         return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower();
     }
+
+    [HttpPost("test-notification")]
+    public async Task<IActionResult> TestNotification([FromBody] int friendId)
+    {
+        Console.WriteLine($"Enviando notificación a: {friendId}");
+        await _hubContext.Clients.User(friendId.ToString()).SendAsync("ReceiveFriendRequest", "TestSender");
+        return Ok("Notificación enviada");
+    }
+
 }
 
 public class FriendRequestResponseDto

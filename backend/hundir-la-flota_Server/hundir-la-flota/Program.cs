@@ -15,7 +15,7 @@ namespace hundir_la_flota
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            
+
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
 
@@ -27,7 +27,7 @@ namespace hundir_la_flota
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
-            
+
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<GameSimulation>();
@@ -98,26 +98,28 @@ namespace hundir_la_flota
             {
                 options.AddPolicy("AllowReactApp", builder =>
                 {
-                    builder.AllowAnyOrigin()    // Permite cualquier origen
-                           .AllowAnyHeader()   // Permite cualquier encabezado
-                           .AllowAnyMethod();  // Permite cualquier método (GET, POST, PUT, etc.)
+                    builder.WithOrigins("http://localhost:3000") // Especifica el origen permitido
+                           .AllowAnyHeader()                   // Permite cualquier encabezado
+                           .AllowAnyMethod()                   // Permite cualquier método HTTP
+                           .AllowCredentials();                // Permite credenciales (cookies o tokens)
                 });
             });
 
 
 
-            builder.Services.AddSignalR(); 
+
+            builder.Services.AddSignalR();
 
             var app = builder.Build();
 
-           
+
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
                 dbContext.Database.EnsureCreated();
             }
 
-            
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -128,14 +130,14 @@ namespace hundir_la_flota
 
             app.UseRouting();
 
-          
+
             app.UseCors("AllowReactApp");
 
-            
+
             app.UseAuthentication();
             app.UseAuthorization();
 
-           
+
             app.MapControllers();
 
             // Mapear hubs de SignalR
@@ -146,7 +148,7 @@ namespace hundir_la_flota
             using (var scope = app.Services.CreateScope())
             {
                 var simulation = scope.ServiceProvider.GetRequiredService<GameSimulation>();
-                await simulation.RunSimulationAsync();  // Ejecutar la simulación
+                // await simulation.RunSimulationAsync();  // Ejecutar la simulación
             }
 
             app.Run();
