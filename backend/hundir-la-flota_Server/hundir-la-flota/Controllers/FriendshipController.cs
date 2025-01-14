@@ -108,7 +108,7 @@ public class FriendshipController : ControllerBase
         await _hubContext.Clients.User(response.SenderId.ToString())
             .SendAsync("FriendRequestResponse", response.Accept);
 
-        // Devuelve siempre un objeto JSON
+        
         return Ok(new
         {
             success = true,
@@ -117,6 +117,7 @@ public class FriendshipController : ControllerBase
                 : "Solicitud de amistad rechazada."
         });
     }
+
     // 3. Obtener la lista de amigos
     [HttpGet("list")]
     public async Task<IActionResult> GetFriends()
@@ -129,6 +130,7 @@ public class FriendshipController : ControllerBase
             {
                 FriendId = f.UserId == userId ? f.FriendId : f.UserId,
                 FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
+                FriendMail = f.UserId == userId ? f.Friend.Email : f.User.Email,
                 AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
                 Status = "Desconectado" //esto dependerá del websocket
             })
@@ -224,6 +226,17 @@ public class FriendshipController : ControllerBase
         Console.WriteLine($"Enviando notificación a: {friendId}");
         await _hubContext.Clients.User(friendId.ToString()).SendAsync("ReceiveFriendRequest", "TestSender");
         return Ok("Notificación enviada");
+    }
+
+    [HttpGet("get-nickname/{userId}")]
+    public async Task<IActionResult> GetNickname(int userId)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+
+        if (user == null)
+            return NotFound(new { success = false, message = "Usuario no encontrado." });
+
+        return Ok(new { success = true, nickname = user.Nickname });
     }
 
 }

@@ -22,7 +22,7 @@ const Header = () => {
       <nav className="w-1/3 flex justify-center space-x-6 text-lg">
         <Link href="/" className="hover:text-secondary">Inicio</Link>
         <Link href="/juego" className="hover:text-secondary">Juego</Link>
-        <Link href="/amigos" className="hover:text-secondary">Amigos</Link>
+        <Link href="/menu" className="hover:text-secondary">Menú</Link>
       </nav>
 
       <div className="w-1/3 flex justify-center items-center space-x-4">

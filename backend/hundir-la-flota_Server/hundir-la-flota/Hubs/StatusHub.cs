@@ -17,7 +17,7 @@ namespace hundir_la_flota.Hubs
         // Cuando un cliente se conecta
         public override Task OnConnectedAsync()
         {
-            var userId = Context.User?.Identity?.Name; // Usa el nombre del usuario (debe coincidir con tu lógica de autenticación)
+            var userId = Context.User?.Identity?.Name;
             if (userId != null)
             {
                 Groups.AddToGroupAsync(Context.ConnectionId, userId);
