@@ -29,7 +29,7 @@ const Header = () => {
         {auth.isAuthenticated ? (
           <div className="flex items-center space-x-2">
             <Image
-              src={auth.userDetail?.avatarUrl || '/default-avatar.png'} // Usar una imagen predeterminada si es undefined
+              src={auth.userDetail?.avatarUrl || '/user-no-photo.svg'} // Usar una imagen predeterminada si es undefined
               alt="Perfil"
               width={30}
               height={30}

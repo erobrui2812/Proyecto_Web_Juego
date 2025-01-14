@@ -1,5 +1,5 @@
-//implementar metodos faltantes
-//websocket pausado por ahora
+"use client";
+// Importaciones
 import {
   HubConnection,
   HubConnectionBuilder,
@@ -21,8 +21,7 @@ type Friend = {
 type FriendshipContextType = {
   friends: Friend[];
   sendFriendRequest: (friendId: string) => void;
-  acceptFriendRequest: (friendId: string) => void;
-  declineFriendRequest: (friendId: string) => void;
+  respondToFriendRequest: (friendId: string, accepted: boolean, token: any) => void;
   removeFriend: (friendId: string) => void;
 };
 
@@ -50,7 +49,7 @@ const showFriendRequestToast = (
         <button
           onClick={() => {
             onAccept();
-            toast.dismiss(); // Cierra el toast
+            toast.dismiss();
           }}
           style={{
             backgroundColor: "green",
@@ -65,7 +64,7 @@ const showFriendRequestToast = (
         <button
           onClick={() => {
             onDecline();
-            toast.dismiss(); // Cierra el toast
+            toast.dismiss();
           }}
           style={{
             backgroundColor: "red",
@@ -88,8 +87,8 @@ const showFriendRequestToast = (
 };
 
 // Componente de notificaciones
-const FriendRequestNotification = () => {
-  const { isAuthenticated } = useAuth();
+const FriendRequestNotification: React.FC = () => {
+  const { isAuthenticated, auth } = useAuth();
   const [connection, setConnection] = useState<HubConnection | null>(null);
 
   useEffect(() => {
@@ -98,37 +97,25 @@ const FriendRequestNotification = () => {
       return;
     }
 
-    // Configurar la conexión de SignalR
     const newConnection = new HubConnectionBuilder()
       .withUrl("https://localhost:7162/notificationHub", {
-        accessTokenFactory: () => {
-          const token = sessionStorage.getItem("token");
-          if (!token) {
-            console.error("No se encontró un token en sessionStorage.");
-            return ""; // Retorna una cadena vacía si el token no está presente
-          }
-          return token;
-        },
+        accessTokenFactory: () => auth?.token || "",
       })
       .configureLogging(LogLevel.Information)
       .build();
-    (window as any).connection = newConnection;
 
-    // Métodos del servidor
+    setConnection(newConnection);
+
     newConnection.on("ReceiveFriendRequest", (senderId: string) => {
       showFriendRequestToast(
         senderId,
         () => {
-          console.log(`Solicitud aceptada de: ${senderId}`);
-          newConnection
-            .invoke("AcceptFriendRequest", senderId)
-            .catch((err) => console.error(err));
+          //console.log(`Solicitud aceptada de: ${senderId}`);
+          respondToFriendRequest(senderId, true, auth?.token); // Pasar el token
         },
         () => {
-          console.log(`Solicitud rechazada de: ${senderId}`);
-          newConnection
-            .invoke("DeclineFriendRequest", senderId)
-            .catch((err) => console.error(err));
+          //console.log(`Solicitud rechazada de: ${senderId}`);
+          respondToFriendRequest(senderId, false, auth?.token); // Pasar el token
         }
       );
     });
@@ -145,93 +132,105 @@ const FriendRequestNotification = () => {
       toast.info(`Amigo eliminado: ${friendId}`);
     });
 
-    // Iniciar la conexión
     newConnection
       .start()
       .then(() => console.log("Conexión establecida con SignalR"))
-      .catch((err) => console.error("Error de conexión: ", err));
+      .catch((err) => console.error("Error al iniciar la conexión SignalR:", err));
 
-    // Detener la conexión al desmontar el componente
     return () => {
       newConnection.stop().then(() => console.log("Conexión cerrada."));
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, auth?.token]);
 
-  // Proveedor de contexto
-  export const FriendshipProvider = ({
-    children,
-  }: {
-    children: React.ReactNode;
-  }) => {
-    // Estado para manejar amigos
-    const [friends, setFriends] = useState<Friend[]>([
-      {
-        id: "1",
-        nickname: "amigo1",
-        email: "amigo1@mail.com",
-        urlAvatar: "https://i.pravatar.cc/30?img=1",
+  return null;
+};
+
+const respondToFriendRequest = async (
+  friendId: string,
+  accepted: boolean,
+  token: string | null
+) => {
+  if (!token) {
+    console.error("El token de autenticación no está definido.");
+    return;
+  }
+
+  // console.log(
+  //   `${accepted ? "Aceptando" : "Rechazando"} solicitud de amistad de: ${friendId}`
+  // );
+
+  try {
+    const response = await fetch("https://localhost:7162/api/Friendship/respond", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      {
-        id: "2",
-        nickname: "amigo2",
-        email: "amigo2@mail.com",
-        urlAvatar: "https://i.pravatar.cc/30?img=2",
-      },
-      {
-        id: "3",
-        nickname: "amigo3",
-        email: "amigo3@mail.com",
-        urlAvatar: "https://i.pravatar.cc/30?img=3",
-      },
-    ]);
+      body: JSON.stringify({
+        senderId: friendId,
+        accept: accepted,
+      }),
+    });
 
-    // Funciones para manejar la amistad
-    const sendFriendRequest = (friendId: string) => {
-      console.log(`Enviando solicitud de amistad a: ${friendId}`);
-      // Aquí iría tu lógica para enviar solicitudes
-    };
+    if (!response.ok) {
+      const errorDetails = await response.text();
+      console.error(`Error en la respuesta: ${response.statusText}, Detalles: ${errorDetails}`);
+      throw new Error(`Error en la respuesta: ${response.statusText}`);
+    }
 
-    const acceptFriendRequest = (friendId: string) => {
-      console.log(`Aceptando solicitud de amistad de: ${friendId}`);
-      // Aquí iría tu lógica para aceptar solicitudes
-    };
+    const result = await response.json();
+    //console.log("Respuesta del servidor:", result);
 
-    const declineFriendRequest = (friendId: string) => {
-      console.log(`Rechazando solicitud de amistad de: ${friendId}`);
-      // Aquí iría tu lógica para rechazar solicitudes
-    };
+    if (accepted) {
+      //console.log(`Amistad aceptada con: ${friendId}`);
+    } else {
+      //console.log(`Solicitud de amistad rechazada para: ${friendId}`);
+    }
+  } catch (error) {
+    console.error("Error al responder a la solicitud de amistad:", error);
+  }
+};
 
-    const removeFriend = (friendId: string) => {
-      console.log(`Eliminando amigo con id: ${friendId}`);
-      setFriends((prevFriends) =>
-        prevFriends.filter((friend) => friend.id !== friendId)
-      );
-    };
+// Proveedor de contexto
+export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [friends, setFriends] = useState<Friend[]>([]);
 
-    return (
-      <FriendshipContext.Provider
-        value={{
-          friends,
-          sendFriendRequest,
-          acceptFriendRequest,
-          declineFriendRequest,
-          removeFriend,
-        }}
-      >
-        <FriendRequestNotification />
-        {children}
-      </FriendshipContext.Provider>
+  const sendFriendRequest = (friendId: string) => {
+    //console.log(`Enviando solicitud de amistad a: ${friendId}`);
+    // Lógica para enviar solicitud
+  };
+
+  const removeFriend = (friendId: string) => {
+    //console.log(`Eliminando amigo con id: ${friendId}`);
+    setFriends((prevFriends) =>
+      prevFriends.filter((friend) => friend.id !== friendId)
     );
   };
 
-  // Hook para usar el contexto
-  export const useFriendship = (): FriendshipContextType => {
-    const context = useContext(FriendshipContext);
-    if (!context) {
-      throw new Error(
-        "useFriendship debe ser usado dentro de un FriendshipProvider"
-      );
-    }
-    return context;
-  };
+  return (
+    <FriendshipContext.Provider
+      value={{
+        friends,
+        sendFriendRequest,
+        respondToFriendRequest,
+        removeFriend,
+      }}
+    >
+      <FriendRequestNotification />
+      {children}
+    </FriendshipContext.Provider>
+  );
+};
+
+// Hook para usar el contexto
+export const useFriendship = (): FriendshipContextType => {
+  const context = useContext(FriendshipContext);
+  if (!context) {
+    throw new Error(
+      "useFriendship debe ser usado dentro de un FriendshipProvider"
+    );
+  }
+  return context;
 };

@@ -90,7 +90,7 @@ public class FriendshipController : ControllerBase
             .FirstOrDefaultAsync(f => f.UserId == response.SenderId && f.FriendId == userId && !f.IsConfirmed);
 
         if (friendship == null)
-            return NotFound("Solicitud de amistad no encontrada.");
+            return NotFound(new { success = false, message = "Solicitud de amistad no encontrada." });
 
         if (response.Accept)
         {
@@ -105,11 +105,18 @@ public class FriendshipController : ControllerBase
         await _dbContext.SaveChangesAsync();
 
         // Notificar al usuario que envió la solicitud sobre la respuesta
-        await _hubContext.Clients.User(response.SenderId.ToString()).SendAsync("FriendRequestResponse", response.Accept);
+        await _hubContext.Clients.User(response.SenderId.ToString())
+            .SendAsync("FriendRequestResponse", response.Accept);
 
-        return Ok(response.Accept ? "Solicitud de amistad aceptada." : "Solicitud de amistad rechazada.");
+        // Devuelve siempre un objeto JSON
+        return Ok(new
+        {
+            success = true,
+            message = response.Accept
+                ? "Solicitud de amistad aceptada."
+                : "Solicitud de amistad rechazada."
+        });
     }
-
     // 3. Obtener la lista de amigos
     [HttpGet("list")]
     public async Task<IActionResult> GetFriends()
