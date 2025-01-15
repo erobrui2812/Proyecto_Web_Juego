@@ -3,9 +3,10 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using hundir_la_flota.Websocket;
 using Microsoft.AspNetCore.SignalR;
 using hundir_la_flota.Repositories;
-using hundir_la_flota.Hubs;
+
 
 namespace hundir_la_flota
 {
@@ -98,17 +99,16 @@ namespace hundir_la_flota
             {
                 options.AddPolicy("AllowReactApp", builder =>
                 {
-                    builder.WithOrigins("http://localhost:3000") // Especifica el origen permitido
-                           .AllowAnyHeader()                   // Permite cualquier encabezado
-                           .AllowAnyMethod()                   // Permite cualquier método HTTP
-                           .AllowCredentials();                // Permite credenciales (cookies o tokens)
+                    builder.WithOrigins("http://localhost:3000") 
+                           .AllowAnyHeader()                   
+                           .AllowAnyMethod()                   
+                           .AllowCredentials();                
                 });
             });
 
 
 
 
-            builder.Services.AddSignalR();
 
             var app = builder.Build();
 
@@ -133,6 +133,9 @@ namespace hundir_la_flota
 
             app.UseCors("AllowReactApp");
 
+            app.UseWebSockets();
+            app.UseMiddleware<WebSocketMiddleware>();
+
 
             app.UseAuthentication();
             app.UseAuthorization();
@@ -140,15 +143,11 @@ namespace hundir_la_flota
 
             app.MapControllers();
 
-            // Mapear hubs de SignalR
-            app.MapHub<StatusHub>("/statusHub");
-            app.MapHub<NotificationHub>("/notificationHub");
-
 
             using (var scope = app.Services.CreateScope())
             {
                 var simulation = scope.ServiceProvider.GetRequiredService<GameSimulation>();
-                // await simulation.RunSimulationAsync();  // Ejecutar la simulación
+                await simulation.RunSimulationAsync();  // Ejecutar la simulación
             }
 
             app.Run();
