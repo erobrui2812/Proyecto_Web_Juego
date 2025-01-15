@@ -22,9 +22,9 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="bg-primary text-foreground px-4 py-2 rounded shadow"
+      className="bg-primary border text-lg px-4 py-2 rounded shadow hover:scale-105 hover:shadow-lg transition-all duration-200"
     >
-        {theme === "dark" ? <Sun /> : <Eclipse />}
+      {theme === "dark" ? <Sun /> : <Eclipse />}
     </button>
   );
 };

@@ -36,16 +36,12 @@ const Header = () => {
               className="rounded-full"
             />
 
-            <button onClick={auth.cerrarSesion} type="button">
-            Cerrar sesión
-            </button>
-
             <span className="text-lg">{auth.userDetail?.nickname}</span>
           </div>
         ) : (
           <a href="/login">
             <button
-              className="bg-secondary px-4 py-2 rounded"
+              className="bg-primary px-4 py-2 rounded border shadow hover:scale-105 hover:shadow-lg transition-all duration-200"
             >
               Iniciar Sesión
             </button>

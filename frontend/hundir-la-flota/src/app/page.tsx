@@ -12,7 +12,7 @@ const Home: React.FC = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
       <header className="text-3xl font-bold mb-6">Hundir la Flota</header>
 
-      <section className="w-full max-w-2xl p-4 bg-white shadow-lg rounded-md">
+      <section className="w-full max-w-2xl p-4 bg-white shadow-lg rounded-md hover:scale-105 hover:shadow-lg transition-all duration-200">
         <h2 className="text-xl font-semibold mb-4">Instrucciones</h2>
         <p className="mb-4">
           Bienvenido al juego Hundir la Flota. El objetivo del juego es hundir
