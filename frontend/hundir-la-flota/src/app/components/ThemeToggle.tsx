@@ -7,15 +7,7 @@ const ThemeToggle = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const preferredTheme = window.matchMedia("(prefers-color-scheme: light)")
-      .matches
-      ? "dark"
-      : "light";
-    setTheme(preferredTheme);
-    document.documentElement.classList.toggle(
-      "dark",
-      preferredTheme === "light"
-    );
+    document.documentElement.classList.remove("dark");
   }, []);
 
   const toggleTheme = () => {

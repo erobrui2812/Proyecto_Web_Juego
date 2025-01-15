@@ -15,9 +15,11 @@ type Friend = {
 
 type FriendshipContextType = {
   friends: Friend[];
+  searchResults: Friend[];
   sendFriendRequest: (friendId: string) => void;
   respondToFriendRequest: (friendId: string, accepted: boolean) => void;
   removeFriend: (friendId: string) => void;
+  searchUsers: (query: string) => void;
 };
 
 const FriendshipContext = createContext<FriendshipContextType | undefined>(
@@ -25,20 +27,14 @@ const FriendshipContext = createContext<FriendshipContextType | undefined>(
 );
 
 const FriendRequestNotification: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { auth } = useAuth();
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      console.error("No se encontró un token en sessionStorage");
-      return;
-    }
+    if (!auth?.token) return;
 
     const newSocket = new WebSocket(
-      `wss://localhost:7162/ws/connect?token=${token}`
+      `wss://localhost:7162/ws/connect?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
@@ -79,7 +75,7 @@ const FriendRequestNotification: React.FC = () => {
     return () => {
       newSocket.close();
     };
-  }, [isAuthenticated]);
+  }, [auth?.token]);
 
   const handleFriendRequest = async (senderId: string) => {
     const nickname = await userIdANickname(senderId);
@@ -129,6 +125,37 @@ const FriendRequestNotification: React.FC = () => {
     );
   };
 
+  const respondToFriendRequest = async (friendId: string, accepted: boolean) => {
+    if (!auth?.token) return;
+
+    try {
+      const response = await fetch(
+        "http://localhost:7162/api/Friendship/respond",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify({
+            senderId: friendId,
+            accept: accepted,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+      toast.success(
+        accepted
+          ? "Solicitud de amistad aceptada."
+          : "Solicitud de amistad rechazada."
+      );
+    } catch (error) {
+      console.error("Error al responder a la solicitud de amistad:", error);
+    }
+  };
+
+
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";
     toast.info(
@@ -146,36 +173,16 @@ const FriendRequestNotification: React.FC = () => {
   return null;
 };
 
-const respondToFriendRequest = async (friendId: string, accepted: boolean) => {
-  try {
-    const token = sessionStorage.getItem("authToken");
-    if (!token) return;
-
-    const response = await fetch(
-      "http://localhost:7162/api/Friendship/respond",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          senderId: friendId,
-          accept: accepted,
-        }),
-      }
-    );
-
-    if (!response.ok) throw new Error(`Error: ${response.statusText}`);
-  } catch (error) {
-    console.error("Error al responder a la solicitud de amistad:", error);
-  }
-};
-
 const userIdANickname = async (userId: string): Promise<string> => {
+  const { auth } = useAuth();
+  if (!auth?.token) return "Usuario desconocido";
+
   try {
     const response = await fetch(
-      `http://localhost:7162/api/Friendship/get-nickname/${userId}`
+      `http://localhost:7162/api/Friendship/get-nickname/${userId}`,
+      {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      }
     );
     if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
@@ -191,7 +198,8 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [friends, setFriends] = useState<Friend[]>([]);
-  const { isAuthenticated, auth } = useAuth();
+  const [searchResults, setSearchResults] = useState<Friend[]>([]);
+  const { auth, isAuthenticated } = useAuth();
 
   const fetchFriends = async () => {
     if (!auth?.token) return;
@@ -211,7 +219,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         id: friend.friendId,
         nickname: friend.friendNickname,
         email: friend.friendMail,
-        urlAvatar: friend.avatarUrl,
+        urlAvatar: friend.avatarUrl || "https://via.placeholder.com/150",
         status: friend.status || "Desconocido",
       }));
 
@@ -221,30 +229,85 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const sendFriendRequest = async (friendId: string) => {
-    if (!auth?.token) return;
+  const searchUsers = async (query: string) => {
+    if (!auth?.token || !query) return;
 
     try {
       const response = await fetch(
-        "http://localhost:7162/api/Friendship/send",
+        `http://localhost:7162/api/Friendship/search?nickname=${query}`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.token}`,
-          },
-          body: JSON.stringify({ nickname: friendId }),
+          headers: { Authorization: `Bearer ${auth.token}` },
         }
       );
 
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
       const result = await response.json();
-      toast.success(result.message || "Solicitud enviada");
+      const users = result.map((user: any) => ({
+        id: user.id,
+        nickname: user.nickname,
+        email: "",
+        urlAvatar: user.avatarUrl || "https://via.placeholder.com/150",
+        status: "Desconocido",
+      }));
+
+      setSearchResults(users);
     } catch (error) {
-      console.error("Error al enviar solicitud:", error);
+      console.error("Error al buscar usuarios:", error);
     }
   };
+
+  const sendFriendRequest = async (friendId: string) => {
+    if (!auth?.token) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:7162/api/Friendship/add-${friendId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }
+      );
+
+      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+
+      toast.success("Solicitud de amistad enviada.");
+    } catch (error) {
+      console.error("Error al enviar solicitud de amistad:", error);
+      toast.error("No se pudo enviar la solicitud de amistad.");
+    }
+  };
+
+  const respondToFriendRequest = async (friendId: string, accepted: boolean) => {
+    if (!auth?.token) return;
+  
+    try {
+      const response = await fetch(
+        "http://localhost:7162/api/Friendship/respond",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify({
+            senderId: friendId,
+            accept: accepted,
+          }),
+        }
+      );
+  
+      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+      toast.success(
+        accepted
+          ? "Solicitud de amistad aceptada."
+          : "Solicitud de amistad rechazada."
+      );
+    } catch (error) {
+      console.error("Error al responder a la solicitud de amistad:", error);
+    }
+  };
+  
 
   const removeFriend = async (friendId: string) => {
     if (!auth?.token) return;
@@ -264,10 +327,11 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
-      toast.success("Amigo eliminado");
+      toast.success("Amigo eliminado.");
       setFriends((prev) => prev.filter((f) => f.id !== friendId));
     } catch (error) {
       console.error("Error al eliminar amigo:", error);
+      toast.error("No se pudo eliminar al amigo.");
     }
   };
 
@@ -279,16 +343,18 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     <FriendshipContext.Provider
       value={{
         friends,
+        searchResults,
         sendFriendRequest,
         respondToFriendRequest,
         removeFriend,
+        searchUsers,
       }}
     >
       <FriendRequestNotification />
       {children}
     </FriendshipContext.Provider>
   );
-};
+}
 
 export const useFriendship = (): FriendshipContextType => {
   const context = useContext(FriendshipContext);
