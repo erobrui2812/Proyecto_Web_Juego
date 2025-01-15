@@ -10,7 +10,7 @@ const ThemeToggle = () => {
     const preferredTheme =
       window.matchMedia("(prefers-color-scheme: light)").matches ? "dark" : "light";
     setTheme(preferredTheme);
-    document.documentElement.classList.toggle("dark", preferredTheme === "dark");
+    document.documentElement.classList.toggle("dark", preferredTheme === "light");
   }, []);
 
   const toggleTheme = () => {
