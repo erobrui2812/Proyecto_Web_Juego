@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.IdentityModel.Tokens.Jwt;
 
 [ApiController]
 [Route("ws")]
@@ -10,24 +11,25 @@ public class WebSocketController : ControllerBase
 {
     public static readonly ConcurrentDictionary<string, WebSocket> ConnectedUsers = new();
 
-    private static readonly ConcurrentDictionary<string, string> UserStatuses = new(); 
-
+    private static readonly ConcurrentDictionary<string, string> UserStatuses = new();
     [HttpGet("connect")]
     public async Task Connect()
     {
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            var userId = HttpContext.User?.Identity?.Name; // Obtener el UserId del token de autenticación
+            var token = HttpContext.Request.Query["token"].ToString(); 
+            var userId = ValidateTokenAndGetUserId(token); 
+
             if (string.IsNullOrEmpty(userId))
             {
-                HttpContext.Response.StatusCode = 401;
+                HttpContext.Response.StatusCode = 401; 
                 return;
             }
 
             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
 
             ConnectedUsers[userId] = webSocket;
-            UserStatuses[userId] = "Conectado"; 
+            UserStatuses[userId] = "Conectado";
             await SendUserStatusUpdate(userId, "Conectado");
 
             await HandleWebSocketConnection(userId, webSocket);
@@ -38,9 +40,27 @@ public class WebSocketController : ControllerBase
         }
         else
         {
-            HttpContext.Response.StatusCode = 400; 
+            HttpContext.Response.StatusCode = 400; // Petición incorrecta
         }
     }
+
+    private string ValidateTokenAndGetUserId(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return null;
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            return userId;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 
     private async Task HandleWebSocketConnection(string userId, WebSocket webSocket)
     {

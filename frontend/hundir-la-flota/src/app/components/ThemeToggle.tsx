@@ -1,16 +1,21 @@
 "use client";
 
-import { Sun, Eclipse } from 'lucide-react';
+import { Eclipse, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const ThemeToggle = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const preferredTheme =
-      window.matchMedia("(prefers-color-scheme: light)").matches ? "dark" : "light";
+    const preferredTheme = window.matchMedia("(prefers-color-scheme: light)")
+      .matches
+      ? "dark"
+      : "light";
     setTheme(preferredTheme);
-    document.documentElement.classList.toggle("dark", preferredTheme === "light");
+    document.documentElement.classList.toggle(
+      "dark",
+      preferredTheme === "light"
+    );
   }, []);
 
   const toggleTheme = () => {
