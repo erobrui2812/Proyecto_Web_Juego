@@ -49,7 +49,7 @@ const Home: React.FC = () => {
       {isPlaying && (
         <section className="mt-8 text-center">
           <h2 className="text-xl font-semibold">¡El juego ha comenzado!</h2>
-          <p>Aquí es donde se jugaría el juego de Hundir la Flota.</p>
+          <p>Juego comenzado</p>
         </section>
       )}
     </div>

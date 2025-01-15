@@ -133,7 +133,7 @@ const MenuPage = () => {
       </button>
 
       <Modal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} title="Buscar Usuarios">
-        <p>Aquí irá la lógica para buscar usuarios y enviar solicitudes de amistad.</p>
+        <p>Hola, prueba</p>
       </Modal>
       <Modal isOpen={isRequestsModalOpen} onClose={() => setIsRequestsModalOpen(false)} title="Solicitudes de Amistad">
         <div className="space-y-4">
