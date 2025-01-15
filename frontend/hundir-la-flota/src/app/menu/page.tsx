@@ -1,8 +1,15 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Trash2, Search, LogOut, User } from "lucide-react";
 import { useGlobalContext } from "../contexts/GlobalContext";
-//import Modal from "../components/Modal";
+import Modal from "../components/Modal";
+
+type PendingRequest = {
+  id: string;
+  fromUserId: string;
+  fromUserNickname: string;
+  createdAt: string;
+};
 
 const MenuPage = () => {
   const { friendship, auth } = useGlobalContext();
@@ -11,10 +18,12 @@ const MenuPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
 
+  const token = auth.auth.token;
   const filteredFriends = friends.filter(friend =>
-    friend.nickname.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(
-      searchTerm.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    friend.nickname.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(
+      searchTerm.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     )
   );
 
@@ -23,6 +32,30 @@ const MenuPage = () => {
       removeFriend(friendId);
     }
   };
+
+  const fetchPendingRequests = async () => {
+    try {
+      const response = await fetch("https://localhost:7162/api/friendship/pending", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+
+      const data = await response.json();
+      setPendingRequests(data);
+    } catch (error) {
+      console.error("Error al obtener solicitudes de amistad pendientes:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isRequestsModalOpen) {
+      fetchPendingRequests();
+    }
+  }, [isRequestsModalOpen]);
 
   return (
     <div className="max-w-6xl mx-auto mt-8 space-y-8">
@@ -65,7 +98,6 @@ const MenuPage = () => {
         </button>
       </div>
 
-    
       <div className="space-y-4">
         {filteredFriends.map((friend) => (
           <div key={friend.id} className="flex items-center space-x-4 p-4 border-b">
@@ -86,7 +118,7 @@ const MenuPage = () => {
           </div>
         ))}
       </div>
-      
+
       <div className="flex items-center justify-between p-4 border rounded-md">
         <span>Total de jugadores conectados: 123</span>
         <span>Partidas activas: 45</span>
@@ -100,15 +132,41 @@ const MenuPage = () => {
         Jugar
       </button>
 
-      {/*
-      <Modal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)}>
-        <h2 className="text-lg font-bold">Buscar Usuarios</h2>
+      <Modal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} title="Buscar Usuarios">
         <p>Aquí irá la lógica para buscar usuarios y enviar solicitudes de amistad.</p>
       </Modal>
-      <Modal isOpen={isRequestsModalOpen} onClose={() => setIsRequestsModalOpen(false)}>
-        <h2 className="text-lg font-bold">Solicitudes de Amistad</h2>
-        <p>Aquí irá la lista de solicitudes de amistad con opciones para aceptar o rechazar.</p>
-      </Modal> */}
+      <Modal isOpen={isRequestsModalOpen} onClose={() => setIsRequestsModalOpen(false)} title="Solicitudes de Amistad">
+        <div className="space-y-4">
+          {pendingRequests.map((request) => (
+            <div key={request.id} className="flex items-center justify-between p-4 border rounded-md">
+              <div>
+                <p className="font-semibold">{request.fromUserNickname}</p>
+                <p className="text-sm text-gray-500">Enviado el: {new Date(request.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    respondToFriendRequest(request.fromUserId, true, token);
+                    setPendingRequests((prev) => prev.filter((r) => r.id !== request.id));
+                  }}
+                  className="p-2 bg-green-500 text-white rounded-md"
+                >
+                  Aceptar
+                </button>
+                <button
+                  onClick={() => {
+                    respondToFriendRequest(request.fromUserId, false, token);
+                    setPendingRequests((prev) => prev.filter((r) => r.id !== request.id));
+                  }}
+                  className="p-2 bg-red-500 text-white rounded-md"
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

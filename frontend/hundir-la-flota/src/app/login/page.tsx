@@ -1,8 +1,9 @@
 "use client";
 
-import { Link } from "lucide-react";
+import { Link as LinkIcon } from "lucide-react";
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import Link from "next/link";
 
 
 const LoginForm = () => {
@@ -84,13 +85,13 @@ const LoginForm = () => {
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
             ¿No tienes cuenta?{" "}
-            <a
-              href="/register"
+            <Link
+              href="/registro"
               className="text-indigo-600 hover:text-indigo-700 font-semibold"
             >
-              <Link /> Regístrate
+              <LinkIcon /> Regístrate
               
-            </a>
+            </Link>
           </p>
         </div>
       </div>

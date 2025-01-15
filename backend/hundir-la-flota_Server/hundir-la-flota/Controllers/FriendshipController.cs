@@ -21,6 +21,7 @@ public class FriendshipController : ControllerBase
         _dbContext = dbContext;
         _hubContext = hubContext;
     }
+
     // 1. Enviar una solicitud de amistad
     [HttpPost("send")]
     public async Task<IActionResult> SendFriendRequest([FromBody] FriendRequestDto request)
@@ -34,9 +35,9 @@ public class FriendshipController : ControllerBase
         if (!string.IsNullOrEmpty(request.Nickname))
         {
             var normalizedNickname = NormalizeString(request.Nickname);
-            // Traemos todos los usuarios y filtramos en memoria
+  
             friend = _dbContext.Users
-                .AsEnumerable()  // Esto asegura que la normalización se haga en memoria
+                .AsEnumerable()
                 .FirstOrDefault(u => NormalizeString(u.Nickname) == normalizedNickname);
         }
 
@@ -72,7 +73,6 @@ public class FriendshipController : ControllerBase
         _dbContext.Friendships.Add(friendship);
         await _dbContext.SaveChangesAsync();
 
-        // Notificar al usuario amigo sobre la nueva solicitud
         await _hubContext.Clients.User(friendId.ToString()).SendAsync("ReceiveFriendRequest", userId);
 
         return Ok("Solicitud de amistad enviada.");
@@ -104,7 +104,6 @@ public class FriendshipController : ControllerBase
 
         await _dbContext.SaveChangesAsync();
 
-        // Notificar al usuario que envió la solicitud sobre la respuesta
         await _hubContext.Clients.User(response.SenderId.ToString())
             .SendAsync("FriendRequestResponse", response.Accept);
 
@@ -156,7 +155,6 @@ public class FriendshipController : ControllerBase
         _dbContext.Friendships.Remove(friendship);
         await _dbContext.SaveChangesAsync();
 
-        // Notificar a ambos usuarios sobre la eliminación de la amistad
         await _hubContext.Clients.User(friendId.ToString()).SendAsync("FriendRemoved", userId);
         await _hubContext.Clients.User(userId.ToString()).SendAsync("FriendRemoved", friendId);
 
@@ -189,6 +187,51 @@ public class FriendshipController : ControllerBase
             return NotFound("No se encontraron usuarios con ese nickname.");
 
         return Ok(filteredUsers);
+    }
+
+    //6. Ver tus solicitudes sin aceptar
+    [HttpGet("unaccepted")]
+    public async Task<IActionResult> GetUnacceptedFriendRequests()
+    {
+        var userId = GetUserId();
+
+        var unacceptedRequests = await _dbContext.Friendships
+            .Where(f => f.UserId == userId && !f.IsConfirmed)
+            .Include(f => f.Friend)
+            .ToListAsync();
+
+        if (!unacceptedRequests.Any())
+        {
+            return NotFound("No tienes solicitudes de amistad pendientes de aceptar.");
+        }
+
+        return Ok(unacceptedRequests.Select(f => new 
+        {
+            f.Id,
+            ToUserId = f.FriendId,
+            ToUserNickname = f.Friend.Nickname,
+            CreatedAt = f.CreatedAt
+        }));
+    }
+
+    //7. Ver peticiones sin aceptar
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPendingFriendRequests()
+    {
+        var userId = GetUserId();
+
+        var pendingRequests = await _dbContext.Friendships
+            .Where(f => f.FriendId == userId && !f.IsConfirmed)
+            .Include(f => f.User)
+            .ToListAsync();
+
+        return Ok(pendingRequests.Select(f => new
+        {
+            f.Id,
+            FromUserId = f.UserId,
+            FromUserNickname = f.User.Nickname,
+            CreatedAt = f.CreatedAt
+        }));
     }
 
     private int GetUserId()

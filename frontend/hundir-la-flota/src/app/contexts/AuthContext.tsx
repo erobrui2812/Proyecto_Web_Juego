@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       obtenerUserDetail();
     } else {
       setAuthenticated(false);
-      setUserDetail(null); // Limpiar los detalles si no hay token
+      setUserDetail(null);
     }
   }, [auth.token]);
 
