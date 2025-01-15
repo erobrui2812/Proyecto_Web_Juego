@@ -99,10 +99,10 @@ namespace hundir_la_flota
             {
                 options.AddPolicy("AllowReactApp", builder =>
                 {
-                    builder.WithOrigins("http://localhost:3000") 
-                           .AllowAnyHeader()                   
-                           .AllowAnyMethod()                   
-                           .AllowCredentials();                
+                    builder.AllowAnyOrigin()
+                           .AllowAnyHeader()
+                           .AllowAnyMethod();                   
+                                        
                 });
             });
 
@@ -134,6 +134,7 @@ namespace hundir_la_flota
             app.UseCors("AllowReactApp");
 
             app.UseWebSockets();
+            app.MapControllers();
             app.UseMiddleware<WebSocketMiddleware>();
 
 
