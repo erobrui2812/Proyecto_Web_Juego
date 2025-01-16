@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     mantenerSesion: boolean
   ) => {
     try {
-      const response = await fetch(`http://localhost:7162/api/Users/login`, {
+      const response = await fetch(`https://localhost:7162/api/Users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -117,19 +117,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     avatarUrl: string
   ) => {
     try {
-      const response = await fetch(`http://localhost:7162/api/Users/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nickname,
-          email,
-          password,
-          confirmPassword,
-          avatarUrl,
-        }),
-      });
+      const response = await fetch(
+        `https://localhost:7162/api/Users/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nickname,
+            email,
+            password,
+            confirmPassword,
+            avatarUrl,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Error al registrar usuario.");
@@ -146,7 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!auth.token) return;
 
     try {
-      const response = await fetch(`http://localhost:7162/api/Users/detail`, {
+      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${auth.token}`,

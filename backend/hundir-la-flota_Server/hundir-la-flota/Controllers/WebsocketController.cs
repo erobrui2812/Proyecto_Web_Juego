@@ -12,6 +12,7 @@ public class WebSocketController : ControllerBase
     public static readonly ConcurrentDictionary<string, WebSocket> ConnectedUsers = new();
 
     private static readonly ConcurrentDictionary<string, string> UserStatuses = new();
+
     [HttpGet("connect")]
     public async Task Connect()
     {
@@ -22,6 +23,7 @@ public class WebSocketController : ControllerBase
 
             if (string.IsNullOrEmpty(userId))
             {
+                Console.WriteLine("Token inválido o usuario no identificado.");
                 HttpContext.Response.StatusCode = 401;
                 return;
             }
@@ -32,6 +34,7 @@ public class WebSocketController : ControllerBase
             UserStatuses[userId] = "Conectado";
             await SendUserStatusUpdate(userId, "Conectado");
 
+            Console.WriteLine($"Usuario conectado: {userId}");
             await HandleWebSocketConnection(userId, webSocket);
 
             ConnectedUsers.TryRemove(userId, out _);
@@ -40,30 +43,41 @@ public class WebSocketController : ControllerBase
         }
         else
         {
-            HttpContext.Response.StatusCode = 400; // Petición incorrecta
+            Console.WriteLine("Conexión WebSocket rechazada: no es una solicitud WebSocket.");
+            HttpContext.Response.StatusCode = 400;
         }
     }
 
     private string ValidateTokenAndGetUserId(string token)
     {
         Console.WriteLine($"Validando token: {token}");
-        if (string.IsNullOrEmpty(token)) return null;
+        if (string.IsNullOrEmpty(token))
+        {
+            Console.WriteLine("Token vacío o nulo.");
+            return null;
+        }
 
         try
         {
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
             var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                Console.WriteLine("El token no contiene el 'nameid'.");
+                return null;
+            }
+
             Console.WriteLine($"Token válido. UserID extraído: {userId}");
             return userId;
         }
-        catch
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error al validar el token");
+            Console.WriteLine($"Error al validar el token: {ex.Message}");
             return null;
         }
     }
-
 
     private async Task HandleWebSocketConnection(string userId, WebSocket webSocket)
     {
@@ -71,24 +85,40 @@ public class WebSocketController : ControllerBase
 
         while (webSocket.State == WebSocketState.Open)
         {
-            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            try
+            {
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Connection closed", CancellationToken.None);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    Console.WriteLine($"Conexión cerrada por el usuario: {userId}");
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Conexión cerrada por el cliente", CancellationToken.None);
+                }
+                else
+                {
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    Console.WriteLine($"Mensaje recibido de {userId}: {message}");
+                    await ProcessMessage(userId, message, webSocket);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                await ProcessMessage(userId, message, webSocket);
+                Console.WriteLine($"Error en WebSocket para el usuario {userId}: {ex.Message}");
+                break;
             }
         }
+
+        Console.WriteLine($"Conexión finalizada para el usuario: {userId}");
     }
 
     private async Task ProcessMessage(string userId, string message, WebSocket webSocket)
     {
         var parts = message.Split('|');
-        if (parts.Length < 2) return;
+        if (parts.Length < 2)
+        {
+            Console.WriteLine("Formato de mensaje inválido.");
+            return;
+        }
 
         var action = parts[0];
         var payload = parts[1];
@@ -112,6 +142,7 @@ public class WebSocketController : ControllerBase
                 break;
 
             default:
+                Console.WriteLine($"Acción no reconocida: {action}");
                 await SendMessage(webSocket, "UnknownAction", "Acción no reconocida.");
                 break;
         }
@@ -122,6 +153,11 @@ public class WebSocketController : ControllerBase
         if (ConnectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
         {
             await SendMessage(recipientWebSocket, "FriendRequest", senderId);
+            Console.WriteLine($"Solicitud de amistad enviada de {senderId} a {recipientId}");
+        }
+        else
+        {
+            Console.WriteLine($"El usuario {recipientId} no está conectado.");
         }
     }
 
@@ -136,6 +172,7 @@ public class WebSocketController : ControllerBase
         if (ConnectedUsers.TryGetValue(senderId, out var senderWebSocket))
         {
             await SendMessage(senderWebSocket, "FriendRequestResponse", accepted ? "Accepted" : "Rejected");
+            Console.WriteLine($"Respuesta de amistad de {recipientId} a {senderId}: {(accepted ? "Aceptada" : "Rechazada")}");
         }
     }
 
@@ -144,6 +181,7 @@ public class WebSocketController : ControllerBase
         if (ConnectedUsers.TryGetValue(friendId, out var friendWebSocket))
         {
             await SendMessage(friendWebSocket, "GameInvitation", inviterId);
+            Console.WriteLine($"Invitación de juego enviada de {inviterId} a {friendId}");
         }
     }
 
@@ -151,6 +189,7 @@ public class WebSocketController : ControllerBase
     {
         UserStatuses[userId] = status;
         await SendUserStatusUpdate(userId, status);
+        Console.WriteLine($"Estado actualizado para el usuario {userId}: {status}");
     }
 
     private async Task SendUserStatusUpdate(string userId, string status)
@@ -176,7 +215,7 @@ public class WebSocketController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return BadRequest("Debe proporcionar un userId.");
 
-        if (WebSocketController.ConnectedUsers.TryGetValue(userId, out var webSocket))
+        if (ConnectedUsers.TryGetValue(userId, out var webSocket))
         {
             var message = $"{action}|{payload}";
             var messageBytes = Encoding.UTF8.GetBytes(message);
@@ -188,5 +227,4 @@ public class WebSocketController : ControllerBase
 
         return NotFound($"El usuario {userId} no está conectado.");
     }
-
 }

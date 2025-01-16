@@ -139,7 +139,7 @@ const FriendRequestNotification: React.FC = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:7162/api/Friendship/respond",
+        "https://localhost:7162/api/Friendship/respond",
         {
           method: "POST",
           headers: {
@@ -187,7 +187,7 @@ const userIdANickname = async (userId: string): Promise<string> => {
 
   try {
     const response = await fetch(
-      `http://localhost:7162/api/Friendship/get-nickname/${userId}`,
+      `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
       {
         headers: { Authorization: `Bearer ${auth.token}` },
       }
@@ -218,7 +218,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log("Obteniendo lista de amigos con token:", auth.token);
     try {
       const response = await fetch(
-        "http://localhost:7162/api/Friendship/list",
+        "https://localhost:7162/api/Friendship/list",
         {
           headers: { Authorization: `Bearer ${auth.token}` },
         }
@@ -276,7 +276,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:7162/api/Friendship/add-${friendId}`,
+        `https://localhost:7162/api/Friendship/add-${friendId}`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${auth.token}` },
@@ -300,7 +300,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        "http://localhost:7162/api/Friendship/respond",
+        "https://localhost:7162/api/Friendship/respond",
         {
           method: "POST",
           headers: {
@@ -330,7 +330,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        "http://localhost:7162/api/Friendship/remove",
+        "https://localhost:7162/api/Friendship/remove",
         {
           method: "DELETE",
           headers: {
