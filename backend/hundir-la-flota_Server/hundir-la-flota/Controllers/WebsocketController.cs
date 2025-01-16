@@ -10,7 +10,6 @@ using System.IdentityModel.Tokens.Jwt;
 public class WebSocketController : ControllerBase
 {
     public static readonly ConcurrentDictionary<string, WebSocket> ConnectedUsers = new();
-
     private static readonly ConcurrentDictionary<string, string> UserStatuses = new();
 
     [HttpGet("connect")]
@@ -29,12 +28,12 @@ public class WebSocketController : ControllerBase
             }
 
             using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
             ConnectedUsers[userId] = webSocket;
             UserStatuses[userId] = "Conectado";
             await SendUserStatusUpdate(userId, "Conectado");
 
             Console.WriteLine($"Usuario conectado: {userId}");
+
             await HandleWebSocketConnection(userId, webSocket);
 
             ConnectedUsers.TryRemove(userId, out _);
@@ -50,7 +49,6 @@ public class WebSocketController : ControllerBase
 
     private string ValidateTokenAndGetUserId(string token)
     {
-        Console.WriteLine($"Validando token: {token}");
         if (string.IsNullOrEmpty(token))
         {
             Console.WriteLine("Token vacío o nulo.");
@@ -62,13 +60,11 @@ public class WebSocketController : ControllerBase
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
             var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
-
             if (string.IsNullOrEmpty(userId))
             {
                 Console.WriteLine("El token no contiene el 'nameid'.");
                 return null;
             }
-
             Console.WriteLine($"Token válido. UserID extraído: {userId}");
             return userId;
         }
@@ -82,33 +78,18 @@ public class WebSocketController : ControllerBase
     private async Task HandleWebSocketConnection(string userId, WebSocket webSocket)
     {
         var buffer = new byte[1024 * 4];
+        WebSocketReceiveResult result;
 
-        while (webSocket.State == WebSocketState.Open)
+        do
         {
-            try
-            {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            Console.WriteLine($"Mensaje recibido de {userId}: {message}");
 
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    Console.WriteLine($"Conexión cerrada por el usuario: {userId}");
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Conexión cerrada por el cliente", CancellationToken.None);
-                }
-                else
-                {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Console.WriteLine($"Mensaje recibido de {userId}: {message}");
-                    await ProcessMessage(userId, message, webSocket);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error en WebSocket para el usuario {userId}: {ex.Message}");
-                break;
-            }
-        }
+            await ProcessMessage(userId, message, webSocket);
+        } while (!result.CloseStatus.HasValue);
 
-        Console.WriteLine($"Conexión finalizada para el usuario: {userId}");
+        await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
     }
 
     private async Task ProcessMessage(string userId, string message, WebSocket webSocket)
@@ -125,20 +106,9 @@ public class WebSocketController : ControllerBase
 
         switch (action)
         {
-            case "SendFriendRequest":
+            case "FriendRequest":
+                Console.WriteLine($"Recibida solicitud de amistad de {userId} a {payload}");
                 await HandleSendFriendRequest(userId, payload);
-                break;
-
-            case "RespondFriendRequest":
-                await HandleRespondFriendRequest(userId, payload);
-                break;
-
-            case "InviteFriend":
-                await HandleInviteFriend(userId, payload);
-                break;
-
-            case "UpdateStatus":
-                await HandleUpdateStatus(userId, payload);
                 break;
 
             default:
@@ -152,8 +122,8 @@ public class WebSocketController : ControllerBase
     {
         if (ConnectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
         {
+            Console.WriteLine($"Enviando solicitud de amistad a {recipientId} desde {senderId}");
             await SendMessage(recipientWebSocket, "FriendRequest", senderId);
-            Console.WriteLine($"Solicitud de amistad enviada de {senderId} a {recipientId}");
         }
         else
         {
@@ -161,35 +131,11 @@ public class WebSocketController : ControllerBase
         }
     }
 
-    private async Task HandleRespondFriendRequest(string recipientId, string responsePayload)
+    private async Task SendMessage(WebSocket webSocket, string action, string payload)
     {
-        var parts = responsePayload.Split(',');
-        if (parts.Length < 2) return;
-
-        var senderId = parts[0];
-        var accepted = parts[1] == "true";
-
-        if (ConnectedUsers.TryGetValue(senderId, out var senderWebSocket))
-        {
-            await SendMessage(senderWebSocket, "FriendRequestResponse", accepted ? "Accepted" : "Rejected");
-            Console.WriteLine($"Respuesta de amistad de {recipientId} a {senderId}: {(accepted ? "Aceptada" : "Rechazada")}");
-        }
-    }
-
-    private async Task HandleInviteFriend(string inviterId, string friendId)
-    {
-        if (ConnectedUsers.TryGetValue(friendId, out var friendWebSocket))
-        {
-            await SendMessage(friendWebSocket, "GameInvitation", inviterId);
-            Console.WriteLine($"Invitación de juego enviada de {inviterId} a {friendId}");
-        }
-    }
-
-    private async Task HandleUpdateStatus(string userId, string status)
-    {
-        UserStatuses[userId] = status;
-        await SendUserStatusUpdate(userId, status);
-        Console.WriteLine($"Estado actualizado para el usuario {userId}: {status}");
+        var message = $"{action}|{payload}";
+        var messageBytes = Encoding.UTF8.GetBytes(message);
+        await webSocket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
     }
 
     private async Task SendUserStatusUpdate(string userId, string status)
@@ -202,12 +148,6 @@ public class WebSocketController : ControllerBase
         }
     }
 
-    private async Task SendMessage(WebSocket webSocket, string action, string payload)
-    {
-        var message = $"{action}|{payload}";
-        var messageBytes = Encoding.UTF8.GetBytes(message);
-        await webSocket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-    }
 
     [HttpPost("test-message")]
     public async Task<IActionResult> SendTestMessage([FromQuery] string userId, [FromQuery] string action, [FromQuery] string payload)

@@ -26,7 +26,12 @@ public class FriendshipController : ControllerBase
         {
             var message = $"{action}|{payload}";
             var bytes = Encoding.UTF8.GetBytes(message);
+            Console.WriteLine($"Enviando mensaje WebSocket: {message}");
             await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        else
+        {
+            Console.WriteLine($"Usuario {userId} no está conectado para recibir la notificación.");
         }
     }
 
@@ -76,10 +81,12 @@ public class FriendshipController : ControllerBase
         _dbContext.Friendships.Add(friendship);
         await _dbContext.SaveChangesAsync();
 
+        // Llamada para enviar la notificación a través de WebSocket
         await NotifyUserViaWebSocket(friendId, "FriendRequest", userId.ToString());
 
         return Ok("Solicitud de amistad enviada.");
     }
+
 
     [HttpPost("add-{userId}")]
     public async Task<IActionResult> AddFriendById(int userId)

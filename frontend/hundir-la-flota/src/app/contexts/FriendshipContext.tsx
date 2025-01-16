@@ -39,9 +39,8 @@ const FriendRequestNotification: React.FC = () => {
     }
 
     console.log("Conectando a WebSocket con token:", auth.token);
-    // Aquí cambiamos 'ws' por 'wss' para usar WebSocket seguro
     const newSocket = new WebSocket(
-      `wss://localhost:7162/ws/connect?token=${auth.token}` // Cambiado a 'wss://'
+      `wss://localhost:7162/ws/connect?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
@@ -49,11 +48,12 @@ const FriendRequestNotification: React.FC = () => {
     };
 
     newSocket.onmessage = (event) => {
+      console.log("Mensaje WebSocket recibido:", event.data);
       const [action, payload] = event.data.split("|");
 
       switch (action) {
         case "FriendRequest":
-          handleFriendRequest(payload);
+          handleFriendRequest(payload); // Asegurando que el token se pase correctamente
           break;
         case "FriendRequestResponse":
           handleFriendRequestResponse(payload);
@@ -79,12 +79,19 @@ const FriendRequestNotification: React.FC = () => {
 
     setSocket(newSocket);
 
+    if (process.env.NODE_ENV === "development") {
+      window.socket = newSocket;
+    }
+
     return () => {
       newSocket.close();
     };
   }, [auth?.token]);
+
   const handleFriendRequest = async (senderId: string) => {
-    const nickname = await userIdANickname(senderId);
+    if (!auth?.token) return;
+
+    const nickname = await userIdANickname(senderId, auth.token); // Ahora se pasa el token
     toast(
       <div>
         <p>Nueva solicitud de amistad de: {nickname}</p>
@@ -174,22 +181,24 @@ const FriendRequestNotification: React.FC = () => {
   };
 
   const handleFriendRemoved = async (friendId: string) => {
-    const nickname = await userIdANickname(friendId);
+    const nickname = await userIdANickname(friendId, auth.token);
     toast.info(`Amigo eliminado: ${nickname}`);
   };
 
   return null;
 };
 
-const userIdANickname = async (userId: string): Promise<string> => {
-  const { auth } = useAuth();
-  if (!auth?.token) return "Usuario desconocido";
+const userIdANickname = async (
+  userId: string,
+  token: string
+): Promise<string> => {
+  if (!token) return "Usuario desconocido";
 
   try {
     const response = await fetch(
       `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
       {
-        headers: { Authorization: `Bearer ${auth.token}` },
+        headers: { Authorization: `Bearer ${token}` },
       }
     );
     if (!response.ok) throw new Error(`Error: ${response.statusText}`);
