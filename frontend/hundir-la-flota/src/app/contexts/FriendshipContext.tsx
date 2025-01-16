@@ -39,8 +39,9 @@ const FriendRequestNotification: React.FC = () => {
     }
 
     console.log("Conectando a WebSocket con token:", auth.token);
+    // Aquí cambiamos 'ws' por 'wss' para usar WebSocket seguro
     const newSocket = new WebSocket(
-      `ws://localhost:7162/ws/connect?token=${auth.token}`
+      `wss://localhost:7162/ws/connect?token=${auth.token}` // Cambiado a 'wss://'
     );
 
     newSocket.onopen = () => {
@@ -82,7 +83,6 @@ const FriendRequestNotification: React.FC = () => {
       newSocket.close();
     };
   }, [auth?.token]);
-
   const handleFriendRequest = async (senderId: string) => {
     const nickname = await userIdANickname(senderId);
     toast(
