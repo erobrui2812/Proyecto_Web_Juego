@@ -248,7 +248,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await fetch(
-        `http://localhost:7162/api/Friendship/search?nickname=${query}`,
+        `https://localhost:7162/api/Friendship/search?nickname=${query}`,
         {
           headers: { Authorization: `Bearer ${auth.token}` },
         }
