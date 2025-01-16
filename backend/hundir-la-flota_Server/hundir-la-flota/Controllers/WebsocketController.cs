@@ -17,12 +17,12 @@ public class WebSocketController : ControllerBase
     {
         if (HttpContext.WebSockets.IsWebSocketRequest)
         {
-            var token = HttpContext.Request.Query["token"].ToString(); 
-            var userId = ValidateTokenAndGetUserId(token); 
+            var token = HttpContext.Request.Query["token"].ToString();
+            var userId = ValidateTokenAndGetUserId(token);
 
             if (string.IsNullOrEmpty(userId))
             {
-                HttpContext.Response.StatusCode = 401; 
+                HttpContext.Response.StatusCode = 401;
                 return;
             }
 
@@ -46,6 +46,7 @@ public class WebSocketController : ControllerBase
 
     private string ValidateTokenAndGetUserId(string token)
     {
+        Console.WriteLine($"Validando token: {token}");
         if (string.IsNullOrEmpty(token)) return null;
 
         try
@@ -53,10 +54,12 @@ public class WebSocketController : ControllerBase
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
             var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            Console.WriteLine($"Token válido. UserID extraído: {userId}");
             return userId;
         }
         catch
         {
+            Console.WriteLine($"Error al validar el token");
             return null;
         }
     }

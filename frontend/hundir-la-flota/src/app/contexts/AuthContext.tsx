@@ -27,10 +27,16 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [auth, setAuth] = useState<{ token: string | null }>({
-    token:
-      sessionStorage.getItem("token") || localStorage.getItem("token") || null,
-  });
+  const [auth, setAuth] = useState<{ token: string | null }>({ token: null });
+
+  useEffect(() => {
+    // Acceder a sessionStorage y localStorage solo en el cliente
+    const token =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("token") || localStorage.getItem("token")
+        : null;
+    setAuth({ token });
+  }, []);
 
   const [userDetail, setUserDetail] = useState<{
     avatarUrl: string;
@@ -40,24 +46,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [isAuthenticated, setAuthenticated] = useState(false);
 
-  const [rol, setRol] = useState<string>(() => {
-    try {
-      const payload = JSON.parse(atob(auth?.token?.split(".")[1] || ""));
-      return (
-        payload[
-          "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-        ] || "usuario"
-      );
-    } catch (error) {
-      if (!auth.token) return "usuario";
-      console.error("Error al decodificar el token:", error);
-      return "usuario";
-    }
-  });
+  const [rol, setRol] = useState<string>("usuario");
 
   useEffect(() => {
     if (auth.token) {
       setAuthenticated(true);
+      try {
+        const payload = JSON.parse(atob(auth.token.split(".")[1]));
+        const roleDecoded =
+          payload[
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+          ];
+        setRol(roleDecoded || "usuario");
+      } catch (error) {
+        console.error("Error al decodificar el token:", error);
+      }
       obtenerUserDetail();
     } else {
       setAuthenticated(false);
@@ -71,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     mantenerSesion: boolean
   ) => {
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/login`, {
+      const response = await fetch(`http://localhost:7162/api/Users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,16 +83,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (!response.ok) {
-        toast.error("Credenciales incorrectas o error de servidor");
-        return;
+        throw new Error("Credenciales incorrectas o error en el servidor.");
       }
 
       const { token } = await response.json();
       setAuth({ token });
-      const decoded = JSON.parse(atob(token.split(".")[1]));
-      const roleDecoded =
-        decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-      setRol(roleDecoded);
 
       if (mantenerSesion) {
         localStorage.setItem("token", token);
@@ -97,10 +95,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         sessionStorage.setItem("token", token);
       }
 
+      const decoded = JSON.parse(atob(token.split(".")[1]));
+      const roleDecoded =
+        decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+      setRol(roleDecoded);
+
       setAuthenticated(true);
       await obtenerUserDetail();
     } catch (error: any) {
-      console.error("Error al iniciar sesión:", error);
+      console.error("Error al iniciar sesión:", error.message);
+      toast.error(error.message || "Error desconocido");
       throw error;
     }
   };
@@ -113,37 +117,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     avatarUrl: string
   ) => {
     try {
-      const response = await fetch(
-        `https://localhost:7162/api/Users/register`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            nickname,
-            email,
-            password,
-            confirmPassword,
-            avatarUrl,
-          }),
-        }
-      );
+      const response = await fetch(`http://localhost:7162/api/Users/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nickname,
+          email,
+          password,
+          confirmPassword,
+          avatarUrl,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error("Error al registrar usuario");
+        throw new Error("Error al registrar usuario.");
       }
 
       toast.success("Usuario registrado correctamente");
     } catch (error) {
-      toast.error(`Error al registrar usuario: ${error}`);
-      throw error;
+      console.error("Error al registrar usuario:", error);
+      toast.error("Error al registrar usuario.");
     }
   };
 
   const obtenerUserDetail = async () => {
+    if (!auth.token) return;
+
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
+      const response = await fetch(`http://localhost:7162/api/Users/detail`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${auth.token}`,
@@ -157,17 +160,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data = await response.json();
       setUserDetail(data);
     } catch (error) {
+      console.error("Error al obtener detalles del usuario:", error);
       setUserDetail(null);
-      throw error;
     }
   };
 
   const cerrarSesion = () => {
     setAuth({ token: null });
-    setUserDetail(null);
     sessionStorage.removeItem("token");
     localStorage.removeItem("token");
     setAuthenticated(false);
+    setUserDetail(null);
   };
 
   return (

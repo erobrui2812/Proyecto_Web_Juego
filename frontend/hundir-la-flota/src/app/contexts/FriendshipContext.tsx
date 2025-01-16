@@ -31,10 +31,16 @@ const FriendRequestNotification: React.FC = () => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!auth?.token) return;
+    if (!auth?.token) {
+      console.warn(
+        "Token no disponible. No se establecerá conexión WebSocket."
+      );
+      return;
+    }
 
+    console.log("Conectando a WebSocket con token:", auth.token);
     const newSocket = new WebSocket(
-      `wss://localhost:7162/ws/connect?token=${auth.token}`
+      `ws://localhost:7162/ws/connect?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
@@ -125,7 +131,10 @@ const FriendRequestNotification: React.FC = () => {
     );
   };
 
-  const respondToFriendRequest = async (friendId: string, accepted: boolean) => {
+  const respondToFriendRequest = async (
+    friendId: string,
+    accepted: boolean
+  ) => {
     if (!auth?.token) return;
 
     try {
@@ -154,7 +163,6 @@ const FriendRequestNotification: React.FC = () => {
       console.error("Error al responder a la solicitud de amistad:", error);
     }
   };
-
 
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";
@@ -202,8 +210,12 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
   const { auth, isAuthenticated } = useAuth();
 
   const fetchFriends = async () => {
-    if (!auth?.token) return;
+    if (!auth?.token) {
+      console.warn("Token no disponible. No se pueden obtener amigos.");
+      return;
+    }
 
+    console.log("Obteniendo lista de amigos con token:", auth.token);
     try {
       const response = await fetch(
         "http://localhost:7162/api/Friendship/list",
@@ -211,10 +223,12 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
           headers: { Authorization: `Bearer ${auth.token}` },
         }
       );
+      console.log("Respuesta del servidor al obtener amigos:", response);
 
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
       const result = await response.json();
+      console.log("Amigos obtenidos:", result);
       const mappedFriends = result.map((friend: any) => ({
         id: friend.friendId,
         nickname: friend.friendNickname,
@@ -278,9 +292,12 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const respondToFriendRequest = async (friendId: string, accepted: boolean) => {
+  const respondToFriendRequest = async (
+    friendId: string,
+    accepted: boolean
+  ) => {
     if (!auth?.token) return;
-  
+
     try {
       const response = await fetch(
         "http://localhost:7162/api/Friendship/respond",
@@ -296,7 +313,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
           }),
         }
       );
-  
+
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
       toast.success(
         accepted
@@ -307,7 +324,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Error al responder a la solicitud de amistad:", error);
     }
   };
-  
 
   const removeFriend = async (friendId: string) => {
     if (!auth?.token) return;
@@ -354,7 +370,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </FriendshipContext.Provider>
   );
-}
+};
 
 export const useFriendship = (): FriendshipContextType => {
   const context = useContext(FriendshipContext);

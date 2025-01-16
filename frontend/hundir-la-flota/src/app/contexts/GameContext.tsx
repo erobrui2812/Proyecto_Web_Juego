@@ -1,8 +1,13 @@
-import { createContext, useContext, useState } from "react";
+"use client";
+import { createContext, useContext, useEffect, useState } from "react";
 
 type GameContextType = {
   Game: { token: string | null };
-  iniciarSesion: (identificador: string, password: string, mantenerSesion: boolean) => Promise<void>;
+  iniciarSesion: (
+    identificador: string,
+    password: string,
+    mantenerSesion: boolean
+  ) => Promise<void>;
   cerrarSesion: () => void;
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   isAuthenticated: boolean;
@@ -12,23 +17,38 @@ type GameContextType = {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider = ({ children }: { children: React.ReactNode }) => {
-  
-  const [Game, setAuth] = useState<{ token: string | null }>({
-    token: sessionStorage.getItem("token") || localStorage.getItem("token") || null,
-  });
+  const [Game, setAuth] = useState<{ token: string | null }>({ token: null });
   const [isAuthenticated, setAuthenticated] = useState(false);
-  const [rol, setRol] = useState<string>(() => {
-    try {
-      const payload = JSON.parse(atob(Game?.token?.split(".")[1] || ""));
-      return payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "usuario";
-    } catch (error) {
-      if (!Game.token) return "usuario";
-      console.error("Error al decodificar el token:", error);
-      return "usuario";
-    }
-  });
+  const [rol, setRol] = useState<string>("usuario");
 
-  const iniciarSesion = async (identificador: string, password: string, mantenerSesion: boolean) => {
+  // Asegurar que accedemos a sessionStorage y localStorage solo en el cliente
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token =
+        sessionStorage.getItem("token") || localStorage.getItem("token");
+      setAuth({ token });
+
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          const roleDecoded =
+            payload[
+              "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ];
+          setRol(roleDecoded || "usuario");
+          setAuthenticated(true);
+        } catch (error) {
+          console.error("Error al decodificar el token:", error);
+        }
+      }
+    }
+  }, []);
+
+  const iniciarSesion = async (
+    identificador: string,
+    password: string,
+    mantenerSesion: boolean
+  ) => {
     try {
       const response = await fetch(`/api/Auth/login`, {
         method: "POST",
@@ -46,9 +66,6 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (token) {
         setAuth({ token });
-        const decoded = JSON.parse(atob(token.split(".")[1]));
-        const roleDecoded = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-        setRol(roleDecoded);
 
         if (mantenerSesion) {
           localStorage.setItem("token", token);
@@ -57,20 +74,15 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         try {
-          const responseCarrito = await fetch(`/api/Carrito/verificar-o-crear`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (!responseCarrito.ok) {
-            throw new Error("Error al verificar o crear el carrito.");
-          }
-          // console.log("Carrito verificado o creado correctamente.");
+          const decoded = JSON.parse(atob(token.split(".")[1]));
+          const roleDecoded =
+            decoded[
+              "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ];
+          setRol(roleDecoded || "usuario");
+          setAuthenticated(true);
         } catch (error) {
-          console.error("Error al verificar o crear el carrito:", error);
+          console.error("Error al decodificar el token:", error);
         }
       } else {
         throw new Error("Token no recibido del servidor");
@@ -83,13 +95,23 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
 
   const cerrarSesion = () => {
     setAuth({ token: null });
-    sessionStorage.removeItem("token");
-    localStorage.removeItem("token");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
+    }
+    setAuthenticated(false);
   };
 
   return (
     <GameContext.Provider
-      value={{ Game, iniciarSesion, cerrarSesion, setAuthenticated, isAuthenticated, rol }}
+      value={{
+        Game,
+        iniciarSesion,
+        cerrarSesion,
+        setAuthenticated,
+        isAuthenticated,
+        rol,
+      }}
     >
       {children}
     </GameContext.Provider>
@@ -99,7 +121,7 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
 export const useGame = (): GameContextType => {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error("useGame must be used within an GameProvider");
+    throw new Error("useGame must be used within a GameProvider");
   }
   return context;
 };

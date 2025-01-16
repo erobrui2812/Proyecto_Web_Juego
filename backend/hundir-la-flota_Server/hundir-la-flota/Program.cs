@@ -7,7 +7,6 @@ using hundir_la_flota.Websocket;
 using Microsoft.AspNetCore.SignalR;
 using hundir_la_flota.Repositories;
 
-
 namespace hundir_la_flota
 {
     public class Program
@@ -16,7 +15,7 @@ namespace hundir_la_flota
         {
             var builder = WebApplication.CreateBuilder(args);
 
-
+            // Configuración de la base de datos
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
 
@@ -28,7 +27,7 @@ namespace hundir_la_flota
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
-
+            // Servicios personalizados
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<GameSimulation>();
@@ -50,7 +49,6 @@ namespace hundir_la_flota
                     {
                         OnMessageReceived = context =>
                         {
-                            // Permite pasar el token en las conexiones SignalR
                             var accessToken = context.Request.Query["access_token"];
                             var path = context.HttpContext.Request.Path;
                             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
@@ -61,7 +59,6 @@ namespace hundir_la_flota
                         }
                     };
                 });
-
 
             // Configuración de Swagger
             builder.Services.AddSwaggerGen(c =>
@@ -80,17 +77,17 @@ namespace hundir_la_flota
 
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
+                    {
+                        new OpenApiSecurityScheme
                         {
-                            new OpenApiSecurityScheme
+                            Reference = new OpenApiReference
                             {
-                                Reference = new OpenApiReference
-                                {
-                                    Type = ReferenceType.SecurityScheme,
-                                    Id = "Bearer"
-                                }
-                            },
-                            new string[] {}
-                        }
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] {}
+                    }
                 });
             });
 
@@ -101,54 +98,69 @@ namespace hundir_la_flota
                 {
                     builder.AllowAnyOrigin()
                            .AllowAnyHeader()
-                           .AllowAnyMethod();                   
-                                        
+                           .AllowAnyMethod();
                 });
             });
 
-
-
-
-
             var app = builder.Build();
 
-
+            // Inicialización de la base de datos
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
                 dbContext.Database.EnsureCreated();
             }
 
-
+            // Configuración del entorno de desarrollo
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
+            // Middlewares
             app.UseHttpsRedirection();
+
+            // Middleware para depuración de solicitudes
+            app.Use(async (context, next) =>
+            {
+                Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}");
+                await next();
+                Console.WriteLine($"Response: {context.Response.StatusCode}");
+            });
+
+
+            // Middleware de login
+            app.Use(async (context, next) =>
+            {
+                Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}");
+                Console.WriteLine($"Headers: {string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}"))}");
+                await next();
+                Console.WriteLine($"Response: {context.Response.StatusCode}");
+            });
+
 
             app.UseRouting();
 
-
+            // Middleware de CORS
             app.UseCors("AllowReactApp");
 
-            app.UseWebSockets();
-            app.MapControllers();
-            app.UseMiddleware<WebSocketMiddleware>();
-
-
+            // Middlewares de autenticación y autorización
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Middleware de WebSocket
+            app.UseWebSockets();
+            app.UseMiddleware<WebSocketMiddleware>();
 
+            // Mapear controladores
             app.MapControllers();
 
-
+            // Ejecutar simulación del juego
             using (var scope = app.Services.CreateScope())
             {
                 var simulation = scope.ServiceProvider.GetRequiredService<GameSimulation>();
-                await simulation.RunSimulationAsync();  // Ejecutar la simulación
+                await simulation.RunSimulationAsync(); // Ejecutar la simulación
             }
 
             app.Run();
