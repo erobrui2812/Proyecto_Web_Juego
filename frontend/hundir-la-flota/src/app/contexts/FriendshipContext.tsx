@@ -181,7 +181,9 @@ const FriendRequestNotification: React.FC = () => {
   };
 
   const handleFriendRemoved = async (friendId: string) => {
-    const nickname = await userIdANickname(friendId, auth.token);
+    const nickname = auth?.token
+      ? await userIdANickname(friendId, auth.token)
+      : "Usuario desconocido";
     toast.info(`Amigo eliminado: ${nickname}`);
   };
 
