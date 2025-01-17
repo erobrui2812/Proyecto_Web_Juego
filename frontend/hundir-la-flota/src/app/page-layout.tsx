@@ -1,4 +1,8 @@
 "use client"
+
+import  '@fontsource/bebas-neue';
+import  '@fontsource/montserrat';
+
 import ThemeToggle from "./components/ThemeToggle";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,7 +13,7 @@ const Header = () => {
   const { auth } = useGlobalContext();
 
   return (
-    <header className="flex items-center justify-between p-4 bg-primary text-white">
+    <header className="flex items-center justify-between p-4 bg-primary text-white font-bebasneue">
       <div className="flex-shrink-0 w-1/3 flex justify-center">
         <Image
           src="/BattleshipsColle.webp"
@@ -19,10 +23,10 @@ const Header = () => {
         />
       </div>
 
-      <nav className="w-1/3 flex justify-center space-x-6 text-lg">
-        <Link href="/" className="hover:text-secondary">Inicio</Link>
-        <Link href="/juego" className="hover:text-secondary">Juego</Link>
-        <Link href="/menu" className="hover:text-secondary">Menú</Link>
+      <nav className="w-1/3 flex justify-center space-x-6 text-lg tracking-[.2em]">
+        <Link href="/" className="hover:text-secondary hover:tracking-[.15em]">Inicio</Link>
+        <Link href="/juego" className="hover:text-secondary hover:tracking-[.15em]">Juego</Link>
+        <Link href="/menu" className="hover:text-secondary hover:tracking-[.15em]">Menú</Link>
       </nav>
 
       <div className="w-1/3 flex justify-center items-center space-x-4">

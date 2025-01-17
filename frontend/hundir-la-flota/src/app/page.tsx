@@ -9,15 +9,13 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white">
-      <div className="absolute inset-0 bg-black bg-opacity-10 backdrop-blur-sm"></div>
+    <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white font-montserrat">
+      <div className="absolute inset-0 bg-black bg-opacity-10"></div>
       <div className="relative z-10">
-        <header className="text-4xl font-extrabold mb-6 text-center">
-          Hundir la Flota
-        </header>
-
         <section className="w-full max-w-3xl p-6 bg-white text-black shadow-lg rounded-md hover:scale-105 hover:shadow-2xl transition-all duration-200">
-          <h2 className="text-2xl font-bold mb-4 text-center">Instrucciones</h2>
+        <h1 className="text-5xl font-extrabold mb-6 text-center  font-bebasneue">
+          Hundir la Flota
+        </h1>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <img
               src="./tablero-battleship.png"
@@ -29,7 +27,7 @@ const Home: React.FC = () => {
                 Bienvenido al juego Hundir la Flota. El objetivo es hundir todos
                 los barcos del oponente antes de que ellos hundan los tuyos.
               </p>
-              <strong>Cómo jugar:</strong>
+              <strong className="text-xl font-bebasneue">Cómo jugar:</strong>
               <ul className="list-disc pl-6">
                 <li>Cada jugador tiene un tablero con sus barcos dispuestos.</li>
                 <li>
@@ -47,7 +45,7 @@ const Home: React.FC = () => {
           </div>
           <button
             onClick={startGame}
-            className="mt-6 w-full bg-blue-600 text-white px-6 py-3 rounded-md shadow-lg hover:bg-blue-700 transition duration-300"
+            className="mt-6 w-full bg-blue-600 text-white px-6 py-3 rounded-md shadow-lg hover:bg-blue-700 transition duration-300  font-bebasneue text-xl"
           >
             Iniciar juego
           </button>

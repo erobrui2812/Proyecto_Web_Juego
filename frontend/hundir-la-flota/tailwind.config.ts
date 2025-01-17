@@ -9,6 +9,10 @@ export default {
   darkMode: "class", 
   theme: {
     extend: {
+      fontFamily: {
+        bebasneue: ['Bebas Neue', 'cursive'],
+        montserrat: ['Montserrat', 'sans-serif'],
+      },
       backgroundImage: {
         'fondo-mar': "url('/fondo-mar.jpg')",
       },
