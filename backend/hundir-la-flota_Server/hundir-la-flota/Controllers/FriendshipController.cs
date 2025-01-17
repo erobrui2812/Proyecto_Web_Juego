@@ -149,7 +149,9 @@ public class FriendshipController : ControllerBase
 
         await _dbContext.SaveChangesAsync();
 
-        await NotifyUserViaWebSocket(response.SenderId, "FriendRequestResponse", response.Accept.ToString());
+        var responseMessage = response.Accept ? "Accepted" : "Rejected";
+        await NotifyUserViaWebSocket(response.SenderId, "FriendRequestResponse", responseMessage);
+
 
         return Ok(new { success = true, message = response.Accept ? "Solicitud de amistad aceptada." : "Solicitud de amistad rechazada." });
     }

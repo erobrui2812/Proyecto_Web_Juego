@@ -30,10 +30,10 @@ namespace hundir_la_flota.Websocket
                 using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                 Console.WriteLine($"Usuario {userId} conectado al WebSocket.");
 
-                // Registrar el WebSocket en el diccionario de conexiones
+               
                 WebSocketController.ConnectedUsers[userId] = webSocket;
 
-                // Llamar al método para manejar la conexión WebSocket
+                
                 await HandleWebSocketConnection(context, webSocket, userId);
             }
             else
