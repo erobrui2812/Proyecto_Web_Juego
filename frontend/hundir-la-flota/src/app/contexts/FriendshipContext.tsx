@@ -40,7 +40,7 @@ const FriendRequestNotification: React.FC = () => {
 
     console.log("Conectando a WebSocket con token:", auth.token);
     const newSocket = new WebSocket(
-      `wss://localhost:7162/ws/connect?token=${auth.token}`
+      `wss://localhost:7162/ws?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
