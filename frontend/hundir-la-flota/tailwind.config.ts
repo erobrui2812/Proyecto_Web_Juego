@@ -9,6 +9,9 @@ export default {
   darkMode: "class", 
   theme: {
     extend: {
+      backgroundImage: {
+        'fondo-mar': "url('/fondo-mar.jpg')",
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",

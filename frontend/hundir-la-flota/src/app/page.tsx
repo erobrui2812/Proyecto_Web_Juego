@@ -9,49 +9,57 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
-      <header className="text-3xl font-bold mb-6">Hundir la Flota</header>
+    <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white">
+      <div className="absolute inset-0 bg-black bg-opacity-10 backdrop-blur-sm"></div>
+      <div className="relative z-10">
+        <header className="text-4xl font-extrabold mb-6 text-center">
+          Hundir la Flota
+        </header>
 
-      <section className="w-full max-w-2xl p-4 bg-white shadow-lg rounded-md hover:scale-105 hover:shadow-lg transition-all duration-200">
-        <h2 className="text-xl font-semibold mb-4">Instrucciones</h2>
-        <p className="mb-4">
-          Bienvenido al juego Hundir la Flota. El objetivo del juego es hundir
-          todos los barcos del oponente antes de que ellos hundan los tuyos.
-          Tienes un tablero con coordenadas donde debes intentar adivinar las
-          posiciones de los barcos enemigos.
-        </p>
-        <div className="mb-4">
-          <strong>Cómo jugar:</strong>
-          <ul className="list-disc pl-6">
-            <li>Cada jugador tiene un tablero con sus barcos dispuestos.</li>
-            <li>
-              En cada turno, debes seleccionar una coordenada en el tablero del
-              oponente para disparar.
-            </li>
-            <li>
-              Si aciertas, el barco se hunde y te queda un turno más. Si fallas,
-              le toca al oponente.
-            </li>
-            <li>
-              El juego termina cuando un jugador hunde todos los barcos del
-              contrario.
-            </li>
-          </ul>
-        </div>
-        <button
-          onClick={startGame}
-          className="mt-4 bg-primary text-white px-6 py-2 rounded-md shadow-lg hover:bg-secondary transition duration-300"
-        >
-          Iniciar juego
-        </button>
-      </section>
-
-      {isPlaying && (
-        <section className="mt-8 text-center">
-          <h2 className="text-xl font-semibold">¡El juego ha comenzado!</h2>
-          <p>Juego comenzado</p>
+        <section className="w-full max-w-3xl p-6 bg-white text-black shadow-lg rounded-md hover:scale-105 hover:shadow-2xl transition-all duration-200">
+          <h2 className="text-2xl font-bold mb-4 text-center">Instrucciones</h2>
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <img
+              src="./tablero-battleship.png"
+              alt="Ejemplo de tablero"
+              className="w-full md:w-1/2 rounded-md"
+            />
+            <div>
+              <p className="mb-4">
+                Bienvenido al juego Hundir la Flota. El objetivo es hundir todos
+                los barcos del oponente antes de que ellos hundan los tuyos.
+              </p>
+              <strong>Cómo jugar:</strong>
+              <ul className="list-disc pl-6">
+                <li>Cada jugador tiene un tablero con sus barcos dispuestos.</li>
+                <li>
+                  En cada turno, selecciona una coordenada en el tablero del
+                  oponente para disparar.
+                </li>
+                <li>
+                  Si aciertas, el barco se daña y puedes disparar de nuevo.
+                </li>
+                <li>
+                  Gana quien hunda todos los barcos del contrario primero.
+                </li>
+              </ul>
+            </div>
+          </div>
+          <button
+            onClick={startGame}
+            className="mt-6 w-full bg-blue-600 text-white px-6 py-3 rounded-md shadow-lg hover:bg-blue-700 transition duration-300"
+          >
+            Iniciar juego
+          </button>
         </section>
-      )}
+
+        {isPlaying && (
+          <section className="mt-8 text-center">
+            <h2 className="text-2xl font-semibold">¡El juego ha comenzado!</h2>
+            <p>Buena suerte, capitán.</p>
+          </section>
+        )}
+      </div>
     </div>
   );
 };
