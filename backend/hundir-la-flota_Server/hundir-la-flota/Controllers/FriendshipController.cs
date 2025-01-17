@@ -7,6 +7,7 @@ using System.Net.WebSockets;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using hundir_la_flota.Services;
 using hundir_la_flota.DTOs;
 
 [ApiController]
@@ -14,15 +15,18 @@ using hundir_la_flota.DTOs;
 public class FriendshipController : ControllerBase
 {
     private readonly MyDbContext _dbContext;
+    private readonly WebSocketService _webSocketService;
 
-    public FriendshipController(MyDbContext dbContext)
+    public FriendshipController(MyDbContext dbContext, WebSocketService webSocketService)
     {
         _dbContext = dbContext;
+        _webSocketService = webSocketService;
     }
+
 
     private async Task NotifyUserViaWebSocket(int userId, string action, string payload)
     {
-        if (WebSocketController.ConnectedUsers.TryGetValue(userId.ToString(), out var webSocket))
+        if (_webSocketService._connectedUsers.TryGetValue(userId.ToString(), out var webSocket))
         {
             var message = $"{action}|{payload}";
             var bytes = Encoding.UTF8.GetBytes(message);
@@ -81,7 +85,6 @@ public class FriendshipController : ControllerBase
         _dbContext.Friendships.Add(friendship);
         await _dbContext.SaveChangesAsync();
 
-        // Llamada para enviar la notificación a través de WebSocket
         await NotifyUserViaWebSocket(friendId, "FriendRequest", userId.ToString());
 
         return Ok("Solicitud de amistad enviada.");
@@ -189,8 +192,8 @@ public class FriendshipController : ControllerBase
         _dbContext.Friendships.Remove(friendship);
         await _dbContext.SaveChangesAsync();
 
-        await NotifyUserViaWebSocket(friendId, "FriendRemoved", userId.ToString());
-        await NotifyUserViaWebSocket(userId, "FriendRemoved", friendId.ToString());
+        //await NotifyUserViaWebSocket(friendId, "FriendRemoved", userId.ToString());
+        //await NotifyUserViaWebSocket(userId, "FriendRemoved", friendId.ToString());
 
         return Ok("Amigo eliminado.");
     }
@@ -255,6 +258,16 @@ public class FriendshipController : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("get-nickname/{userId}")]
+    public async Task<IActionResult> GetNickname(int userId)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+
+        if (user == null)
+            return NotFound(new { success = false, message = "Usuario no encontrado." });
+
+        return Ok(new { success = true, nickname = user.Nickname });
+    }
 
     private int GetUserId()
     {

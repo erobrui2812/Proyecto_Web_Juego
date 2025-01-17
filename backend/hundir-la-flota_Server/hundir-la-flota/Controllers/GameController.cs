@@ -1,6 +1,8 @@
 ﻿using hundir_la_flota.Models;
+using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -11,15 +13,19 @@ using System.Threading;
 public class GameController : ControllerBase
 {
     private readonly IGameService _gameService;
+    private readonly WebSocketService _webSocketService;
 
-    public GameController(IGameService gameService)
+    public GameController(IGameService gameService, WebSocketService webSocketService)
     {
         _gameService = gameService;
+        _webSocketService = webSocketService;
     }
+
+    
 
     private async Task NotifyUserViaWebSocket(string userId, string action, string payload)
     {
-        if (WebSocketController.ConnectedUsers.TryGetValue(userId, out var webSocket))
+        if (_webSocketService._connectedUsers.TryGetValue(userId, out var webSocket))
         {
             var message = $"{action}|{payload}";
             var bytes = Encoding.UTF8.GetBytes(message);
