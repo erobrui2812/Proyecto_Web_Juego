@@ -5,15 +5,23 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --primary:    #5f021f;
-  --secondary:  #575a5e;
+  --primary: #5f021f;
+  --secondary: #575a5e;
+  --gold: #e5c07b;
+  --silver: #b0b0b0;
+  --wine: #800020;
+  --navy: #1a1a40;
 }
 
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
-  --primary:    #8b2f4c;
-  --secondary:  #6f7379;
+  --primary: #8b2f4c;
+  --secondary: #6f7379;
+  --gold: #d1b384;
+  --silver: #a9a9a9;
+  --wine: #a23d56;
+  --navy: #2c2c54;
 }
 
 body {
