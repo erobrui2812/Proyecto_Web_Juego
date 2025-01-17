@@ -1,12 +1,10 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 
 const Home: React.FC = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const startGame = () => {
-    setIsPlaying(true);
-  };
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white font-montserrat">
@@ -18,7 +16,7 @@ const Home: React.FC = () => {
           </h1>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <img
-              src="./tablero-battleship.png"
+              src="./tablero-battleship.webp"
               alt="Ejemplo de tablero"
               className="w-full md:w-1/2 rounded-md border-2 border-primary"
             />
@@ -47,22 +45,7 @@ const Home: React.FC = () => {
               </ul>
             </div>
           </div>
-          <button
-            onClick={startGame}
-            className="mt-6 w-full bg-primary text-gold px-6 py-3 rounded-md shadow-lg hover:bg-gold hover:text-primary transition duration-300 font-bebasneue text-xl"
-          >
-            Iniciar juego
-          </button>
         </section>
-
-        {isPlaying && (
-          <section className="mt-8 text-center">
-            <h2 className="text-2xl font-semibold text-gold">
-              ¡El juego ha comenzado!
-            </h2>
-            <p className="text-silver">Buena suerte, capitán.</p>
-          </section>
-        )}
       </div>
     </div>
   );
