@@ -1,4 +1,4 @@
-import GameGrid from "@/components/GameGrid"; // Asegúrate de ajustar la ruta si es diferente.
+import GameGrid from "@/components/GameGrid";
 
 const Juego = () => {
   return (

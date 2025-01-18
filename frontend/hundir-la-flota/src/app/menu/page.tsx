@@ -16,8 +16,8 @@ const MenuPage = () => {
 
   const handleSearch = async (query: string) => {
     if (query.trim()) {
-      await searchUsers(query); // Ejecuta la búsqueda desde el contexto
-      setIsSearchModalOpen(true); // Abre el modal
+      await searchUsers(query);
+      setIsSearchModalOpen(true); 
     }
   };
 
@@ -37,7 +37,7 @@ const MenuPage = () => {
       <ModalBusqueda
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
-        searchResults={searchResults} // Pasar resultados de búsqueda como prop
+        searchResults={searchResults}
       />
 
       <ModalSolicitudes

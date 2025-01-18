@@ -164,7 +164,6 @@ public class FriendshipController : ControllerBase
     {
         var userId = GetUserId();
 
-        // Obtener amigos desde la base de datos
         var friendships = await _dbContext.Friendships
             .Where(f => (f.UserId == userId || f.FriendId == userId) && f.IsConfirmed)
             .Select(f => new
