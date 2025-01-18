@@ -34,6 +34,10 @@ const FriendRequestNotification: React.FC = () => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const { fetchFriends } = useFriendship();
   
+  if (socket) {
+    console.log('Socket initialized:', socket);
+  }
+  
   useEffect(() => {
     
 

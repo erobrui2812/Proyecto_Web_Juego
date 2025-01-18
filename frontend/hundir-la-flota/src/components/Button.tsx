@@ -4,7 +4,6 @@ interface ButtonProps {
   label: string;
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
-  styleType?: string;
   className?: string;
 }
 
@@ -12,7 +11,6 @@ const Button: React.FC<ButtonProps> = ({
   label,
   onClick = () => {},
   type = "button",
-  styleType = "btnDefault",
   className = "",
 }) => {
   return (

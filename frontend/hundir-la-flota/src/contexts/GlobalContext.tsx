@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext } from "react";
+import React, { createContext } from "react";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { GameProvider, useGame } from "./GameContext";
 import { FriendshipProvider, useFriendship } from "./FriendshipContext";
