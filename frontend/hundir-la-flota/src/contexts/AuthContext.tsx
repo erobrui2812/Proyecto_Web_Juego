@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [auth, setAuth] = useState<{ token: string | null }>({ token: null });
 
   useEffect(() => {
-    // Acceder a sessionStorage y localStorage solo en el cliente
     const token =
       typeof window !== "undefined"
         ? sessionStorage.getItem("token") || localStorage.getItem("token")

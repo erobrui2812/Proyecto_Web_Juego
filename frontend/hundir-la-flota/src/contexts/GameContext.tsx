@@ -21,7 +21,6 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [rol, setRol] = useState<string>("usuario");
 
-  // Asegurar que accedemos a sessionStorage y localStorage solo en el cliente
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token =

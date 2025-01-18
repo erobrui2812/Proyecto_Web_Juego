@@ -1,3 +1,5 @@
+"use client"
+
 import "@fontsource/bebas-neue";
 import "@fontsource/montserrat";
 
@@ -5,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useGlobalContext } from "@/contexts/GlobalContext";
-import "./app/globals.css";
+import "@/app/globals.css";
 
 const Header = () => {
   const { auth } = useGlobalContext();

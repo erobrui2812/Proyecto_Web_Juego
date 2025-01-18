@@ -164,7 +164,8 @@ public class FriendshipController : ControllerBase
     {
         var userId = GetUserId();
 
-        var friends = await _dbContext.Friendships
+        // Obtener amigos desde la base de datos
+        var friendships = await _dbContext.Friendships
             .Where(f => (f.UserId == userId || f.FriendId == userId) && f.IsConfirmed)
             .Select(f => new
             {
@@ -175,7 +176,25 @@ public class FriendshipController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(friends);
+        var webSocketService = HttpContext.RequestServices.GetService<WebSocketService>();
+
+        if (webSocketService == null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "WebSocketService no disponible.");
+        }
+
+        var friendsWithStatus = friendships.Select(f => new
+        {
+            f.FriendId,
+            f.FriendNickname,
+            f.FriendMail,
+            f.AvatarUrl,
+            Status = webSocketService._userStates.TryGetValue(f.FriendId.ToString(), out var state)
+                ? state.ToString()
+                : WebSocketService.UserState.Disconnected.ToString()
+        }).ToList();
+
+        return Ok(friendsWithStatus);
     }
 
     [HttpDelete("remove")]
