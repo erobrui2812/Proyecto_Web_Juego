@@ -19,13 +19,19 @@ namespace hundir_la_flota.Websocket
             {
                 var token = context.Request.Query["token"].ToString();
 
-                if (!string.IsNullOrEmpty(token))
+                if (string.IsNullOrEmpty(token))
                 {
-                    context.Request.Headers["Authorization"] = $"Bearer {token}";
+                    Console.WriteLine("Token faltante en la solicitud WebSocket.");
+                    context.Response.StatusCode = 400;
+                    return;
                 }
+
+                Console.WriteLine($"Token extraído del query: {token}");
+                context.Request.Headers["Authorization"] = $"Bearer {token}";
             }
 
             await _next(context);
         }
+
     }
 }

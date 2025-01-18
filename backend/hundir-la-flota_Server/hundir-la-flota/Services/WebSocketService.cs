@@ -6,19 +6,28 @@ namespace hundir_la_flota.Services
 {
     public class WebSocketService
     {
-        public enum UserState {Disconnected,Connected,Playing}
 
-        public readonly ConcurrentDictionary<string, WebSocket> _connectedUsers = new();
-        public readonly ConcurrentDictionary<string, UserState> _userStates = new();
+        public enum UserState { Disconnected, Connected, Playing }
 
-        public async Task HandleConnectionAsync(string userId, WebSocket webSocket)
+
+        public readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
+        public readonly ConcurrentDictionary<int, UserState> _userStates = new();
+
+
+        public async Task HandleConnectionAsync(int userId, WebSocket webSocket)
         {
+
             if (!_connectedUsers.TryAdd(userId, webSocket))
             {
-                Console.WriteLine($"El usuario {userId} ya está conectado.");
-                await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Usuario ya conectado", CancellationToken.None);
+                Console.WriteLine($"El usuario {userId} ya está conectado. Rechazando conexión.");
+                await webSocket.CloseAsync(
+                    WebSocketCloseStatus.PolicyViolation,
+                    "Usuario ya conectado",
+                    CancellationToken.None
+                );
                 return;
             }
+
 
             _userStates[userId] = UserState.Connected;
             await NotifyUserStatusChangeAsync(userId, UserState.Connected);
@@ -36,8 +45,11 @@ namespace hundir_la_flota.Services
 
                     var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     Console.WriteLine($"Mensaje recibido de {userId}: {message}");
+
+
                     await ProcessMessageAsync(userId, message);
-                } while (!result.CloseStatus.HasValue);
+                }
+                while (!result.CloseStatus.HasValue);
             }
             catch (Exception ex)
             {
@@ -45,11 +57,12 @@ namespace hundir_la_flota.Services
             }
             finally
             {
+
                 await DisconnectUserAsync(userId);
             }
         }
 
-        private async Task ProcessMessageAsync(string userId, string message)
+        private async Task ProcessMessageAsync(int userId, string message)
         {
             var parts = message.Split('|');
             if (parts.Length < 2)
@@ -76,12 +89,21 @@ namespace hundir_la_flota.Services
                     break;
 
                 case "FriendRequest":
-                    Console.WriteLine($"Solicitud de amistad de {userId} a {payload}");
-                    await HandleSendFriendRequestAsync(userId, payload);
+
+                    if (int.TryParse(payload, out var recipientId))
+                    {
+                        Console.WriteLine($"Solicitud de amistad de {userId} a {recipientId}");
+                        await HandleSendFriendRequestAsync(userId, recipientId);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"El payload '{payload}' no es un ID de usuario válido.");
+                    }
                     break;
 
                 default:
                     Console.WriteLine($"Acción no reconocida: {action}");
+
                     if (_connectedUsers.TryGetValue(userId, out var userWebSocket))
                     {
                         await SendMessageAsync(userWebSocket, "UnknownAction", "Acción no reconocida.");
@@ -90,26 +112,31 @@ namespace hundir_la_flota.Services
             }
         }
 
-        private async Task HandleSendFriendRequestAsync(string senderId, string recipientId)
+        private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
         {
             if (_connectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
             {
                 Console.WriteLine($"Enviando solicitud de amistad de {senderId} a {recipientId}");
-                await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId);
+
+                await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId.ToString());
             }
             else
             {
+
                 Console.WriteLine($"El usuario {recipientId} no está conectado.");
-                await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId);
+
             }
         }
 
-        private async Task NotifyUserStatusChangeAsync(string userId, UserState newState)
+
+        private async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
         {
             var message = $"{userId}|{newState}";
-            foreach (var connection in _connectedUsers.Values)
+            // Enviamos a todos los sockets conectados
+            foreach (var kvp in _connectedUsers)
             {
-                await SendMessageAsync(connection, "UserStatus", message);
+                var webSocket = kvp.Value;
+                await SendMessageAsync(webSocket, "UserStatus", message);
             }
         }
 
@@ -117,10 +144,17 @@ namespace hundir_la_flota.Services
         {
             var message = $"{action}|{payload}";
             var messageBytes = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+
+            await webSocket.SendAsync(
+                new ArraySegment<byte>(messageBytes),
+                WebSocketMessageType.Text,
+                true,
+                CancellationToken.None
+            );
         }
 
-        private async Task DisconnectUserAsync(string userId)
+
+        private async Task DisconnectUserAsync(int userId)
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
@@ -129,7 +163,11 @@ namespace hundir_la_flota.Services
 
                 if (webSocket.State == WebSocketState.Open)
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
+                    await webSocket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Desconexión",
+                        CancellationToken.None
+                    );
                 }
                 webSocket.Dispose();
                 Console.WriteLine($"Usuario {userId} desconectado.");

@@ -16,14 +16,13 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
 }) => {
   const { sendFriendRequest } = useFriendship();
 
-  const handleSendRequest = async (userId: string) => {
+  const handleSendRequest = async (nickname: string) => {
     try {
-      await sendFriendRequest(userId);
+      await sendFriendRequest(nickname);
     } catch (error) {
       console.error("Error al enviar solicitud de amistad:", error);
     }
   };
-
   return (
     <Modal title="Buscar Usuarios" isOpen={isOpen} onClose={onClose}>
       <div className="space-y-4">
@@ -42,7 +41,7 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
                 <p className="font-semibold text-gold">{user.nickname}</p>
               </div>
               <button
-                onClick={() => handleSendRequest(user.id)}
+                onClick={() => handleSendRequest(user.nickname)}
                 className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
               >
                 Enviar Solicitud
@@ -50,7 +49,9 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
             </div>
           ))
         ) : (
-          <p className="text-center text-silver">No hay resultados de búsqueda.</p>
+          <p className="text-center text-silver">
+            No hay resultados de búsqueda.
+          </p>
         )}
       </div>
     </Modal>
