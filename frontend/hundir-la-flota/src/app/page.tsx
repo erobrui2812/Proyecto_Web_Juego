@@ -1,10 +1,6 @@
-"use client";
-import React, { useEffect } from "react";
+import React from "react";
 
 const Home: React.FC = () => {
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-  }, []);
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white font-montserrat">

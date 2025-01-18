@@ -1,13 +1,11 @@
-"use client";
-
 import "@fontsource/bebas-neue";
 import "@fontsource/montserrat";
 
 import Image from "next/image";
 import Link from "next/link";
-import ThemeToggle from "./components/ThemeToggle";
-import { useGlobalContext } from "./contexts/GlobalContext";
-import "./globals.css";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useGlobalContext } from "@/contexts/GlobalContext";
+import "./app/globals.css";
 
 const Header = () => {
   const { auth } = useGlobalContext();
@@ -62,13 +60,4 @@ const Header = () => {
   );
 };
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col transition-all duration-300">
-      <Header />
-      <main className="flex-1">{children}</main>
-    </div>
-  );
-};
-
-export default Layout;
+export default Header;

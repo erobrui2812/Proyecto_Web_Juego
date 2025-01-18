@@ -1,8 +1,8 @@
 "use client";
 import { LogOut, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import Modal from "../components/Modal";
-import { useGlobalContext } from "../contexts/GlobalContext";
+import Modal from "@/components/Modal";
+import { useGlobalContext } from "@/contexts/GlobalContext";
 
 type PendingRequest = {
   id: string;
