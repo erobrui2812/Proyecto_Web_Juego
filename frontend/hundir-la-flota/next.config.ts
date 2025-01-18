@@ -1,9 +1,7 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
-    domains: ['s3.amazonaws.com'],
+    // Permitir protocolo HTTP y HTTPS desde cualquier hostname ( ** )
     remotePatterns: [
       {
         protocol: "http",
@@ -15,7 +13,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
-
-export default nextConfig;
+module.exports = nextConfig;

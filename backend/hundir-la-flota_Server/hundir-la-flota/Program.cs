@@ -1,11 +1,12 @@
-
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using hundir_la_flota.Websocket;
 using hundir_la_flota.Repositories;
-
+using hundir_la_flota.Services;
 
 namespace hundir_la_flota
 {
@@ -13,8 +14,11 @@ namespace hundir_la_flota
     {
         public static async Task Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            // Desactiva mapeos automáticos de System.IdentityModel.Tokens.Jwt
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+            JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
 
+            var builder = WebApplication.CreateBuilder(args);
 
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
@@ -22,7 +26,14 @@ namespace hundir_la_flota
             builder.Services.AddDbContext<MyDbContext>(options =>
                 options.UseSqlite(connectionString));
 
-            builder.Services.AddSingleton<AuthService>(new AuthService(builder.Configuration["JWT_KEY"]));
+            builder.Services.AddSingleton<AuthService>(sp =>
+                new AuthService(
+                    builder.Configuration["JWT_KEY"],
+                    sp.GetRequiredService<ILogger<AuthService>>()
+                )
+            );
+
+            builder.Services.AddSingleton<WebSocketService>();
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -31,24 +42,36 @@ namespace hundir_la_flota
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<GameSimulation>();
 
-
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-               {
-                   options.TokenValidationParameters = new TokenValidationParameters
-                   {
-                       ValidateIssuer = false,
-                       ValidateAudience = false,
-                       ValidateLifetime = true,
-                       IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
-                       ClockSkew = TimeSpan.Zero
-                   };
-               });
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
+                        ClockSkew = TimeSpan.Zero
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
 
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Hundir la Flota API", Version = "v1" });
-
 
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
@@ -62,29 +85,18 @@ namespace hundir_la_flota
 
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
-                        {
-                            new OpenApiSecurityScheme
-                            {
-                                Reference = new OpenApiReference
-                                {
-                                    Type = ReferenceType.SecurityScheme,
-                                    Id = "Bearer"
-                                }
-                            },
-                            new string[] {}
-                        }
-                });
-            });
-
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowReactApp",
-                    builder =>
                     {
-                        builder.WithOrigins("http://localhost:3000")
-                               .AllowAnyHeader()
-                               .AllowAnyMethod();
-                    });
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] {}
+                    }
+                });
             });
 
             var app = builder.Build();
@@ -95,7 +107,6 @@ namespace hundir_la_flota
                 dbContext.Database.EnsureCreated();
             }
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -105,21 +116,15 @@ namespace hundir_la_flota
             app.UseHttpsRedirection();
 
             app.UseRouting();
+            app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
-            app.UseCors("AllowReactApp");
+            app.UseWebSockets();
+            app.UseMiddleware<WebSocketMiddleware>();
 
             app.UseAuthentication();
-
             app.UseAuthorization();
 
             app.MapControllers();
-
-
-            using (var scope = app.Services.CreateScope())
-            {
-                var simulation = scope.ServiceProvider.GetRequiredService<GameSimulation>();
-                await simulation.RunSimulationAsync();  // Ejecutar la simulación
-            }
 
             app.Run();
         }

@@ -38,37 +38,61 @@ namespace hundir_la_flota.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginDTO dto)
         {
+            // Validación del DTO
+            if (dto == null)
+            {
+                Console.WriteLine("Login failed: DTO is null");
+                return BadRequest("Request body is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.NicknameMail))
+            {
+                Console.WriteLine("Login failed: Missing NicknameMail");
+                return BadRequest("Nickname or Email is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Password))
+            {
+                Console.WriteLine("Login failed: Missing Password");
+                return BadRequest("Password is required.");
+            }
+
             try
             {
-                // Log de entrada
-                Console.WriteLine($"Login request: NicknameMail={dto.NicknameMail}, Password={dto.Password}");
+                Console.WriteLine($"Login request: NicknameMail={dto.NicknameMail}, Password=****");
 
+                // Buscar usuario por Nickname o Email
                 var user = _context.Users.FirstOrDefault(u =>
                     u.Email == dto.NicknameMail || u.Nickname.ToLower() == dto.NicknameMail.ToLower());
 
                 if (user == null)
                 {
-                    Console.WriteLine("User not found");
+                    Console.WriteLine($"User not found for NicknameMail={dto.NicknameMail}");
                     return Unauthorized("Invalid credentials");
                 }
 
+                // Verificar contraseña
                 if (!_authService.VerifyPassword(dto.Password, user.PasswordHash))
                 {
-                    Console.WriteLine("Invalid password");
+                    Console.WriteLine($"Invalid password for user {user.Nickname}");
                     return Unauthorized("Invalid credentials");
                 }
 
+                // Generar token JWT
                 var token = _authService.GenerateJwtToken(user);
-                Console.WriteLine($"Generated token: {token}");
+                Console.WriteLine($"Generated token for user {user.Nickname}: {token}");
 
+                // Devolver respuesta exitosa
                 return Ok(new { Token = token });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in login: {ex.Message}");
+                Console.WriteLine($"Error in login: {ex.Message} - {ex.StackTrace}");
                 return StatusCode(500, "An error occurred during login");
             }
         }
+
+
 
 
         [HttpGet("list")]
@@ -91,16 +115,12 @@ namespace hundir_la_flota.Controllers
         [HttpGet("detail")]
         public async Task<IActionResult> GetUserDetail()
         {
-            var userId = _authService.GetUserIdFromToken(Request.Headers["Authorization"].ToString());
-
-            if (string.IsNullOrEmpty(userId))
+            var userIdInt = _authService.GetUserIdFromTokenAsInt(Request.Headers["Authorization"].ToString());
+            if (!userIdInt.HasValue)
                 return Unauthorized("Invalid or missing token");
 
-            if (!int.TryParse(userId, out var userIdInt))
-                return BadRequest("Invalid user ID in token");
-
             var user = await _context.Users
-                .Where(u => u.Id == userIdInt)
+                .Where(u => u.Id == userIdInt.Value)
                 .Select(u => new
                 {
                     u.Nickname,
@@ -114,6 +134,7 @@ namespace hundir_la_flota.Controllers
 
             return Ok(user);
         }
+
 
     }
 }

@@ -1,29 +1,36 @@
 ﻿using hundir_la_flota.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace hundir_la_flota.Repositories
+public class GameRepository : IGameRepository
 {
-    public class GameRepository : IGameRepository
+    private readonly List<Game> _games = new List<Game>();
+
+    public Task<List<Game>> GetAllAsync()
     {
-        private readonly List<Game> _games = new List<Game>();
+        return Task.FromResult(_games);
+    }
 
-        public async Task AddAsync(Game game)
-        {
-            _games.Add(game);
-        }
+    public Task<Game> GetByIdAsync(Guid gameId)
+    {
+        return Task.FromResult(_games.FirstOrDefault(g => g.GameId == gameId));
+    }
 
-        public async Task<Game> GetByIdAsync(Guid gameId)
-        {
-            // Aquí buscamos usando GameId
-            return _games.FirstOrDefault(g => g.GameId == gameId);
-        }
+    public Task AddAsync(Game game)
+    {
+        _games.Add(game);
+        return Task.CompletedTask;
+    }
 
-        public async Task UpdateAsync(Game game)
+    public Task UpdateAsync(Game game)
+    {
+        var index = _games.FindIndex(g => g.GameId == game.GameId);
+        if (index != -1)
         {
-            var index = _games.FindIndex(g => g.GameId == game.GameId);
-            if (index != -1)
-            {
-                _games[index] = game;
-            }
+            _games[index] = game;
         }
+        return Task.CompletedTask;
     }
 }
