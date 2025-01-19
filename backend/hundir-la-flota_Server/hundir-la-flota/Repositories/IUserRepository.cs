@@ -1,5 +1,4 @@
 ﻿
-
 namespace hundir_la_flota.Repositories
 {
     public interface IUserRepository

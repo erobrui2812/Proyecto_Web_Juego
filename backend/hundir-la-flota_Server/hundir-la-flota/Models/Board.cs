@@ -1,56 +1,58 @@
 ﻿using hundir_la_flota.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 public class Board
 {
     public const int Size = 10;
-    public Cell[,] Grid { get; set; }
+
+
+    public List<Cell> Grid { get; set; } = new List<Cell>();
     public List<Ship> Ships { get; set; } = new List<Ship>();
 
     public Board()
     {
-        Grid = new Cell[Size, Size];
+
         for (int i = 0; i < Size; i++)
         {
             for (int j = 0; j < Size; j++)
             {
-                Grid[i, j] = new Cell { X = i, Y = j };
+                Grid.Add(new Cell { X = i, Y = j });
             }
         }
     }
 
     public bool ProcessShot(int x, int y)
     {
-        if (Grid[x, y].HasShip)
+        var cell = Grid.FirstOrDefault(c => c.X == x && c.Y == y);
+        if (cell == null) return false;
+
+        if (cell.HasShip)
         {
-            Grid[x, y].IsHit = true;
-            Grid[x, y].Status = CellStatus.Hit;
+            cell.IsHit = true;
+            cell.Status = CellStatus.Hit;
             return true; // Acierto
         }
-        Grid[x, y].Status = CellStatus.Miss;
+        cell.Status = CellStatus.Miss;
         return false; // Fallo
     }
 
-
     public bool IsShipPlacementValid(Ship ship)
     {
-
         foreach (var coord in ship.Coordinates)
         {
             if (coord.X < 0 || coord.X >= Size || coord.Y < 0 || coord.Y >= Size)
             {
                 return false; // Coordenada fuera de los límites
             }
-        }
 
-
-        foreach (var coord in ship.Coordinates)
-        {
-            if (Grid[coord.X, coord.Y].HasShip)
+            var cell = Grid.FirstOrDefault(c => c.X == coord.X && c.Y == coord.Y);
+            if (cell == null || cell.HasShip)
             {
                 return false; // Ya hay un barco en esta posición
             }
         }
 
-        return true; // Las coordenadas son válidas para colocar el barco
+        return true;
     }
 }

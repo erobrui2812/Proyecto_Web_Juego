@@ -1,6 +1,5 @@
 ﻿using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace hundir_la_flota.Controllers
 {

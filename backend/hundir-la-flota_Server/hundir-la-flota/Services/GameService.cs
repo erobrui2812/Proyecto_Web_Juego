@@ -1,4 +1,9 @@
 ﻿using hundir_la_flota.Models;
+using hundir_la_flota.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 public interface IGameService
 {
@@ -64,7 +69,13 @@ public class GameService : IGameService
                 return new ServiceResponse<string> { Success = false, Message = "Las posiciones de los barcos no son válidas." };
 
             foreach (var coord in ship.Coordinates)
-                board.Grid[coord.X, coord.Y].HasShip = true;
+            {
+                var cell = board.Grid.FirstOrDefault(c => c.X == coord.X && c.Y == coord.Y);
+                if (cell != null)
+                {
+                    cell.HasShip = true;
+                }
+            }
 
             board.Ships.Add(ship);
         }
@@ -88,10 +99,10 @@ public class GameService : IGameService
             return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
 
         var opponentBoard = playerId == game.Player1Id ? game.Player2Board : game.Player1Board;
-        var cell = opponentBoard.Grid[x, y];
+        var cell = opponentBoard.Grid.FirstOrDefault(c => c.X == x && c.Y == y);
 
-        if (cell.IsHit)
-            return new ServiceResponse<string> { Success = false, Message = "Ya has atacado esta celda." };
+        if (cell == null || cell.IsHit)
+            return new ServiceResponse<string> { Success = false, Message = "Celda inválida o ya atacada." };
 
         cell.IsHit = true;
 

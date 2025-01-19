@@ -1,9 +1,8 @@
-﻿// Refactor del controlador para seguir buenas prácticas.
-using hundir_la_flota.Models;
+﻿using hundir_la_flota.Models;
 using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
+
 
 [ApiController]
 [Route("api/game")]

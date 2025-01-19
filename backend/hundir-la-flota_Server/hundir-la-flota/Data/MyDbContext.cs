@@ -11,6 +11,7 @@ public class MyDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
         modelBuilder.Entity<Friendship>()
             .HasOne(f => f.User)
             .WithMany()
@@ -30,5 +31,41 @@ public class MyDbContext : DbContext
 
         modelBuilder.Entity<Game>()
             .HasKey(g => g.GameId);
+
+        modelBuilder.Entity<Game>()
+            .OwnsOne(g => g.Player1Board, board =>
+            {
+                board.Ignore(b => b.Grid);
+                board.OwnsMany(b => b.Ships, ship =>
+                {
+                    ship.ToTable("Player1_Ships");
+                    ship.OwnsMany(s => s.Coordinates, coord =>
+                    {
+                        coord.HasKey(c => new { c.X, c.Y });
+                    });
+                });
+            });
+
+        modelBuilder.Entity<Game>()
+            .OwnsOne(g => g.Player2Board, board =>
+            {
+                board.Ignore(b => b.Grid);
+                board.OwnsMany(b => b.Ships, ship =>
+                {
+                    ship.ToTable("Player2_Ships");
+                    ship.OwnsMany(s => s.Coordinates, coord =>
+                    {
+                        coord.HasKey(c => new { c.X, c.Y });
+                    });
+                });
+            });
+
+
+        modelBuilder.Entity<Game>()
+            .OwnsMany(g => g.Actions, action =>
+            {
+                action.WithOwner().HasForeignKey("GameId");
+                action.HasKey(a => new { a.Timestamp, a.PlayerId });
+            });
     }
 }

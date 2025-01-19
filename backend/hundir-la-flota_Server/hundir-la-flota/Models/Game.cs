@@ -20,11 +20,13 @@ namespace hundir_la_flota.Models
 
     public class GameAction
     {
+        public int Id { get; set; }
         public int PlayerId { get; set; }
-        public string ActionType { get; set; } // E.g., "Shot", "PlacedShip"
+        public string ActionType { get; set; }
         public DateTime Timestamp { get; set; }
-        public string Details { get; set; } // Coordenadas o resultados
+        public string Details { get; set; }
     }
+
 
 
 
