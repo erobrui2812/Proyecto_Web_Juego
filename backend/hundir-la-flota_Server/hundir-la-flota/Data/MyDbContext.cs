@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using hundir_la_flota.Models;
+using Microsoft.EntityFrameworkCore;
 
 public class MyDbContext : DbContext
 {
@@ -6,6 +7,7 @@ public class MyDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<Game> Games { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,10 +23,12 @@ public class MyDbContext : DbContext
             .HasForeignKey(f => f.FriendId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Para evitar duplicados...
-
         modelBuilder.Entity<Friendship>()
             .HasIndex(f => new { f.UserId, f.FriendId })
             .IsUnique();
+
+
+        modelBuilder.Entity<Game>()
+            .HasKey(g => g.GameId);
     }
 }

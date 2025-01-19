@@ -1,5 +1,4 @@
-﻿
-using hundir_la_flota.Models;
+﻿using hundir_la_flota.Models;
 
 public interface IGameService
 {
@@ -97,23 +96,37 @@ public class GameService : IGameService
         cell.IsHit = true;
 
         var ship = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
-        if (ship != null && ship.IsSunk)
+        var actionDetails = $"Disparo en ({x}, {y})";
+
+        if (ship != null)
         {
+            actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
             if (opponentBoard.Ships.All(s => s.IsSunk))
             {
                 game.State = GameState.Finished;
-                await _gameRepository.UpdateAsync(game);
-                return new ServiceResponse<string> { Success = true, Message = "¡Ganaste la partida!" };
+                game.WinnerId = playerId;
+                actionDetails += " Fin del juego.";
             }
-
-            return new ServiceResponse<string> { Success = true, Message = "¡Barco hundido!" };
+        }
+        else
+        {
+            actionDetails += " ¡Fallo!";
         }
 
-        game.CurrentPlayerId = playerId == game.Player1Id ? game.Player2Id : game.Player1Id;
+        game.Actions.Add(new GameAction
+        {
+            PlayerId = playerId,
+            ActionType = "Shot",
+            Timestamp = DateTime.UtcNow,
+            Details = actionDetails
+        });
+
+        if (game.State != GameState.Finished)
+            game.CurrentPlayerId = playerId == game.Player1Id ? game.Player2Id : game.Player1Id;
 
         await _gameRepository.UpdateAsync(game);
 
-        return new ServiceResponse<string> { Success = true, Message = "Disparo realizado." };
+        return new ServiceResponse<string> { Success = true, Message = actionDetails };
     }
 
     public async Task<ServiceResponse<Game>> GetGameStateAsync(string userId, Guid gameId)

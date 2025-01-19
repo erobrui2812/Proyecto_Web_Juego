@@ -45,6 +45,8 @@ namespace hundir_la_flota
             builder.Services.AddScoped<GameSimulation>();
             builder.Services.AddScoped<IFriendshipService, FriendshipService>();
             builder.Services.AddScoped<UserService>();
+            builder.Services.AddScoped<IStatsService, StatsService>();
+
 
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

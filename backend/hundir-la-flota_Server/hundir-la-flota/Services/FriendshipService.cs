@@ -15,7 +15,7 @@ namespace hundir_la_flota.Services
         Task<ServiceResponse<List<FriendRequestDto>>> GetPendingRequestsAsync(int userId);
         Task<ServiceResponse<List<FriendRequestDto>>> GetUnacceptedRequestsAsync(int userId);
         Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname);
-        Task<ServiceResponse<string>> GetNicknameAsync(int userId); // Método añadido
+        Task<ServiceResponse<string>> GetNicknameAsync(int userId);
     }
 
     public class FriendshipService : IFriendshipService
@@ -34,22 +34,8 @@ namespace hundir_la_flota.Services
             if (string.IsNullOrEmpty(request.Nickname) && string.IsNullOrEmpty(request.Email))
                 return new ServiceResponse<string> { Success = false, Message = "Debes proporcionar un nickname o un correo electrónico." };
 
-            User friend = null;
-            if (!string.IsNullOrEmpty(request.Nickname))
-            {
-                var normalizedNickname = NormalizeString(request.Nickname).Trim();
-                friend = _dbContext.Users
-                    .AsEnumerable()
-                    .FirstOrDefault(u => NormalizeString(u.Nickname) == normalizedNickname);
-            }
-
-            if (friend == null && !string.IsNullOrEmpty(request.Email))
-            {
-                friend = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            }
-
-            if (friend == null)
-                return new ServiceResponse<string> { Success = false, Message = "No se encontró el usuario." };
+            var friend = await FindUserByNicknameOrEmailAsync(request.Nickname, request.Email);
+            if (friend == null) return new ServiceResponse<string> { Success = false, Message = "No se encontró el usuario." };
 
             if (userId == friend.Id)
                 return new ServiceResponse<string> { Success = false, Message = "No puedes enviarte una solicitud de amistad a ti mismo." };
@@ -207,6 +193,22 @@ namespace hundir_la_flota.Services
                 return new ServiceResponse<string> { Success = false, Message = "Usuario no encontrado." };
 
             return new ServiceResponse<string> { Success = true, Data = user.Nickname };
+        }
+
+        private async Task<User> FindUserByNicknameOrEmailAsync(string nickname, string email)
+        {
+            if (!string.IsNullOrEmpty(nickname))
+            {
+                var normalizedNickname = NormalizeString(nickname).Trim();
+                return await _dbContext.Users.FirstOrDefaultAsync(u => NormalizeString(u.Nickname) == normalizedNickname);
+            }
+
+            if (!string.IsNullOrEmpty(email))
+            {
+                return await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+            }
+
+            return null;
         }
 
         private string NormalizeString(string input)

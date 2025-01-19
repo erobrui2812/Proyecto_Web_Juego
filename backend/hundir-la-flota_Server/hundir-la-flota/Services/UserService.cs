@@ -1,9 +1,18 @@
-﻿using hundir_la_flota.Models;
+﻿using hundir_la_flota.DTOs;
+using hundir_la_flota.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace hundir_la_flota.Services
 {
-    public class UserService
+    public interface IUserService
+    {
+        Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto);
+        ServiceResponse<string> AuthenticateUser(UserLoginDTO dto);
+        Task<ServiceResponse<List<UserListDTO>>> GetAllUsersAsync();
+        Task<ServiceResponse<object>> GetUserDetailAsync(string authorizationHeader);
+    }
+
+    public class UserService : IUserService
     {
         private readonly MyDbContext _context;
         private readonly IAuthService _authService;
@@ -48,9 +57,9 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<string> { Success = true, Data = token };
         }
 
-        public async Task<List<UserListDTO>> GetAllUsersAsync()
+        public async Task<ServiceResponse<List<UserListDTO>>> GetAllUsersAsync()
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Select(u => new UserListDTO
                 {
                     Id = u.Id,
@@ -59,8 +68,9 @@ namespace hundir_la_flota.Services
                     AvatarUrl = u.AvatarUrl
                 })
                 .ToListAsync();
-        }
 
+            return new ServiceResponse<List<UserListDTO>> { Success = true, Data = users };
+        }
 
         public async Task<ServiceResponse<object>> GetUserDetailAsync(string authorizationHeader)
         {
