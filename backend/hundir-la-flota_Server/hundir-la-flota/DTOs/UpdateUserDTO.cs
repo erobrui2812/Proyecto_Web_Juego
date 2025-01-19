@@ -1,16 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-public class FriendDto
+public class UpdateUserDTO
 {
-    [Required]
-    public int FriendId { get; set; }
-
-    [Required]
     [MaxLength(50, ErrorMessage = "El nickname no debe exceder los 50 caracteres.")]
-    public string FriendNickname { get; set; }
+    public string Nickname { get; set; }
 
     [EmailAddress(ErrorMessage = "El correo electrónico no tiene un formato válido.")]
-    public string FriendMail { get; set; }
+    public string Email { get; set; }
 
     [Url(ErrorMessage = "La URL del avatar no es válida.")]
     public string AvatarUrl { get; set; }
