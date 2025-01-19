@@ -290,16 +290,15 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!auth?.token) return;
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/remove",
+        `https://localhost:7162/api/Friendship/remove/${friendId}`,
         {
           method: "DELETE",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${auth.token}`,
           },
-          body: JSON.stringify(parseInt(friendId)),
         }
       );
+
       if (!response.ok) {
         const text = await response.text();
         toast.error(`Error al eliminar amigo: ${text}`);

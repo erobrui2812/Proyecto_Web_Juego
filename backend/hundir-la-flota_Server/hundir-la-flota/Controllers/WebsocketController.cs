@@ -6,59 +6,41 @@ using System.Net.WebSockets;
 [Route("ws")]
 public class WebSocketController : ControllerBase
 {
-    private readonly WebSocketService _webSocketService;
-    private readonly AuthService _authService;
+    private readonly IWebSocketService _webSocketService;
+    private readonly IAuthService _authService;
 
-
-    public WebSocketController(WebSocketService webSocketService, AuthService authService)
+    public WebSocketController(IWebSocketService webSocketService, IAuthService authService)
     {
         _webSocketService = webSocketService;
         _authService = authService;
     }
 
     [HttpGet]
-    public async Task Connect()
+    public async Task<IActionResult> Connect()
     {
-        if (HttpContext.WebSockets.IsWebSocketRequest)
+        if (!HttpContext.WebSockets.IsWebSocketRequest)
+            return BadRequest("La solicitud no es un WebSocket");
+
+        var authorizationHeader = HttpContext.Request.Headers["Authorization"].ToString();
+        if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
+            return Unauthorized("Token no proporcionado o inválido.");
+
+        var token = authorizationHeader.Substring("Bearer ".Length).Trim();
+        try
         {
+            var userId = _authService.GetUserIdFromToken(token);
+            if (!userId.HasValue)
+                return Unauthorized("Token inválido o usuario no autorizado.");
 
-            var authorizationHeader = HttpContext.Request.Headers["Authorization"].ToString();
-            if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
-            {
-                Console.WriteLine("Conexión WebSocket rechazada: token no proporcionado.");
-                HttpContext.Response.StatusCode = 401;
-                return;
-            }
+            var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+            await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
 
-            var token = authorizationHeader.Substring("Bearer ".Length).Trim();
-            Console.WriteLine($"Verificando token: {token}");
-
-            try
-            {
-
-                var userId = _authService.GetUserIdFromTokenAsInt("Bearer " + token);
-                if (!userId.HasValue)
-                {
-                    Console.WriteLine("Conexión WebSocket rechazada: token inválido o no se pudo extraer userId.");
-                    HttpContext.Response.StatusCode = 401;
-                    return;
-                }
-
-                Console.WriteLine($"Token recibido: {token}");
-                var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
-
-                await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error al manejar la conexión WebSocket: {ex.Message}");
-            }
+            return Ok("Conexión WebSocket establecida.");
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine("Conexión WebSocket rechazada: no es una solicitud WebSocket.");
-            HttpContext.Response.StatusCode = 400;
+            Console.WriteLine($"Error en la conexión WebSocket: {ex.Message}");
+            return StatusCode(500, "Error en el servidor.");
         }
     }
 }
