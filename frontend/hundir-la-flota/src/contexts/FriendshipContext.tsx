@@ -102,15 +102,15 @@ const FriendRequestNotification: React.FC = () => {
     try {
       const nickname = await userIdANickname(senderId, auth.token);
       toast(
-        <div>
+        <div className="text-center">
           <p>Nueva solicitud de amistad de: {nickname}</p>
-          <div style={{ display: "flex", justifyContent: "space-around" }}>
+          <div className="flex justify-center gap-6 mt-4">
             <button
               onClick={() => {
                 respondToFriendRequest(senderId, true);
                 toast.dismiss();
               }}
-              style={{ backgroundColor: "green", color: "white" }}
+              className="bg-green-500 text-white px-6 py-2 w-32 rounded hover:bg-green-600 transition"
             >
               Aceptar
             </button>
@@ -119,7 +119,7 @@ const FriendRequestNotification: React.FC = () => {
                 respondToFriendRequest(senderId, false);
                 toast.dismiss();
               }}
-              style={{ backgroundColor: "red", color: "white" }}
+              className="bg-red-500 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>
