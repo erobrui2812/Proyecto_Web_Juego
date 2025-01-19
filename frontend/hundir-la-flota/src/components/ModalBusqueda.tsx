@@ -25,7 +25,7 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
   };
   return (
     <Modal title="Buscar Usuarios" isOpen={isOpen} onClose={onClose}>
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {searchResults.length > 0 ? (
           searchResults.map((user) => (
             <div

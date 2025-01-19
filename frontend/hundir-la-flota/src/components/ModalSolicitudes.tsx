@@ -16,7 +16,7 @@ const ModalSolicitudes = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   return (
     <Modal title="Solicitudes de Amistad" isOpen={isOpen} onClose={onClose}>
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {pendingRequests.length > 0 ? (
           pendingRequests.map((request) => (
             <div

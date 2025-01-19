@@ -22,7 +22,7 @@ const MenuPage = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto mt-8 space-y-8">
+    <div className="max-w-6xl mx-auto mt-8 flex flex-col gap-8">
       <AvatarUsuario />
 
       <BuscadorUsuarios

@@ -41,7 +41,7 @@ const ListaAmigos = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {friends.map((friend) => (
         <div
           key={friend.id}
