@@ -12,7 +12,20 @@ namespace hundir_la_flota.Models
         public Board Player2Board { get; set; } = new Board();
         public int CurrentPlayerId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public int? WinnerId { get; set; }
+
+        public List<GameAction> Actions { get; set; } = new List<GameAction>();
+
     }
+
+    public class GameAction
+    {
+        public int PlayerId { get; set; }
+        public string ActionType { get; set; } // E.g., "Shot", "PlacedShip"
+        public DateTime Timestamp { get; set; }
+        public string Details { get; set; } // Coordenadas o resultados
+    }
+
 
 
     public enum GameState

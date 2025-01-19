@@ -22,4 +22,13 @@ public class Friendship
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? ConfirmedAt { get; set; }
+
+    public enum FriendshipStatus
+    {
+        Pending,
+        Accepted,
+        Rejected
+    }
+
+    public FriendshipStatus Status { get; set; } = FriendshipStatus.Pending;
 }

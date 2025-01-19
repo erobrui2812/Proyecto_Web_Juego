@@ -8,10 +8,15 @@ public class User
     public string Nickname { get; set; }
 
     [Required]
+    [EmailAddress(ErrorMessage = "El correo electrónico no tiene un formato válido.")]
     public string Email { get; set; }
 
     [Required]
     public string PasswordHash { get; set; }
 
     public string AvatarUrl { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLogin { get; set; }
+
 }

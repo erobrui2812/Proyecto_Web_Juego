@@ -18,6 +18,19 @@ public class Board
         }
     }
 
+    public bool ProcessShot(int x, int y)
+    {
+        if (Grid[x, y].HasShip)
+        {
+            Grid[x, y].IsHit = true;
+            Grid[x, y].Status = CellStatus.Hit;
+            return true; // Acierto
+        }
+        Grid[x, y].Status = CellStatus.Miss;
+        return false; // Fallo
+    }
+
+
     public bool IsShipPlacementValid(Ship ship)
     {
 
