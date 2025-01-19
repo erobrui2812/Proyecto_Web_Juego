@@ -195,21 +195,20 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<string> { Success = true, Data = user.Nickname };
         }
 
-        private async Task<User> FindUserByNicknameOrEmailAsync(string nickname, string email)
+        public async Task<User> FindUserByNicknameOrEmailAsync(string nickname, string email)
         {
-            if (!string.IsNullOrEmpty(nickname))
-            {
-                var normalizedNickname = NormalizeString(nickname).Trim();
-                return await _dbContext.Users.FirstOrDefaultAsync(u => NormalizeString(u.Nickname) == normalizedNickname);
-            }
 
-            if (!string.IsNullOrEmpty(email))
-            {
-                return await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-            }
+            var normalizedNickname = nickname?.ToLower();
+            var normalizedEmail = email?.ToLower();
 
-            return null;
+
+            var user = await _dbContext.Users
+                .Where(u => u.Nickname.ToLower() == normalizedNickname || u.Email.ToLower() == normalizedEmail)
+                .FirstOrDefaultAsync();
+
+            return user;
         }
+
 
         private string NormalizeString(string input)
         {
