@@ -1,10 +1,24 @@
 "use client";
 
 import { PendingRequest } from "@/types/friendship";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, use, useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "./AuthContext";
+
+type UserProfile = {
+  nickname: string;
+  avatarUrl: string;
+  email: string;
+};
+
+type GameHistory = {
+  gameId: string;
+  player1Nickname: string;
+  player2Nickname: string;
+  datePlayed: string;
+  result: string;
+};
 
 type Friend = {
   id: string;
@@ -23,6 +37,8 @@ type FriendshipContextType = {
   searchUsers: (query: string) => void;
   fetchPendingRequests: () => Promise<PendingRequest[]>;
   fetchFriends: () => void;
+  fetchUserProfile: (id: string) => Promise<UserProfile>;
+  fetchUserGameHistory: (id: string) => Promise<GameHistory[]>
 };
 
 const FriendshipContext = createContext<FriendshipContextType | undefined>(
@@ -368,6 +384,60 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
+    if (!auth?.token) {
+      throw new Error("Token de autenticación no disponible.");
+    }
+    console.log(userId.toString())
+    try {
+      const response = await fetch(`https://localhost:7162/api/Users/perfil/${userId.toString()}`, {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al obtener el perfil: ${response.statusText}`);
+      }
+      console.log(response)
+      const data = await response.json();
+      return {
+        nickname: data.nickname,
+        avatarUrl: data.avatarUrl,
+        email: data.email,
+      };
+    } catch (error) {
+      console.error("Error en fetchUserProfile:", error);
+      throw error;
+    }
+  };
+
+  const fetchUserGameHistory = async (userId: string): Promise<GameHistory[]> => {
+    if (!auth?.token) {
+      throw new Error("Token de autenticación no disponible.");
+    }
+
+    try {
+      const response = await fetch(`https://localhost:7162/api/Users/historial/${userId}`, {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al obtener el historial: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.map((game: any) => ({
+        gameId: game.gameId,
+        player1Nickname: game.player1Nickname,
+        player2Nickname: game.player2Nickname,
+        datePlayed: game.datePlayed,
+        result: game.result,
+      }));
+    } catch (error) {
+      console.error("Error en fetchUserGameHistory:", error);
+      throw error;
+    }
+  };
+
   return (
     <FriendshipContext.Provider
       value={{
@@ -379,6 +449,8 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         searchUsers,
         fetchFriends,
         fetchPendingRequests,
+        fetchUserGameHistory,
+        fetchUserProfile,
       }}
     >
       {auth.token && <FriendRequestNotification />}

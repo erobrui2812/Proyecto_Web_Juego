@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import ModalPerfil from "@/components/ModalPerfil";
 import ReactPaginate from "react-paginate";
 
 const translateStatus = (status: string) => {
@@ -23,10 +24,12 @@ const ListaAmigos = () => {
   const { friends, removeFriend } = useFriendship();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<{
     id: string;
     nickname: string;
   } | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
@@ -42,12 +45,22 @@ const ListaAmigos = () => {
     setPageNumber(selectedItem.selected);
   };
 
-  const openModal = (friend: { id: string; nickname: string }) => {
+  const openProfileModal = (userId: string) => {
+    setSelectedUserId(userId);
+    setIsProfileModalOpen(true);
+  };
+
+  const closeProfileModal = () => {
+    setSelectedUserId(null);
+    setIsProfileModalOpen(false);
+  };
+
+  const openDeleteModal = (friend: { id: string; nickname: string }) => {
     setSelectedFriend(friend);
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
+  const closeDeleteModal = () => {
     setSelectedFriend(null);
     setIsModalOpen(false);
   };
@@ -56,7 +69,7 @@ const ListaAmigos = () => {
     if (selectedFriend) {
       removeFriend(selectedFriend.id);
     }
-    closeModal();
+    closeDeleteModal();
   };
 
   return (
@@ -80,7 +93,6 @@ const ListaAmigos = () => {
           <option value={18}>18</option>
         </select>
       </div>
-
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {currentFriends.map((friend) => (
@@ -116,13 +128,13 @@ const ListaAmigos = () => {
 
             <div className="flex justify-between items-center mt-auto">
               <button
-                onClick={() => alert(`Ver perfil de ${friend.nickname}`)}
+                onClick={() => openProfileModal(friend.id)}
                 className="text-blue-400 hover:underline"
               >
                 Ver perfil
               </button>
               <button
-                onClick={() => openModal(friend)}
+                onClick={() => openDeleteModal(friend)}
                 className="text-red-500 hover:text-red-700"
               >
                 <Trash2 size={20} />
@@ -154,9 +166,15 @@ const ListaAmigos = () => {
         />
       </div>
 
+      <ModalPerfil
+        isOpen={isProfileModalOpen}
+        onClose={closeProfileModal}
+        userId={selectedUserId}
+      />
+
       <Modal
         isOpen={isModalOpen}
-        onClose={closeModal}
+        onClose={closeDeleteModal}
         title="Confirmar eliminación"
       >
         <p>
@@ -164,9 +182,9 @@ const ListaAmigos = () => {
           <span className="font-bold">{selectedFriend?.nickname}</span> de tu
           lista de amigos?
         </p>
-        <div className="flex justify-end space-x-4 mt-4">
+        <div className="flex justify-end mt-4">
           <button
-            onClick={closeModal}
+            onClick={closeDeleteModal}
             className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
           >
             Cancelar

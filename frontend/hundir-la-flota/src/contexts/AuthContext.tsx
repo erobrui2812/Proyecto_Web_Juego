@@ -91,9 +91,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const decodeToken = (token: string) => {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("Payload del token:", payload);
         return {
           role: payload["role"] || "usuario",
-          userId: payload["nameIdentifier"] || 0,
+          userId: payload["id"] || 0, 
         };
       } catch (error) {
         console.error("Error al decodificar el token:", error);
