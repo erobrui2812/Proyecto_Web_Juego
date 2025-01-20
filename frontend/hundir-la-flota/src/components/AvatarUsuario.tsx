@@ -20,7 +20,8 @@ const AvatarUsuario = () => {
   };
 
   return (
-    <div className="flex items-center">
+    <div>
+      <div className="flex items-center space-x-4">
       <img
         src={userDetail?.avatarUrl || "https://via.placeholder.com/150"}
         alt="User Avatar"
@@ -42,6 +43,8 @@ const AvatarUsuario = () => {
         <LogOut size={20} />
         <span>Cerrar Sesión</span>
       </button>
+      </div>
+      
 
       
       {userDetail && (

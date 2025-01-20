@@ -388,7 +388,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!auth?.token) {
       throw new Error("Token de autenticación no disponible.");
     }
-    console.log(userId.toString())
     try {
       const response = await fetch(`https://localhost:7162/api/Users/perfil/${userId.toString()}`, {
         headers: { Authorization: `Bearer ${auth.token}` },
@@ -397,7 +396,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!response.ok) {
         throw new Error(`Error al obtener el perfil: ${response.statusText}`);
       }
-      console.log(response)
+
       const data = await response.json();
       return {
         nickname: data.nickname,

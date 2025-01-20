@@ -32,7 +32,7 @@ const BuscadorUsuarios: React.FC<BuscadorUsuariosProps> = ({
         />
       </div>
 
-      <div className="flex justify-center items-center mt-4">
+      <div className="flex justify-center items-center space-x-4 mt-4">
         <button
           onClick={handleSearchClick}
           className="border-2 border-gold p-2 bg-primary text-white rounded-md flex items-center space-x-2 hover:bg-blue-600"
