@@ -36,6 +36,25 @@ public class GameController : ControllerBase
         return Ok(response.Data);
     }
 
+    [HttpPost("{gameId}/abandon")]
+    public async Task<IActionResult> AbandonGame(Guid gameId)
+    {
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.AbandonGameAsync(gameId, userId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        return Ok("Juego abandonado correctamente.");
+    }
+
+    [HttpPost("{gameId}/reassign")]
+    public async Task<IActionResult> ReassignRoles(Guid gameId)
+    {
+        var response = await _gameService.ReassignRolesAsync(gameId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        return Ok("Roles reasignados correctamente.");
+    }
+
     [HttpPost("{gameId}/join")]
     public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] int playerId)
     {
@@ -66,10 +85,11 @@ public class GameController : ControllerBase
     [HttpGet("{gameId}")]
     public async Task<IActionResult> GetGameState(Guid gameId)
     {
-        var userId = GetUserIdFromClaim();
-        var response = await _gameService.GetGameStateAsync(userId.ToString(), gameId);
+
+        var response = await _gameService.GetGameStateAsync(GetUserIdFromClaim().ToString(), gameId);
         if (!response.Success)
             return BadRequest(response.Message);
+
         return Ok(response.Data);
     }
 

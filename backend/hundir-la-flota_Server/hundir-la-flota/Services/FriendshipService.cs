@@ -16,6 +16,7 @@ namespace hundir_la_flota.Services
         Task<ServiceResponse<List<FriendRequestDto>>> GetUnacceptedRequestsAsync(int userId);
         Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname);
         Task<ServiceResponse<string>> GetNicknameAsync(int userId);
+        Task<ServiceResponse<List<FriendDto>>> GetConnectedFriendsAsync(int userId);
     }
 
     public class FriendshipService : IFriendshipService
@@ -209,6 +210,27 @@ namespace hundir_la_flota.Services
             return user;
         }
 
+        public async Task<ServiceResponse<List<FriendDto>>> GetConnectedFriendsAsync(int userId)
+        {
+            // Obtener amigos conectados (usando estados en WebSocketService)
+            var connectedFriends = await _dbContext.Friendships
+                .Where(f => (f.UserId == userId || f.FriendId == userId) && f.IsConfirmed)
+                .Include(f => f.Friend)
+                .Include(f => f.User)
+                .Select(f => new FriendDto
+                {
+                    FriendId = f.UserId == userId ? f.FriendId : f.UserId,
+                    FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
+                    AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl
+                })
+                .ToListAsync();
+
+            var connectedFriendIds = connectedFriends
+                .Where(friend => _webSocketService.IsUserConnected(friend.FriendId))
+                .ToList();
+
+            return new ServiceResponse<List<FriendDto>> { Success = true, Data = connectedFriendIds };
+        }
 
         private string NormalizeString(string input)
         {

@@ -1,4 +1,5 @@
-﻿using hundir_la_flota.Models;
+﻿using hundir_la_flota.DTOs;
+using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,10 @@ using System.Threading.Tasks;
 public interface IGameService
 {
     Task<ServiceResponse<Game>> CreateGameAsync(string userId);
-    Task<ServiceResponse<Game>> GetGameStateAsync(string userId, Guid gameId);
+    Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId);
     Task<ServiceResponse<string>> JoinGameAsync(Guid gameId, int playerId);
+    Task<ServiceResponse<string>> AbandonGameAsync(Guid gameId, int playerId);
+    Task<ServiceResponse<string>> ReassignRolesAsync(Guid gameId);
     Task<ServiceResponse<string>> PlaceShipsAsync(Guid gameId, int playerId, List<Ship> ships);
     Task<ServiceResponse<string>> AttackAsync(Guid gameId, int playerId, int x, int y);
     Task<ServiceResponse<Game>> FindRandomOpponentAsync(string userId);
@@ -19,10 +22,12 @@ public interface IGameService
 public class GameService : IGameService
 {
     private readonly IGameRepository _gameRepository;
+    private readonly IUserRepository _userRepository;
 
-    public GameService(IGameRepository gameRepository)
+    public GameService(IGameRepository gameRepository, IUserRepository userRepository)
     {
         _gameRepository = gameRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<ServiceResponse<Game>> CreateGameAsync(string userId)
@@ -31,8 +36,10 @@ public class GameService : IGameService
         var newGame = new Game
         {
             Player1Id = userIdInt,
+            Player1Role = "Anfitrión",
+            Player2Role = "Vacante",
             CurrentPlayerId = userIdInt,
-            State = GameState.WaitingForPlayer1Ships
+            State = GameState.WaitingForPlayers
         };
 
         await _gameRepository.AddAsync(newGame);
@@ -48,11 +55,42 @@ public class GameService : IGameService
             return new ServiceResponse<string> { Success = false, Message = "La partida no está disponible." };
 
         game.Player2Id = playerId;
+        game.Player2Role = "Invitado";
         game.State = GameState.WaitingForPlayer1Ships;
 
         await _gameRepository.UpdateAsync(game);
 
         return new ServiceResponse<string> { Success = true, Message = "Te has unido a la partida." };
+    }
+
+    public async Task<ServiceResponse<string>> AbandonGameAsync(Guid gameId, int playerId)
+    {
+        var game = await _gameRepository.GetByIdAsync(gameId);
+
+        if (game == null)
+            return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+        if (game.Player1Id == playerId)
+        {
+            game.Player1Id = game.Player2Id;
+            game.Player1Role = "Anfitrión";
+            game.Player2Id = -1;
+            game.Player2Role = "Vacante";
+        }
+        else if (game.Player2Id == playerId)
+        {
+            game.Player2Id = -1;
+            game.Player2Role = "Vacante";
+        }
+
+        if (game.Player1Id == -1 && game.Player2Id == -1)
+        {
+            game.State = GameState.WaitingForPlayers;
+        }
+
+        await _gameRepository.UpdateAsync(game);
+
+        return new ServiceResponse<string> { Success = true, Message = "Jugador ha abandonado la partida." };
     }
 
     public async Task<ServiceResponse<string>> PlaceShipsAsync(Guid gameId, int playerId, List<Ship> ships)
@@ -140,14 +178,52 @@ public class GameService : IGameService
         return new ServiceResponse<string> { Success = true, Message = actionDetails };
     }
 
-    public async Task<ServiceResponse<Game>> GetGameStateAsync(string userId, Guid gameId)
+    public async Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId)
     {
         var game = await _gameRepository.GetByIdAsync(gameId);
 
         if (game == null)
-            return new ServiceResponse<Game> { Success = false, Message = "La partida no existe." };
+            return new ServiceResponse<GameResponseDTO> { Success = false, Message = "La partida no existe." };
 
-        return new ServiceResponse<Game> { Success = true, Data = game };
+        var player1Nickname = game.Player1Id > 0
+            ? (await _userRepository.GetUserByIdAsync(game.Player1Id))?.Nickname ?? "Vacante"
+            : "Vacante";
+
+        var player2Nickname = game.Player2Id > 0
+            ? (await _userRepository.GetUserByIdAsync(game.Player2Id))?.Nickname ?? "Vacante"
+            : "Vacante";
+
+
+        var player1Display = $"{player1Nickname} - {game.Player1Role}";
+        var player2Display = $"{player2Nickname} - {game.Player2Role}";
+
+        var response = new GameResponseDTO
+        {
+            GameId = game.GameId,
+            Player1Display = player1Display,
+            Player2Display = player2Display,
+            StateDescription = GetStateDescription(game.State),
+            Player1Board = game.Player1Board,
+            Player2Board = game.Player2Board,
+            CreatedAt = game.CreatedAt
+        };
+
+        return new ServiceResponse<GameResponseDTO> { Success = true, Data = response };
+    }
+
+    private string GetStateDescription(GameState state)
+    {
+        return state switch
+        {
+            GameState.WaitingForPlayers => "Esperando jugadores.",
+            GameState.WaitingForPlayer1Ships => "El anfitrión está colocando sus barcos.",
+            GameState.WaitingForPlayer2Ships => "El invitado está colocando sus barcos.",
+            GameState.WaitingForPlayer1Shot => "Esperando disparo del anfitrión.",
+            GameState.WaitingForPlayer2Shot => "Esperando disparo del invitado.",
+            GameState.InProgress => "La partida está en progreso.",
+            GameState.Finished => "La partida ha terminado.",
+            _ => "Estado desconocido."
+        };
     }
 
     public async Task<ServiceResponse<Game>> FindRandomOpponentAsync(string userId)
@@ -183,5 +259,28 @@ public class GameService : IGameService
         await _gameRepository.AddAsync(newGame);
 
         return new ServiceResponse<Game> { Success = true, Data = newGame };
+    }
+
+    public async Task<ServiceResponse<string>> ReassignRolesAsync(Guid gameId)
+    {
+        var game = await _gameRepository.GetByIdAsync(gameId);
+
+        if (game == null)
+            return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+        if (game.Player1Id == -1 && game.Player2Id != -1)
+        {
+            game.Player1Id = game.Player2Id;
+            game.Player2Id = -1;
+        }
+        else if (game.Player2Id == -1 && game.Player1Id != -1)
+        {
+            game.Player2Id = game.Player1Id;
+            game.Player1Id = -1;
+        }
+
+        await _gameRepository.UpdateAsync(game);
+
+        return new ServiceResponse<string> { Success = true, Message = "Roles reasignados correctamente." };
     }
 }

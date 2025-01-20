@@ -10,12 +10,15 @@ namespace hundir_la_flota.Services
         ServiceResponse<string> AuthenticateUser(UserLoginDTO dto);
         Task<ServiceResponse<List<UserListDTO>>> GetAllUsersAsync();
         Task<ServiceResponse<object>> GetUserDetailAsync(string authorizationHeader);
+        Task<ServiceResponse<UserListDTO>> GetProfileByIdAsync(int userId);
+        Task<ServiceResponse<List<UserListDTO>>> GetAllConnectedUsersAsync();
     }
 
     public class UserService : IUserService
     {
         private readonly MyDbContext _context;
         private readonly IAuthService _authService;
+        private readonly IWebSocketService _webSocketService;
 
         public UserService(MyDbContext context, IAuthService authService)
         {
@@ -159,6 +162,28 @@ namespace hundir_la_flota.Services
 
             return nickname ?? string.Empty;
         }
+
+        public async Task<ServiceResponse<List<UserListDTO>>> GetAllConnectedUsersAsync()
+        {
+
+            var users = await _context.Users
+                .Select(u => new UserListDTO
+                {
+                    Id = u.Id,
+                    Nickname = u.Nickname,
+                    Email = u.Email,
+                    AvatarUrl = u.AvatarUrl
+                })
+                .ToListAsync();
+
+
+            var connectedUsers = users
+                .Where(user => _webSocketService.IsUserConnected(user.Id))
+                .ToList();
+
+            return new ServiceResponse<List<UserListDTO>> { Success = true, Data = connectedUsers };
+        }
+
 
 
     }

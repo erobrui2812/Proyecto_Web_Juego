@@ -7,6 +7,8 @@ namespace hundir_la_flota.Models
         public Guid GameId { get; set; } = Guid.NewGuid();
         public int Player1Id { get; set; }
         public int Player2Id { get; set; }
+        public string Player1Role { get; set; }
+        public string Player2Role { get; set; }
         public GameState State { get; set; } = GameState.WaitingForPlayers;
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();
@@ -15,7 +17,6 @@ namespace hundir_la_flota.Models
         public int WinnerId { get; set; }
 
         public List<GameAction> Actions { get; set; } = new List<GameAction>();
-
     }
 
     public class GameAction

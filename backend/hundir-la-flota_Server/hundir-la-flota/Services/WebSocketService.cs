@@ -11,6 +11,7 @@ namespace hundir_la_flota.Services
         Task SendMessageAsync(WebSocket webSocket, string action, string payload);
         Task DisconnectUserAsync(int userId);
         Task NotifyUserAsync(int userId, string action, string payload);
+        bool IsUserConnected(int userId);
     }
 
     public class WebSocketService : IWebSocketService
@@ -119,6 +120,11 @@ namespace hundir_la_flota.Services
                         }
                         break;
 
+                    case "AbandonGame":
+                        await NotifyUserStatusChangeAsync(userId, UserState.Connected);
+                        _logger.LogInformation($"Usuario {userId} ha abandonado un juego.");
+                        break;
+
                     default:
                         _logger.LogWarning($"Acción no reconocida: {action}");
                         if (_connectedUsers.TryGetValue(userId, out var webSocket))
@@ -191,6 +197,12 @@ namespace hundir_la_flota.Services
                 webSocket.Dispose();
                 _logger.LogInformation($"Usuario {userId} desconectado.");
             }
+
+
+        }
+        public bool IsUserConnected(int userId)
+        {
+            return _connectedUsers.ContainsKey(userId);
         }
 
         private void UpdateUserState(int userId, UserState newState)
