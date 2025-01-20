@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import { GameProvider, useGame } from "./GameContext";
 import { FriendshipProvider, useFriendship } from "./FriendshipContext";
 
-// Crear un contexto global
 const GlobalContext = createContext(null);
 
 export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
@@ -19,7 +18,6 @@ export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Hook para acceder a todos los contextos desde uno
 export const useGlobalContext = () => {
   const auth = useAuth();
   const game = useGame();

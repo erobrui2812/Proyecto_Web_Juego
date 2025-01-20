@@ -1,11 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { toast } from "react-toastify";
 
 type AuthContextType = {
   auth: { token: string | null };
-  userDetail: { avatarUrl: string; nickname: string; mail: string } | null;
+  userDetail: {
+    id: number;
+    avatarUrl: string;
+    nickname: string;
+    mail: string;
+    rol: string;
+  } | null;
   iniciarSesion: (
     nicknameMail: string,
     password: string,
@@ -29,6 +35,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [auth, setAuth] = useState<{ token: string | null }>({ token: null });
+  const [userDetail, setUserDetail] = useState<{
+    id: number;
+    avatarUrl: string;
+    nickname: string;
+    mail: string;
+    rol: string;
+  } | null>(null);
+  const [isAuthenticated, setAuthenticated] = useState(false);
+  const [rol, setRol] = useState<string>("usuario");
 
   useEffect(() => {
     const token =
@@ -38,35 +53,84 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAuth({ token });
   }, []);
 
-  const [userDetail, setUserDetail] = useState<{
-    avatarUrl: string;
-    nickname: string;
-    mail: string;
-  } | null>(null);
+  const obtenerUserDetail = useCallback(async () => {
+    if (!auth.token) return;
 
-  const [isAuthenticated, setAuthenticated] = useState(false);
+    try {
+      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      });
 
-  const [rol, setRol] = useState<string>("usuario");
-
-  useEffect(() => {
-    if (auth.token) {
-      setAuthenticated(true);
-      try {
-        const payload = JSON.parse(atob(auth.token.split(".")[1]));
-        const roleDecoded =
-          payload[
-            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-          ];
-        setRol(roleDecoded || "usuario");
-      } catch (error) {
-        console.error("Error al decodificar el token:", error);
+      if (!response.ok) {
+        throw new Error("Error al obtener los detalles del usuario");
       }
-      obtenerUserDetail();
-    } else {
-      setAuthenticated(false);
+
+      const data = await response.json();
+
+      setUserDetail((prev) => {
+        return prev
+          ? { ...prev, ...data }
+          : {
+              id: data.id,
+              avatarUrl: data.avatarUrl,
+              nickname: data.nickname,
+              mail: data.mail,
+              rol: data.rol || "usuario",
+            };
+      });
+    } catch (error) {
+      console.error("Error al obtener detalles del usuario:", error);
       setUserDetail(null);
     }
   }, [auth.token]);
+
+  useEffect(() => {
+    const decodeToken = (token: string) => {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return {
+          role: payload["role"] || "usuario",
+          userId: payload["nameIdentifier"] || 0,
+        };
+      } catch (error) {
+        console.error("Error al decodificar el token:", error);
+        return null;
+      }
+    };
+
+    if (auth.token) {
+      setAuthenticated(true);
+
+      const decoded = decodeToken(auth.token);
+
+      if (decoded) {
+        setRol(decoded.role);
+        obtenerUserDetail();
+        setUserDetail((prevDetail) => {
+          return prevDetail
+            ? {
+                ...prevDetail,
+                id: decoded.userId,
+                rol: decoded.role,
+              }
+            : {
+                id: decoded.userId,
+                rol: decoded.role,
+                avatarUrl: "",
+                nickname: "",
+                mail: "",
+              };
+        });
+      }
+    } else {
+      setAuthenticated(false);
+      setUserDetail(null);
+      setRol("usuario");
+    }
+  }, [auth.token, obtenerUserDetail]);
 
   const iniciarSesion = async (
     nicknameMail: string,
@@ -94,14 +158,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         sessionStorage.setItem("token", token);
       }
-
-      const decoded = JSON.parse(atob(token.split(".")[1]));
-      const roleDecoded =
-        decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-      setRol(roleDecoded);
-
-      setAuthenticated(true);
-      await obtenerUserDetail();
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error.message);
       toast.error(error.message || "Error desconocido");
@@ -145,35 +201,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const obtenerUserDetail = async () => {
-    if (!auth.token) return;
-
-    try {
-      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al obtener los detalles del usuario");
-      }
-
-      const data = await response.json();
-      setUserDetail(data);
-    } catch (error) {
-      console.error("Error al obtener detalles del usuario:", error);
-      setUserDetail(null);
-    }
-  };
-
   const cerrarSesion = () => {
     setAuth({ token: null });
     sessionStorage.removeItem("token");
     localStorage.removeItem("token");
     setAuthenticated(false);
     setUserDetail(null);
+    setRol("usuario");
   };
 
   return (

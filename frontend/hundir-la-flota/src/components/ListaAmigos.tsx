@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import ReactPaginate from "react-paginate";
 
 const translateStatus = (status: string) => {
   switch (status) {
@@ -20,8 +21,26 @@ const translateStatus = (status: string) => {
 
 const ListaAmigos = () => {
   const { friends, removeFriend } = useFriendship();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{ id: string; nickname: string } | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<{
+    id: string;
+    nickname: string;
+  } | null>(null);
+
+  const [pageNumber, setPageNumber] = useState(0);
+  const [friendsPerPage, setFriendsPerPage] = useState(3);
+
+  const pagesVisited = pageNumber * friendsPerPage;
+  const currentFriends = friends.slice(
+    pagesVisited,
+    pagesVisited + friendsPerPage
+  );
+  const pageCount = Math.ceil(friends.length / friendsPerPage);
+
+  const changePage = (selectedItem: { selected: number }) => {
+    setPageNumber(selectedItem.selected);
+  };
 
   const openModal = (friend: { id: string; nickname: string }) => {
     setSelectedFriend(friend);
@@ -41,39 +60,99 @@ const ListaAmigos = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {friends.map((friend) => (
-        <div
-          key={friend.id}
-          className="flex items-center space-x-4 p-4 bg-gray-800 rounded-md shadow-md"
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <label htmlFor="friendsPerPage" className="font-semibold">
+          Amigos por página:
+        </label>
+        <select
+          id="friendsPerPage"
+          value={friendsPerPage}
+          onChange={(e) => {
+            setFriendsPerPage(parseInt(e.target.value));
+            setPageNumber(0);
+          }}
+          className="p-1 border rounded"
         >
-          <img
-            src={friend.urlAvatar}
-            alt={`${friend.nickname}'s Avatar`}
-            className="w-10 h-10 rounded-full border-2 border-secondary"
-          />
-          <div className="flex flex-col">
-            <span className="font-semibold text-gold">{friend.nickname}</span>
-            <span
-              className={`text-sm ${
-                friend.status === "Connected"
-                  ? "text-green-500"
-                  : friend.status === "Playing"
-                  ? "text-blue-500"
-                  : "text-gray-500"
-              }`}
-            >
-              {translateStatus(friend.status)}
-            </span>
-          </div>
-          <button
-            onClick={() => openModal(friend)}
-            className="ml-auto text-red-500 hover:text-red-700"
+          <option value={3}>3</option>
+          <option value={6}>6</option>
+          <option value={9}>9</option>
+          <option value={18}>18</option>
+        </select>
+      </div>
+
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {currentFriends.map((friend) => (
+          <div
+            key={friend.id}
+            className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
           >
-            <Trash2 size={20} />
-          </button>
-        </div>
-      ))}
+            <div className="flex items-center mb-2">
+              <img
+                src={friend.urlAvatar}
+                alt={`${friend.nickname}'s Avatar`}
+                className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
+              />
+              <div>
+                <span className="font-semibold text-gold block">
+                  {friend.nickname}
+                </span>
+                <span
+                  className={`text-sm ${
+                    friend.status === "Connected"
+                      ? "text-green-400"
+                      : friend.status === "Playing"
+                      ? "text-blue-400"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {translateStatus(friend.status)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-200 mb-2">{friend.email}</p>
+
+            <div className="flex justify-between items-center mt-auto">
+              <button
+                onClick={() => alert(`Ver perfil de ${friend.nickname}`)}
+                className="text-blue-400 hover:underline"
+              >
+                Ver perfil
+              </button>
+              <button
+                onClick={() => openModal(friend)}
+                className="text-red-500 hover:text-red-700"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        <ReactPaginate
+          previousLabel={"< Anterior"}
+          nextLabel={"Siguiente >"}
+          pageCount={pageCount}
+          onPageChange={changePage}
+          forcePage={pageNumber}
+          containerClassName={"flex justify-center items-center gap-2"}
+          pageLinkClassName={
+            "px-2 py-1 border rounded hover:bg-gray-300 transition"
+          }
+          previousLinkClassName={
+            "px-2 py-1 border rounded hover:bg-gray-300 transition"
+          }
+          nextLinkClassName={
+            "px-2 py-1 border rounded hover:bg-gray-300 transition"
+          }
+          disabledClassName={"opacity-50 cursor-not-allowed"}
+          activeClassName={"bg-blue-500 text-white"}
+        />
+      </div>
 
       <Modal
         isOpen={isModalOpen}

@@ -12,6 +12,8 @@ const ModalSolicitudes = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     if (isOpen) {
       fetchPendingRequests().then((data) => setPendingRequests(data));
     }
+
+    console.log(pendingRequests)
   }, [isOpen]);
 
   return (
@@ -24,20 +26,20 @@ const ModalSolicitudes = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
               className="flex items-center justify-between p-4 bg-gray-700 rounded-md"
             >
               <div>
-                <p className="font-semibold text-gold">{request.fromUserNickname}</p>
+                <p className="font-semibold text-gold">{request.senderNickname}</p>
                 <p className="text-sm text-silver">
                   Enviado el: {new Date(request.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => respondToFriendRequest(request.fromUserId, true)}
+                  onClick={() => respondToFriendRequest(request.senderId, true)}
                   className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
                 >
                   Aceptar
                 </button>
                 <button
-                  onClick={() => respondToFriendRequest(request.fromUserId, false)}
+                  onClick={() => respondToFriendRequest(request.senderId, false)}
                   className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
                 >
                   Rechazar

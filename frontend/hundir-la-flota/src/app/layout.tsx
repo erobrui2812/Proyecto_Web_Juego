@@ -1,19 +1,10 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import { Slide, ToastContainer } from "react-toastify";
 import { GlobalProvider } from "@/contexts/GlobalContext";
 import Header from "@/components/HeaderGlobal";
 import "./globals.css";
+import "@fontsource/montserrat";
 
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export default function RootLayout({
   children,
@@ -23,7 +14,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col transition-all duration-300`}
+        className={`antialiased bg-background text-foreground min-h-screen font-montserrat flex flex-col transition-all duration-300`}
       >
         <GlobalProvider>
           <ToastContainer

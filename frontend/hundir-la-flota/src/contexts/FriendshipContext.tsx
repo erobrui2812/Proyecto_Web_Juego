@@ -91,7 +91,7 @@ const FriendRequestNotification: React.FC = () => {
     return () => {
       if (newSocket.readyState === WebSocket.OPEN) {
         newSocket.close();
-        console.log("WebSocket cerrado limpiamente.");
+        console.log("WebSocket cerrado correctamente.");
       }
     };
   }, [auth?.token]);
@@ -216,7 +216,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated]);
 
-  // En este método, enviamos POST a 'send' con Nickname o Email
   const sendFriendRequest = async (nicknameOrEmail: string) => {
     if (!auth?.token) return;
     try {
@@ -229,7 +228,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
             Authorization: `Bearer ${auth.token}`,
           },
           body: JSON.stringify({
-            Nickname: nicknameOrEmail, // O Email, si el usuario introdujo un correo
+            Nickname: nicknameOrEmail,
             Email: "",
           }),
         }
@@ -246,7 +245,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Aceptar/Rechazar solicitudes
   const respondToFriendRequest = async (
     friendId: string,
     accepted: boolean
@@ -285,7 +283,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Eliminar un amigo
   const removeFriend = async (friendId: string) => {
     if (!auth?.token) return;
     try {
@@ -312,7 +309,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Búsqueda de usuarios
   const searchUsers = async (query: string) => {
     if (!auth?.token) return;
     if (!query) {
@@ -331,7 +327,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       );
       if (response.status === 404) {
-        // No se encontraron usuarios
         setSearchResults([]);
         toast.info("No se encontraron usuarios con ese nickname");
         return;
@@ -341,7 +336,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       const mapped = data.map((u: any) => ({
         id: u.id.toString(),
         nickname: u.nickname,
-        email: "", // El endpoint no devuelve mail en la búsqueda
+        email: "",
         urlAvatar: u.avatarUrl || "https://via.placeholder.com/150",
         status: "Disconnected",
       }));
@@ -352,7 +347,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Peticiones pendientes
   const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
     if (!auth?.token) return [];
     try {

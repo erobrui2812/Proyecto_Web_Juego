@@ -15,31 +15,38 @@ const BuscadorUsuarios: React.FC<BuscadorUsuariosProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleSearchClick = () => {
-    onSearch(searchTerm);
+    if (searchTerm.trim()) {
+      onSearch(searchTerm);
+    }
   };
 
   return (
-    <div className="flex items-center space-x-4">
-      <input
-        type="text"
-        placeholder="Buscar amigos o usuarios..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="border p-2 rounded-md w-full focus:ring-2 focus:ring-primary"
-      />
-      <button
-        onClick={handleSearchClick}
-        className="p-2 bg-blue-500 text-white rounded-md flex items-center space-x-2 hover:bg-blue-600"
-      >
-        <Search size={20} />
-        <span>Buscar Usuarios</span>
-      </button>
-      <button
-        onClick={onOpenRequestsModal}
-        className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-      >
-        Solicitudes de Amistad
-      </button>
+    <div className="w-full">
+      <div>
+        <input
+          type="text"
+          placeholder="Buscar amigos o usuarios..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="text-black border-2 border-gold  p-2 rounded-md w-full focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      <div className="flex justify-center items-center space-x-4 mt-4">
+        <button
+          onClick={handleSearchClick}
+          className="border-2 border-gold p-2 bg-primary text-white rounded-md flex items-center space-x-2 hover:bg-blue-600"
+        >
+          <Search size={20} />
+          <span>Buscar Usuarios</span>
+        </button>
+        <button
+          onClick={onOpenRequestsModal}
+          className="border-2 border-gold p-2 bg-secondary text-white rounded-md hover:bg-green-600"
+        >
+          Solicitudes de Amistad
+        </button>
+      </div>
     </div>
   );
 };
