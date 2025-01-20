@@ -93,5 +93,73 @@ namespace hundir_la_flota.Services
 
             return new ServiceResponse<object> { Success = true, Data = user };
         }
+
+        public async Task<ServiceResponse<UserListDTO>> GetProfileByIdAsync(int userId)
+        {
+            var user = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new UserListDTO
+                {
+                    Id = u.Id,
+                    Nickname = u.Nickname,
+                    Email = u.Email,
+                    AvatarUrl = u.AvatarUrl
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                return new ServiceResponse<UserListDTO> { Success = false, Message = "User not found" };
+
+            return new ServiceResponse<UserListDTO> { Success = true, Data = user };
+        }
+
+        public async Task<ServiceResponse<List<GameHistoryDTO>>> GetGameHistoryByIdAsync(int userId)
+        {
+            var games = await _context.Games
+                .Where(g => g.Player1Id == userId || g.Player2Id == userId)
+                .Select(g => new
+                {
+                    g.GameId,
+                    g.Player1Id,
+                    g.Player2Id,
+                    g.CreatedAt,
+                    g.WinnerId
+                })
+                .OrderByDescending(g => g.CreatedAt)
+                .ToListAsync();
+
+            var gameHistory = new List<GameHistoryDTO>();
+            foreach (var game in games)
+            {
+                var player1Nickname = await GetNicknameByIdAsync(game.Player1Id);
+                var player2Nickname = await GetNicknameByIdAsync(game.Player2Id);
+
+                gameHistory.Add(new GameHistoryDTO
+                {
+                    GameId = game.GameId,
+                    Player1Id = game.Player1Id,
+                    Player1Nickname = player1Nickname,
+                    Player2Id = game.Player2Id,
+                    Player2Nickname = player2Nickname,
+                    DatePlayed = game.CreatedAt,
+                    Result = game.WinnerId == userId ? "Victoria" : "Derrota"
+                });
+            }
+
+            return new ServiceResponse<List<GameHistoryDTO>> { Success = true, Data = gameHistory };
+        }
+
+
+        private async Task<string> GetNicknameByIdAsync(int userId)
+        {
+            var nickname = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.Nickname)
+                .FirstOrDefaultAsync();
+
+            return nickname ?? string.Empty;
+        }
+
+
     }
 }

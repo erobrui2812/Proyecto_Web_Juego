@@ -47,5 +47,24 @@ namespace hundir_la_flota.Controllers
 
             return Ok(result.Data);
         }
+
+        [HttpGet("perfil/{id}")]
+        public async Task<IActionResult> GetProfile(int id)
+        {
+            var result = await _userService.GetProfileByIdAsync(id);
+            if (!result.Success) return NotFound(result.Message);
+
+            return Ok(result.Data);
+        }
+
+        [HttpGet("historial/{id}")]
+        public async Task<IActionResult> GetGameHistory(int id)
+        {
+            var result = await _userService.GetGameHistoryByIdAsync(id);
+            if (!result.Success) return NotFound(result.Message);
+
+            return Ok(result.Data);
+        }
+
     }
 }

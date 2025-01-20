@@ -12,7 +12,7 @@ namespace hundir_la_flota.Models
         public Board Player2Board { get; set; } = new Board();
         public int CurrentPlayerId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public int? WinnerId { get; set; }
+        public int WinnerId { get; set; }
 
         public List<GameAction> Actions { get; set; } = new List<GameAction>();
 
