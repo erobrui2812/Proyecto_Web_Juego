@@ -14,4 +14,6 @@ public class FriendDto
 
     [Url(ErrorMessage = "La URL del avatar no es válida.")]
     public string AvatarUrl { get; set; }
+
+    public string Status { get; set; } = "Disconnected";
 }

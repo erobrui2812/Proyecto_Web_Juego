@@ -24,6 +24,7 @@ namespace hundir_la_flota.Services
         private readonly MyDbContext _dbContext;
         private readonly IWebSocketService _webSocketService;
 
+
         public FriendshipService(MyDbContext dbContext, IWebSocketService webSocketService)
         {
             _dbContext = dbContext;
@@ -105,7 +106,8 @@ namespace hundir_la_flota.Services
                     FriendId = f.UserId == userId ? f.FriendId : f.UserId,
                     FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
                     FriendMail = f.UserId == userId ? f.Friend.Email : f.User.Email,
-                    AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl
+                    AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
+                    Status = _webSocketService.GetUserState(f.FriendId).ToString()
                 })
                 .ToListAsync();
 

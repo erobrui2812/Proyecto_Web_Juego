@@ -13,6 +13,8 @@ namespace hundir_la_flota.Services
         Task NotifyUserAsync(int userId, string action, string payload);
         Task NotifyUsersAsync(IEnumerable<int> userIds, string action, string payload);
         bool IsUserConnected(int userId);
+
+        WebSocketService.UserState GetUserState(int userId);
     }
 
     public class WebSocketService : IWebSocketService
@@ -227,6 +229,15 @@ namespace hundir_la_flota.Services
         public bool IsUserConnected(int userId)
         {
             return _connectedUsers.ContainsKey(userId);
+        }
+
+        public UserState GetUserState(int userId)
+        {
+            if (_userStates.TryGetValue(userId, out var state))
+            {
+                return state;
+            }
+            return UserState.Disconnected;
         }
 
         private void UpdateUserState(int userId, UserState newState)
