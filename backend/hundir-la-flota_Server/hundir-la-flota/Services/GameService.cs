@@ -159,10 +159,61 @@ public class GameService : IGameService
         });
 
         if (game.State != GameState.Finished)
+        {
             game.CurrentPlayerId = playerId == game.Player1Id ? game.Player2Id : game.Player1Id;
+
+          
+            if (game.Player2Id == -1 && game.CurrentPlayerId == game.Player2Id)
+            {
+                var botAction = SimulateBotAttack(game.Player1Board);
+                game.Actions.Add(botAction);
+
+             
+                if (game.Player1Board.Ships.All(s => s.IsSunk))
+                {
+                    game.State = GameState.Finished;
+                    game.WinnerId = game.Player2Id;
+                    botAction.Details += " Fin del juego.";
+                }
+                else
+                {
+                    game.CurrentPlayerId = game.Player1Id; 
+                }
+            }
+        }
 
         await _gameRepository.UpdateAsync(game);
         return new ServiceResponse<string> { Success = true, Message = actionDetails };
+    }
+
+ 
+    private GameAction SimulateBotAttack(Board playerBoard)
+    {
+        var availableCells = playerBoard.Grid.Where(c => !c.IsHit).ToList();
+        var random = new Random();
+        var targetCell = availableCells[random.Next(availableCells.Count)];
+
+        targetCell.IsHit = true;
+
+        var actionDetails = $"El bot dispara en ({targetCell.X}, {targetCell.Y})";
+
+        var ship = playerBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
+        if (ship != null)
+        {
+            actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
+        }
+        else
+        {
+            actionDetails += " ¡Fallo!";
+        }
+
+        return new GameAction
+        {
+            PlayerId = -1, 
+            ActionType = "Shot",
+            Timestamp = DateTime.UtcNow,
+            Details = actionDetails
+        };
     }
 
     public async Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId)
@@ -186,11 +237,14 @@ public class GameService : IGameService
             StateDescription = GetStateDescription(game.State),
             Player1Board = game.Player1Board,
             Player2Board = game.Player2Board,
+            Actions = game.Actions.ToList(),
+            CurrentPlayerId = game.CurrentPlayerId,
             CreatedAt = game.CreatedAt
         };
 
         return new ServiceResponse<GameResponseDTO> { Success = true, Data = response };
     }
+
 
     public async Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId)
     {

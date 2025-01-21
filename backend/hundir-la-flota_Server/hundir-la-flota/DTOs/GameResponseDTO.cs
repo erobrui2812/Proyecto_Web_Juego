@@ -1,4 +1,6 @@
-﻿namespace hundir_la_flota.DTOs
+﻿using hundir_la_flota.Models;
+
+namespace hundir_la_flota.DTOs
 {
     public class GameResponseDTO
     {
@@ -13,5 +15,7 @@
         public Board Player1Board { get; set; }
         public Board Player2Board { get; set; }
         public DateTime CreatedAt { get; set; }
+        public List<GameAction> Actions { get; set; }
+        public int CurrentPlayerId { get; set; }
     }
 }
