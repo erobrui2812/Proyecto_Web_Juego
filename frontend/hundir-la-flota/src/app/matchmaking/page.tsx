@@ -1,29 +1,27 @@
 "use client";
 
+import ListaAmigosConectados from "@/components/ListaAmigosConectados";
 import Button from "@/components/Button";
-import ListaAmigos from "@/components/ListaAmigos";
 import Modal from "@/components/Modal";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { Friend } from "@/types/friendship";
 
 const MatchmakingPage = () => {
+  var { auth } = useAuth(); 
+  const token = auth.token;
   const router = useRouter();
-  const [amigosConectados, setAmigosConectados] = useState([]);
+  const [amigosConectados, setAmigosConectados] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-
-  const getToken = () => {
-    return localStorage.getItem("token") || sessionStorage.getItem("token");
-  };
 
   useEffect(() => {
     const fetchAmigos = async () => {
       try {
-        const token = getToken();
-        if (!token)
-          throw new Error("No se encontró el token de autenticación.");
+        if (!token) throw new Error("No se encontró el token de autenticación.");
 
         const response = await fetch(
           "https://localhost:7162/api/Friendship/connected",
@@ -34,7 +32,7 @@ const MatchmakingPage = () => {
           }
         );
         if (!response.ok) throw new Error("Error al obtener amigos conectados");
-        const data = await response.json();
+        const data: Friend[] = await response.json();
         console.log("Amigos conectados:", data);
         setAmigosConectados(data);
       } catch (error) {
@@ -44,12 +42,11 @@ const MatchmakingPage = () => {
     };
 
     fetchAmigos();
-  }, []);
+  }, [token]);
 
   const jugarContraBot = async () => {
     setLoading(true);
     try {
-      const token = getToken();
       if (!token) throw new Error("No se encontró el token de autenticación.");
 
       const response = await fetch(
@@ -76,7 +73,6 @@ const MatchmakingPage = () => {
   const unirsePartidaAleatoria = async () => {
     setLoading(true);
     try {
-      const token = getToken();
       if (!token) throw new Error("No se encontró el token de autenticación.");
 
       const response = await fetch(
@@ -104,10 +100,9 @@ const MatchmakingPage = () => {
     }
   };
 
-  const invitarAmigo = async (amigoId) => {
+  const invitarAmigo = async (amigoId: string) => {
     setLoading(true);
     try {
-      const token = getToken();
       if (!token) throw new Error("No se encontró el token de autenticación.");
 
       const response = await fetch("https://localhost:7162/api/game/invite", {
@@ -129,7 +124,7 @@ const MatchmakingPage = () => {
     }
   };
 
-  const handleSelectFriend = (friend) => {
+  const handleSelectFriend = (friend: Friend) => {
     setSelectedFriend(friend);
     setModalOpen(true);
   };
@@ -147,15 +142,16 @@ const MatchmakingPage = () => {
         <Button onClick={() => setModalOpen(true)}>Invitar a un amigo</Button>
       </div>
 
-      {/* Mostrar el estado de los amigos conectados */}
-      <div className="mt-6">
-        <ListaAmigos amigos={amigosConectados} onSelect={handleSelectFriend} />
+      {/* Lista de amigos conectados */}
+      <div className="mt-6 w-full max-w-4xl">
+        <h2 className="text-xl font-semibold mb-4">Amigos Conectados</h2>
+        <ListaAmigosConectados />
       </div>
 
       {/* Modal de invitación */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}>
         <h2 className="text-xl font-semibold mb-4">Invitar a un amigo</h2>
-        <ListaAmigos amigos={amigosConectados} onSelect={handleSelectFriend} />
+        <ListaAmigosConectados />
         {selectedFriend && (
           <div className="mt-4">
             <p>

@@ -25,10 +25,7 @@ const ListaAmigos = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{
-    id: string;
-    nickname: string;
-  } | null>(null);
+  const [selectedFriend, setSelectedFriend] = useState<{id: string, nickname: string} | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const [pageNumber, setPageNumber] = useState(0);
@@ -73,14 +70,12 @@ const ListaAmigos = () => {
   };
 
   useEffect(() => {
-    // Llamar solo una vez cuando se monta el componente
     fetchFriends();
-  }, []); // La dependencia vacía asegura que solo se ejecute al montar el componente
+  }, []); 
 
-  // Depuración: Verificar el estado de los amigos
   useEffect(() => {
     console.log("Amigos actuales:", friends);
-  }, [friends]); // Solo se ejecuta cuando `friends` cambia
+  }, [friends]);
 
   return (
     <div>
@@ -108,7 +103,7 @@ const ListaAmigos = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {currentFriends.map((friend) => (
             <div
-              key={`${friend.id}`} // Asegura una clave única
+              key={`${friend.id}`}
               className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
             >
               <div className="flex items-center mb-2">
