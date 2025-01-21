@@ -84,6 +84,16 @@ public class FriendshipController : ControllerBase
         return Ok(new { success = true, nickname = result.Data });
     }
 
+    [HttpGet("connected")]
+    public async Task<IActionResult> GetConnectedFriends()
+    {
+        var userId = GetUserId();
+        var result = await _friendshipService.GetConnectedFriendsAsync(userId);
+        if (!result.Success) return StatusCode(StatusCodes.Status500InternalServerError, result.Message);
+        return Ok(result.Data);
+    }
+
+
     private int GetUserId()
     {
         var userIdClaim = User.FindFirst("id")?.Value;

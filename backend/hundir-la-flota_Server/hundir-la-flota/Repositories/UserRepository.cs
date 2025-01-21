@@ -15,8 +15,9 @@ namespace hundir_la_flota.Repositories
 
         public async Task<User> GetUserByIdAsync(int userId)
         {
-            return await _context.Users.FindAsync(userId);
+            return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         }
+
 
         public async Task<User> GetUserByEmailAsync(string email)
         {

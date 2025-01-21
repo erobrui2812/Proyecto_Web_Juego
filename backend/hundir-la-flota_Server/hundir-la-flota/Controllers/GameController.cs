@@ -3,7 +3,6 @@ using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-
 [ApiController]
 [Route("api/game")]
 [Authorize]
@@ -43,6 +42,7 @@ public class GameController : ControllerBase
         var response = await _gameService.AbandonGameAsync(gameId, userId);
         if (!response.Success)
             return BadRequest(response.Message);
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Connected);
         return Ok("Juego abandonado correctamente.");
     }
 
@@ -61,6 +61,8 @@ public class GameController : ControllerBase
         var response = await _gameService.JoinGameAsync(gameId, playerId);
         if (!response.Success)
             return BadRequest(response.Message);
+
+        await _webSocketService.NotifyUserStatusChangeAsync(playerId, WebSocketService.UserState.Playing);
         return Ok(response.Message);
     }
 
@@ -85,7 +87,6 @@ public class GameController : ControllerBase
     [HttpGet("{gameId}")]
     public async Task<IActionResult> GetGameState(Guid gameId)
     {
-
         var response = await _gameService.GetGameStateAsync(GetUserIdFromClaim().ToString(), gameId);
         if (!response.Success)
             return BadRequest(response.Message);
@@ -102,12 +103,18 @@ public class GameController : ControllerBase
     }
 
     [HttpPost("accept-invitation")]
-    public async Task<IActionResult> AcceptInvitation([FromBody] int hostId)
+    public async Task<IActionResult> AcceptInvitation([FromBody] Guid hostId)
     {
-        var currentUserId = GetUserIdFromClaim();
-        await _webSocketService.NotifyUserAsync(hostId, "InvitationAccepted", currentUserId.ToString());
-        return Ok("Invitación aceptada.");
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.JoinGameAsync(hostId, userId);
+
+        if (!response.Success)
+            return BadRequest(response.Message);
+
+        return Ok(response.Message);
     }
+
+
 
     [HttpPost("join-random-match")]
     public async Task<IActionResult> JoinRandomMatch()
@@ -116,6 +123,8 @@ public class GameController : ControllerBase
         var response = await _gameService.FindRandomOpponentAsync(userId.ToString());
         if (!response.Success)
             return Ok("Esperando a un oponente...");
+
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Playing);
         return Ok(new { OpponentId = response.Data.GameId });
     }
 
@@ -126,7 +135,17 @@ public class GameController : ControllerBase
         var response = await _gameService.CreateBotGameAsync(userId.ToString());
         if (!response.Success)
             return BadRequest(response.Message);
+
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Playing);
         return Ok(response.Data);
+    }
+
+    [HttpPost("disconnect")]
+    public async Task<IActionResult> Disconnect()
+    {
+        var userId = GetUserIdFromClaim();
+        await _webSocketService.DisconnectUserAsync(userId);
+        return Ok("Usuario desconectado correctamente.");
     }
 }
 

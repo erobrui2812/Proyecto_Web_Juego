@@ -18,22 +18,32 @@ public class WebSocketController : ControllerBase
     public async Task<IActionResult> Connect()
     {
         if (!HttpContext.WebSockets.IsWebSocketRequest)
+        {
+            Console.WriteLine("Solicitud rechazada: No es una solicitud de WebSocket.");
             return BadRequest("La solicitud no es un WebSocket");
+        }
 
         var authorizationHeader = HttpContext.Request.Headers["Authorization"].ToString();
         if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
+        {
+            Console.WriteLine("Solicitud rechazada: Token de autorización no proporcionado o inválido.");
             return Unauthorized("Token no proporcionado o inválido.");
+        }
 
         var token = authorizationHeader.Substring("Bearer ".Length).Trim();
         try
         {
             var userId = _authService.GetUserIdFromToken(token);
             if (!userId.HasValue)
+            {
+                Console.WriteLine("Solicitud rechazada: Token inválido o usuario no autorizado.");
                 return Unauthorized("Token inválido o usuario no autorizado.");
+            }
 
             var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
             await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
 
+            Console.WriteLine($"Usuario {userId.Value} conectado vía WebSocket.");
             return Ok("Conexión WebSocket establecida.");
         }
         catch (Exception ex)

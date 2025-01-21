@@ -32,6 +32,7 @@ public class GameRepository : IGameRepository
         await _context.SaveChangesAsync();
     }
 
+
     public async Task<List<Game>> GetGamesByPlayerIdAsync(int playerId)
     {
         return await _context.Games

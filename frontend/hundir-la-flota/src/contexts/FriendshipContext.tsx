@@ -1,7 +1,7 @@
 "use client";
 
 import { PendingRequest } from "@/types/friendship";
-import React, { createContext, use, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "./AuthContext";
@@ -38,7 +38,7 @@ type FriendshipContextType = {
   fetchPendingRequests: () => Promise<PendingRequest[]>;
   fetchFriends: () => void;
   fetchUserProfile: (id: string) => Promise<UserProfile>;
-  fetchUserGameHistory: (id: string) => Promise<GameHistory[]>
+  fetchUserGameHistory: (id: string) => Promise<GameHistory[]>;
 };
 
 const FriendshipContext = createContext<FriendshipContextType | undefined>(
@@ -389,9 +389,12 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Token de autenticación no disponible.");
     }
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/perfil/${userId.toString()}`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-      });
+      const response = await fetch(
+        `https://localhost:7162/api/Users/perfil/${userId.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Error al obtener el perfil: ${response.statusText}`);
@@ -409,18 +412,25 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const fetchUserGameHistory = async (userId: string): Promise<GameHistory[]> => {
+  const fetchUserGameHistory = async (
+    userId: string
+  ): Promise<GameHistory[]> => {
     if (!auth?.token) {
       throw new Error("Token de autenticación no disponible.");
     }
 
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/historial/${userId}`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-      });
+      const response = await fetch(
+        `https://localhost:7162/api/Users/historial/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`Error al obtener el historial: ${response.statusText}`);
+        throw new Error(
+          `Error al obtener el historial: ${response.statusText}`
+        );
       }
 
       const data = await response.json();

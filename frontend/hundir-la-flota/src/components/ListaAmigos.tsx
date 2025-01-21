@@ -1,10 +1,10 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useFriendship } from "@/contexts/FriendshipContext";
-import { useState } from "react";
 import Modal from "@/components/Modal";
 import ModalPerfil from "@/components/ModalPerfil";
+import { useFriendship } from "@/contexts/FriendshipContext";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 import ReactPaginate from "react-paginate";
 
 const translateStatus = (status: string) => {
@@ -20,8 +20,11 @@ const translateStatus = (status: string) => {
   }
 };
 
-const ListaAmigos = () => {
-  const { friends, removeFriend } = useFriendship();
+const ListaAmigos = ({ amigos }: { amigos?: any[] }) => {
+  const { friends: contextFriends, removeFriend } = useFriendship();
+
+  // Usar los amigos proporcionados como prop o los del contexto
+  const friends = amigos || contextFriends;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -94,55 +97,61 @@ const ListaAmigos = () => {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {currentFriends.map((friend) => (
-          <div
-            key={friend.id}
-            className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
-          >
-            <div className="flex items-center mb-2">
-              <img
-                src={friend.urlAvatar}
-                alt={`${friend.nickname}'s Avatar`}
-                className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
-              />
-              <div>
-                <span className="font-semibold text-gold block">
-                  {friend.nickname}
-                </span>
-                <span
-                  className={`text-sm ${
-                    friend.status === "Connected"
-                      ? "text-green-400"
-                      : friend.status === "Playing"
-                      ? "text-blue-400"
-                      : "text-gray-400"
-                  }`}
+      {friends.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {currentFriends.map((friend) => (
+            <div
+              key={friend.id || friend.FriendId}
+              className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
+            >
+              <div className="flex items-center mb-2">
+                <img
+                  src={friend.urlAvatar || "/default-avatar.png"}
+                  alt={`${friend.nickname || friend.FriendNickname}'s Avatar`}
+                  className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
+                />
+                <div>
+                  <span className="font-semibold text-gold block">
+                    {friend.nickname || friend.FriendNickname}
+                  </span>
+                  <span
+                    className={`text-sm ${
+                      friend.status === "Connected"
+                        ? "text-green-400"
+                        : friend.status === "Playing"
+                        ? "text-blue-400"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {translateStatus(friend.status || "Disconnected")}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-200 mb-2">
+                {friend.email || friend.FriendMail || "Correo no disponible"}
+              </p>
+
+              <div className="flex justify-between items-center mt-auto">
+                <button
+                  onClick={() => openProfileModal(friend.id || friend.FriendId)}
+                  className="text-blue-400 hover:underline"
                 >
-                  {translateStatus(friend.status)}
-                </span>
+                  Ver perfil
+                </button>
+                <button
+                  onClick={() => openDeleteModal(friend)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
             </div>
-
-            <p className="text-sm text-gray-200 mb-2">{friend.email}</p>
-
-            <div className="flex justify-between items-center mt-auto">
-              <button
-                onClick={() => openProfileModal(friend.id)}
-                className="text-blue-400 hover:underline"
-              >
-                Ver perfil
-              </button>
-              <button
-                onClick={() => openDeleteModal(friend)}
-                className="text-red-500 hover:text-red-700"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">No hay amigos disponibles.</p>
+      )}
 
       <div className="mt-4">
         <ReactPaginate

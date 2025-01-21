@@ -39,7 +39,12 @@ namespace hundir_la_flota
                 )
             );
 
-            builder.Services.AddSingleton<IWebSocketService, WebSocketService>();
+            builder.Services.AddSingleton<IWebSocketService, WebSocketService>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<WebSocketService>>();
+                var serviceProvider = sp;
+                return new WebSocketService(logger, serviceProvider);
+            });
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             //builder.Services.AddScoped<GameSimulation>();
