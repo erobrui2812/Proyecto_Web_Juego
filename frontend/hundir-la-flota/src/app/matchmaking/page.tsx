@@ -1,16 +1,16 @@
 "use client";
 
-import ListaAmigosConectados from "@/components/ListaAmigosConectados";
 import Button from "@/components/Button";
+import ListaAmigosConectados from "@/components/ListaAmigosConectados";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/contexts/AuthContext";
+import { Friend } from "@/types/friendship";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { Friend } from "@/types/friendship";
 
 const MatchmakingPage = () => {
-  var { auth } = useAuth(); 
+  const { auth } = useAuth();
   const token = auth.token;
   const router = useRouter();
   const [amigosConectados, setAmigosConectados] = useState<Friend[]>([]);
@@ -21,7 +21,8 @@ const MatchmakingPage = () => {
   useEffect(() => {
     const fetchAmigos = async () => {
       try {
-        if (!token) throw new Error("No se encontró el token de autenticación.");
+        if (!token)
+          throw new Error("No se encontró el token de autenticación.");
 
         const response = await fetch(
           "https://localhost:7162/api/Friendship/connected",
