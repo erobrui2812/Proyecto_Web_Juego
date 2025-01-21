@@ -113,8 +113,8 @@ const MatchmakingPage = () => {
       const response = await fetch("https://localhost:7162/api/game/invite", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ friendId: amigoId }),
       });
@@ -146,19 +146,24 @@ const MatchmakingPage = () => {
         </Button>
         <Button onClick={() => setModalOpen(true)}>Invitar a un amigo</Button>
       </div>
-      <ListaAmigos amigos={amigosConectados} />
+
+      {/* Mostrar el estado de los amigos conectados */}
+      <div className="mt-6">
+        <ListaAmigos amigos={amigosConectados} onSelect={handleSelectFriend} />
+      </div>
+
+      {/* Modal de invitación */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}>
         <h2 className="text-xl font-semibold mb-4">Invitar a un amigo</h2>
         <ListaAmigos amigos={amigosConectados} onSelect={handleSelectFriend} />
         {selectedFriend && (
           <div className="mt-4">
             <p>
-              ¿Enviar invitación a{" "}
-              <strong>{selectedFriend.FriendNickname}</strong>?
+              ¿Enviar invitación a <strong>{selectedFriend.nickname}</strong>?
             </p>
             <div className="flex gap-4 mt-4">
               <Button
-                onClick={() => invitarAmigo(selectedFriend.FriendId)}
+                onClick={() => invitarAmigo(selectedFriend.id)}
                 loading={loading}
               >
                 Sí
