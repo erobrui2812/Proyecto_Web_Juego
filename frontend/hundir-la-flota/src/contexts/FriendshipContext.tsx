@@ -30,6 +30,7 @@ type Friend = {
 
 type FriendshipContextType = {
   friends: Friend[];
+  setFriends: React.Dispatch<React.SetStateAction<Friend[]>>;
   searchResults: Friend[];
   sendFriendRequest: (nicknameOrEmail: string) => void;
   respondToFriendRequest: (senderId: string, accepted: boolean) => void;
@@ -47,7 +48,7 @@ const FriendshipContext = createContext<FriendshipContextType | undefined>(
 
 const FriendRequestNotification: React.FC = () => {
   const { auth } = useAuth();
-  const { fetchFriends, respondToFriendRequest } = useFriendship();
+  const { fetchFriends, respondToFriendRequest, setFriends } = useFriendship();
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ const FriendRequestNotification: React.FC = () => {
       try {
         const [action, payload] = event.data.split("|");
         if (!action || !payload) {
-          throw new Error("Formato de mensaje WebSocket inválido");
+          throw new Error("Formato de mensaje WebSocket erroneo");
         }
 
         switch (action) {
@@ -90,10 +91,19 @@ const FriendRequestNotification: React.FC = () => {
           case "FriendRemoved":
             handleFriendRemoved(payload);
             break;
-          case "UserStatus":
-            console.log(`Estado del usuario actualizado: ${payload}`);
-            fetchFriends();
+          case "UserStatus": {
+            const [userId, newStatus] = payload.split(":");
+            console.log("Evento UserStatus recibido:", { userId, newStatus });
+            setFriends((prevFriends) =>
+              prevFriends.map((friend) =>
+                friend.id === userId ? { ...friend, status: newStatus } : friend
+              )
+            );
+            console.log(
+              `Estado del usuario actualizado: ${userId} -> ${newStatus}`
+            );
             break;
+          }
           default:
             console.warn("Acción no reconocida:", action);
         }
@@ -110,7 +120,7 @@ const FriendRequestNotification: React.FC = () => {
         console.log("WebSocket cerrado correctamente.");
       }
     };
-  }, [auth?.token]);
+  }, [auth?.token, setFriends]);
 
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;
@@ -218,7 +228,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         nickname: friend.friendNickname,
         email: friend.friendMail,
         urlAvatar: friend.avatarUrl || "https://via.placeholder.com/150",
-        status: friend.status,
+        status: friend.status || "Disconnected",
       }));
       setFriends(mappedFriends);
     } catch (error) {
@@ -451,6 +461,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     <FriendshipContext.Provider
       value={{
         friends,
+        setFriends,
         searchResults,
         sendFriendRequest,
         respondToFriendRequest,

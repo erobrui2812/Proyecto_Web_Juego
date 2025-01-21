@@ -4,7 +4,7 @@ import Modal from "@/components/Modal";
 import ModalPerfil from "@/components/ModalPerfil";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactPaginate from "react-paginate";
 
 const translateStatus = (status: string) => {
@@ -16,15 +16,12 @@ const translateStatus = (status: string) => {
     case "Playing":
       return "Jugando";
     default:
-      return status;
+      return "Desconocido";
   }
 };
 
-const ListaAmigos = ({ amigos }: { amigos?: any[] }) => {
-  const { friends: contextFriends, removeFriend } = useFriendship();
-
-  // Usar los amigos proporcionados como prop o los del contexto
-  const friends = amigos || contextFriends;
+const ListaAmigos = () => {
+  const { friends, removeFriend, fetchFriends } = useFriendship();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -75,6 +72,16 @@ const ListaAmigos = ({ amigos }: { amigos?: any[] }) => {
     closeDeleteModal();
   };
 
+  useEffect(() => {
+    // Llamar solo una vez cuando se monta el componente
+    fetchFriends();
+  }, []); // La dependencia vacía asegura que solo se ejecute al montar el componente
+
+  // Depuración: Verificar el estado de los amigos
+  useEffect(() => {
+    console.log("Amigos actuales:", friends);
+  }, [friends]); // Solo se ejecuta cuando `friends` cambia
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -101,18 +108,18 @@ const ListaAmigos = ({ amigos }: { amigos?: any[] }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {currentFriends.map((friend) => (
             <div
-              key={friend.id || friend.FriendId}
+              key={`${friend.id}`} // Asegura una clave única
               className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.urlAvatar || "/default-avatar.png"}
-                  alt={`${friend.nickname || friend.FriendNickname}'s Avatar`}
+                  src={friend.urlAvatar || "https://via.placeholder.com/150"}
+                  alt={`${friend.nickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
                 <div>
                   <span className="font-semibold text-gold block">
-                    {friend.nickname || friend.FriendNickname}
+                    {friend.nickname}
                   </span>
                   <span
                     className={`text-sm ${
@@ -129,12 +136,12 @@ const ListaAmigos = ({ amigos }: { amigos?: any[] }) => {
               </div>
 
               <p className="text-sm text-gray-200 mb-2">
-                {friend.email || friend.FriendMail || "Correo no disponible"}
+                {friend.email || "Correo no disponible"}
               </p>
 
               <div className="flex justify-between items-center mt-auto">
                 <button
-                  onClick={() => openProfileModal(friend.id || friend.FriendId)}
+                  onClick={() => openProfileModal(friend.id)}
                   className="text-blue-400 hover:underline"
                 >
                   Ver perfil
