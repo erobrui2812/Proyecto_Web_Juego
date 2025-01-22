@@ -12,12 +12,16 @@ public class GameRepository : IGameRepository
 
     public async Task<List<Game>> GetAllAsync()
     {
-        return await _context.Games.ToListAsync();
+        return await _context.Games
+            .Include(g => g.Participants)
+            .ToListAsync();
     }
 
     public async Task<Game> GetByIdAsync(Guid gameId)
     {
-        return await _context.Games.FirstOrDefaultAsync(g => g.GameId == gameId);
+        return await _context.Games
+            .Include(g => g.Participants)
+            .FirstOrDefaultAsync(g => g.GameId == gameId);
     }
 
     public async Task AddAsync(Game game)
@@ -32,11 +36,11 @@ public class GameRepository : IGameRepository
         await _context.SaveChangesAsync();
     }
 
-
-    public async Task<List<Game>> GetGamesByPlayerIdAsync(int playerId)
+    public async Task<List<Game>> GetGamesByUserIdAsync(int userId)
     {
         return await _context.Games
-            .Where(g => g.Player1Id == playerId || g.Player2Id == playerId)
+            .Include(g => g.Participants)
+            .Where(g => g.Participants.Any(p => p.UserId == userId))
             .ToListAsync();
     }
 }

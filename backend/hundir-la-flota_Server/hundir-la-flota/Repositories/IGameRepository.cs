@@ -7,5 +7,5 @@ public interface IGameRepository
     Task<Game> GetByIdAsync(Guid gameId);
     Task AddAsync(Game game);
     Task UpdateAsync(Game game);
-    Task<List<Game>> GetGamesByPlayerIdAsync(int playerId);
+    Task<List<Game>> GetGamesByUserIdAsync(int userId);
 }

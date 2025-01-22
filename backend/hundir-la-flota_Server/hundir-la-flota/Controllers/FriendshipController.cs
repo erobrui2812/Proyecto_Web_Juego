@@ -98,7 +98,10 @@ public class FriendshipController : ControllerBase
     {
         var userIdClaim = User.FindFirst("id")?.Value;
         if (string.IsNullOrEmpty(userIdClaim))
-            throw new InvalidOperationException("No se puede obtener el ID del usuario desde el token.");
+        {
+            throw new UnauthorizedAccessException("No se puede obtener el ID del usuario desde el token.");
+        }
         return int.Parse(userIdClaim);
     }
+
 }

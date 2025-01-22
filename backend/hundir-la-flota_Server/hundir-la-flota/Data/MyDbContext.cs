@@ -8,9 +8,26 @@ public class MyDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<Game> Games { get; set; }
+    public DbSet<GameParticipant> GameParticipants { get; set; } // Declaración añadida
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<GameParticipant>()
+            .HasOne(gp => gp.Game)
+            .WithMany(g => g.Participants)
+            .HasForeignKey(gp => gp.GameId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GameParticipant>()
+            .HasOne(gp => gp.User)
+            .WithMany()
+            .HasForeignKey(gp => gp.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GameParticipant>()
+            .HasIndex(gp => new { gp.GameId, gp.UserId })
+            .IsUnique();
+
 
         modelBuilder.Entity<Friendship>()
             .HasOne(f => f.User)
@@ -59,7 +76,6 @@ public class MyDbContext : DbContext
                     });
                 });
             });
-
 
         modelBuilder.Entity<Game>()
             .OwnsMany(g => g.Actions, action =>

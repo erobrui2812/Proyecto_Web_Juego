@@ -14,8 +14,8 @@ namespace hundir_la_flota.DTOs
         public string StateDescription { get; set; }
         public Board Player1Board { get; set; }
         public Board Player2Board { get; set; }
-        public DateTime CreatedAt { get; set; }
         public List<GameAction> Actions { get; set; }
         public int CurrentPlayerId { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

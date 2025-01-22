@@ -21,14 +21,15 @@ namespace hundir_la_flota.Services
 
         public async Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId)
         {
-            var playerStats = await _context.Users
-                .Where(u => u.Id == userId)
-                .Select(u => new PlayerStatsDTO
+            var playerStats = await _context.GameParticipants
+                .Where(gp => gp.UserId == userId)
+                .GroupBy(gp => gp.UserId)
+                .Select(g => new PlayerStatsDTO
                 {
-                    UserId = u.Id,
-                    Nickname = u.Nickname,
-                    GamesPlayed = _context.Games.Count(g => g.Player1Id == u.Id || g.Player2Id == u.Id),
-                    GamesWon = _context.Games.Count(g => g.State == GameState.Finished && g.CurrentPlayerId == u.Id),
+                    UserId = g.Key,
+                    Nickname = _context.Users.Where(u => u.Id == g.Key).Select(u => u.Nickname).FirstOrDefault(),
+                    GamesPlayed = g.Count(),
+                    GamesWon = g.Count(gp => gp.Game.State == GameState.Finished && gp.Game.WinnerId == userId)
                 })
                 .FirstOrDefaultAsync();
 
@@ -44,15 +45,18 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<PlayerStatsDTO> { Success = true, Data = playerStats };
         }
 
+
         public async Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync()
         {
-            var leaderboard = await _context.Users
-                .Select(u => new LeaderboardDTO
+            var leaderboard = await _context.GameParticipants
+                .Where(gp => gp.Game.State == GameState.Finished)
+                .GroupBy(gp => gp.UserId)
+                .Select(g => new LeaderboardDTO
                 {
-                    UserId = u.Id,
-                    Nickname = u.Nickname,
-                    GamesWon = _context.Games.Count(g => g.State == GameState.Finished && g.CurrentPlayerId == u.Id),
-                    TotalGames = _context.Games.Count(g => g.Player1Id == u.Id || g.Player2Id == u.Id),
+                    UserId = g.Key,
+                    Nickname = _context.Users.Where(u => u.Id == g.Key).Select(u => u.Nickname).FirstOrDefault(),
+                    GamesWon = g.Count(gp => gp.Game.WinnerId == g.Key),
+                    TotalGames = _context.GameParticipants.Count(p => p.UserId == g.Key)
                 })
                 .OrderByDescending(l => l.GamesWon)
                 .Take(10)
@@ -60,5 +64,6 @@ namespace hundir_la_flota.Services
 
             return new ServiceResponse<List<LeaderboardDTO>> { Success = true, Data = leaderboard };
         }
+
     }
 }

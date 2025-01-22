@@ -28,7 +28,10 @@ namespace hundir_la_flota.Services
 
         public async Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto)
         {
-            if (_context.Users.Any(u => u.Email == dto.Email || u.Nickname.ToLower() == dto.Nickname.ToLower()))
+            var existingUser = await _context.Users
+                .AnyAsync(u => u.Email == dto.Email || u.Nickname.ToLower() == dto.Nickname.ToLower());
+
+            if (existingUser)
                 return new ServiceResponse<string> { Success = false, Message = "Email or Nickname already in use" };
 
             var user = new User
@@ -45,6 +48,7 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<string> { Success = true, Message = "User registered successfully" };
         }
 
+
         public ServiceResponse<string> AuthenticateUser(UserLoginDTO dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.NicknameMail) || string.IsNullOrWhiteSpace(dto.Password))
@@ -59,6 +63,7 @@ namespace hundir_la_flota.Services
             var token = _authService.GenerateJwtToken(user);
             return new ServiceResponse<string> { Success = true, Data = token };
         }
+
 
         public async Task<ServiceResponse<List<UserListDTO>>> GetAllUsersAsync()
         {
@@ -118,39 +123,39 @@ namespace hundir_la_flota.Services
 
         public async Task<ServiceResponse<List<GameHistoryDTO>>> GetGameHistoryByIdAsync(int userId)
         {
-            var games = await _context.Games
-                .Where(g => g.Player1Id == userId || g.Player2Id == userId)
-                .Select(g => new
-                {
-                    g.GameId,
-                    g.Player1Id,
-                    g.Player2Id,
-                    g.CreatedAt,
-                    g.WinnerId
-                })
-                .OrderByDescending(g => g.CreatedAt)
+
+            var gameParticipants = await _context.GameParticipants
+                .Include(gp => gp.Game)
+                .ThenInclude(g => g.Participants)
+                .ThenInclude(p => p.User)
+                .Where(gp => gp.UserId == userId)
+                .OrderByDescending(gp => gp.Game.CreatedAt)
                 .ToListAsync();
 
-            var gameHistory = new List<GameHistoryDTO>();
-            foreach (var game in games)
-            {
-                var player1Nickname = await GetNicknameByIdAsync(game.Player1Id);
-                var player2Nickname = await GetNicknameByIdAsync(game.Player2Id);
 
-                gameHistory.Add(new GameHistoryDTO
+            var gameHistory = gameParticipants.Select(gp =>
+            {
+                var game = gp.Game;
+
+                var host = game.Participants.FirstOrDefault(p => p.Role == ParticipantRole.Host);
+                var guest = game.Participants.FirstOrDefault(p => p.Role == ParticipantRole.Guest);
+
+                return new GameHistoryDTO
                 {
                     GameId = game.GameId,
-                    Player1Id = game.Player1Id,
-                    Player1Nickname = player1Nickname,
-                    Player2Id = game.Player2Id,
-                    Player2Nickname = player2Nickname,
+                    Player1Id = host?.UserId ?? -1,
+                    Player1Nickname = host?.User?.Nickname ?? "Vacante",
+                    Player2Id = guest?.UserId ?? -1,
+                    Player2Nickname = guest?.User?.Nickname ?? "Vacante",
                     DatePlayed = game.CreatedAt,
                     Result = game.WinnerId == userId ? "Victoria" : "Derrota"
-                });
-            }
+                };
+            }).ToList();
 
             return new ServiceResponse<List<GameHistoryDTO>> { Success = true, Data = gameHistory };
         }
+
+
 
 
         private async Task<string> GetNicknameByIdAsync(int userId)
@@ -165,8 +170,10 @@ namespace hundir_la_flota.Services
 
         public async Task<ServiceResponse<List<UserListDTO>>> GetAllConnectedUsersAsync()
         {
+            var connectedUserIds = _webSocketService.GetConnectedUserIds();
 
-            var users = await _context.Users
+            var connectedUsers = await _context.Users
+                .Where(u => connectedUserIds.Contains(u.Id))
                 .Select(u => new UserListDTO
                 {
                     Id = u.Id,
@@ -176,15 +183,8 @@ namespace hundir_la_flota.Services
                 })
                 .ToListAsync();
 
-
-            var connectedUsers = users
-                .Where(user => _webSocketService.IsUserConnected(user.Id))
-                .ToList();
-
             return new ServiceResponse<List<UserListDTO>> { Success = true, Data = connectedUsers };
         }
-
-
 
     }
 }

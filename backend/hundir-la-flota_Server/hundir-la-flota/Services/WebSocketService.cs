@@ -13,8 +13,8 @@ namespace hundir_la_flota.Services
         Task NotifyUserAsync(int userId, string action, string payload);
         Task NotifyUsersAsync(IEnumerable<int> userIds, string action, string payload);
         bool IsUserConnected(int userId);
-
         WebSocketService.UserState GetUserState(int userId);
+        List<int> GetConnectedUserIds();
     }
 
     public class WebSocketService : IWebSocketService
@@ -37,38 +37,44 @@ namespace hundir_la_flota.Services
             return _serviceProvider.GetRequiredService<IGameService>();
         }
 
+        public List<int> GetConnectedUserIds()
+        {
+            return _connectedUsers.Keys.ToList();
+        }
+
         public async Task HandleConnectionAsync(int userId, WebSocket webSocket)
         {
+            var socketWrapper = new WebSocketWrapper(webSocket);
+
             if (!_connectedUsers.TryAdd(userId, webSocket))
             {
-                Console.WriteLine($"Usuario {userId} ya está conectado. Rechazando conexión.");
-                await webSocket.CloseAsync(
+                _logger.LogWarning($"Usuario {userId} ya está conectado. Rechazando conexión.");
+                await socketWrapper.CloseAsync(
                     WebSocketCloseStatus.PolicyViolation,
-                    "Usuario ya conectado",
-                    CancellationToken.None
+                    "Usuario ya conectado"
                 );
                 return;
             }
 
             UpdateUserState(userId, UserState.Connected);
-            Console.WriteLine($"Usuario {userId} conectado.");
+            _logger.LogInformation($"Usuario {userId} conectado.");
 
-           
             await NotifyUserStatusChangeAsync(userId, UserState.Connected);
 
             var buffer = new byte[1024 * 4];
             try
             {
-                WebSocketReceiveResult result;
-                do
+                while (socketWrapper.GetState() == WebSocketState.Open)
                 {
-                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    if (result.MessageType == WebSocketMessageType.Close) break;
+                    var message = await socketWrapper.ReceiveMessageAsync(buffer);
+                    if (string.IsNullOrEmpty(message)) break;
 
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     await ProcessMessageAsync(userId, message);
                 }
-                while (!result.CloseStatus.HasValue);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error en la conexión WebSocket para el usuario {userId}: {ex.Message}");
             }
             finally
             {
@@ -77,13 +83,14 @@ namespace hundir_la_flota.Services
         }
 
 
+
         public async Task DisconnectUserAsync(int userId)
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
                 UpdateUserState(userId, UserState.Disconnected);
 
-               
+
                 await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
 
                 if (webSocket.State == WebSocketState.Open)
@@ -175,6 +182,7 @@ namespace hundir_la_flota.Services
             }
         }
 
+
         private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
         {
             if (_connectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
@@ -193,38 +201,31 @@ namespace hundir_la_flota.Services
             UpdateUserState(userId, newState);
 
             var message = $"{userId}:{newState}";
-            foreach (var kvp in _connectedUsers)
-            {
-                if (kvp.Key != userId)
-                {
-                    await SendMessageAsync(kvp.Value, "UserStatus", message);
-                }
-            }
+            var tasks = _connectedUsers
+                .Where(kvp => kvp.Key != userId)
+                .Select(kvp => SendMessageAsync(kvp.Value, "UserStatus", message));
 
-            Console.WriteLine($"Estado del usuario {userId} actualizado a {newState}");
+            try
+            {
+                await Task.WhenAll(tasks);
+                _logger.LogInformation($"Estado del usuario {userId} actualizado a {newState}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error notificando cambios de estado para el usuario {userId}: {ex.Message}");
+            }
         }
+
+
 
 
 
         public async Task SendMessageAsync(WebSocket webSocket, string action, string payload)
         {
-            try
-            {
-                var message = $"{action}|{payload}";
-                var messageBytes = Encoding.UTF8.GetBytes(message);
-
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(messageBytes),
-                    WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None
-                );
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error enviando mensaje por WebSocket: {ex.Message}");
-            }
+            var socketWrapper = new WebSocketWrapper(webSocket);
+            await socketWrapper.SendMessageAsync(action, payload);
         }
+
 
         public bool IsUserConnected(int userId)
         {

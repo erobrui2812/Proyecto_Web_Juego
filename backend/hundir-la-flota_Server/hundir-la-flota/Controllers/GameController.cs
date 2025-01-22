@@ -2,6 +2,7 @@
 using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 [ApiController]
 [Route("api/game")]
@@ -21,19 +22,30 @@ public class GameController : ControllerBase
     {
         var userIdClaim = User.FindFirst("id")?.Value;
         if (string.IsNullOrEmpty(userIdClaim))
-            throw new InvalidOperationException("No se encontró el ID del usuario en el token.");
+        {
+            throw new UnauthorizedAccessException("No se encontró el ID del usuario en el token.");
+        }
         return int.Parse(userIdClaim);
     }
+
 
     [HttpPost("create")]
     public async Task<IActionResult> CreateGame()
     {
-        var userId = GetUserIdFromClaim();
-        var response = await _gameService.CreateGameAsync(userId.ToString());
-        if (!response.Success)
-            return BadRequest(response.Message);
-        return Ok(response.Data);
+        try
+        {
+            var userId = GetUserIdFromClaim();
+            var response = await _gameService.CreateGameAsync(userId.ToString());
+            if (!response.Success)
+                return BadRequest(response.Message);
+            return Ok(response.Data);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { success = false, message = ex.Message });
+        }
     }
+
 
     [HttpPost("{gameId}/abandon")]
     public async Task<IActionResult> AbandonGame(Guid gameId)
@@ -69,11 +81,17 @@ public class GameController : ControllerBase
     [HttpPost("{gameId}/place-ships")]
     public async Task<IActionResult> PlaceShips(Guid gameId, [FromBody] PlaceShipsRequest request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         var response = await _gameService.PlaceShipsAsync(gameId, request.PlayerId, request.Ships);
         if (!response.Success)
             return BadRequest(response.Message);
         return Ok(response.Message);
     }
+
 
     [HttpPost("{gameId}/attack")]
     public async Task<IActionResult> Attack(Guid gameId, [FromBody] AttackRequest request)
@@ -152,13 +170,23 @@ public class GameController : ControllerBase
 // Clases auxiliares
 public class PlaceShipsRequest
 {
+    [Required]
     public int PlayerId { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "Debes colocar al menos un barco.")]
     public List<Ship> Ships { get; set; }
 }
 
 public class AttackRequest
 {
+    [Required]
     public int PlayerId { get; set; }
+
+    [Range(0, 9, ErrorMessage = "El valor de X debe estar entre 0 y 9.")]
     public int X { get; set; }
+
+    [Range(0, 9, ErrorMessage = "El valor de Y debe estar entre 0 y 9.")]
     public int Y { get; set; }
 }
+

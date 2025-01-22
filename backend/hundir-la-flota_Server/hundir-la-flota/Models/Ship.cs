@@ -1,26 +1,28 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace hundir_la_flota.Models
+﻿namespace hundir_la_flota.Models
 {
     public class Ship
     {
         public string Name { get; set; }
         public int Size { get; set; }
-        public List<Coordinate> Coordinates { get; set; }
+        public List<Coordinate> Coordinates { get; set; } = new List<Coordinate>();
         public bool IsSunk => Coordinates.All(coord => coord.IsHit);
-        public bool IsDamaged => Coordinates.Any(c => c.IsHit) && !IsSunk;
+        public bool IsDamaged => Coordinates.Any(coord => coord.IsHit) && !IsSunk;
 
+        public bool IsPlacementValid(int boardSize)
+        {
+            return Coordinates.All(coord => coord.IsValid(boardSize));
+        }
     }
 
     public class Coordinate
     {
-        [Range(0, 9, ErrorMessage = "La coordenada X debe estar entre 0 y 9.")]
         public int X { get; set; }
-
-        [Range(0, 9, ErrorMessage = "La coordenada Y debe estar entre 0 y 9.")]
         public int Y { get; set; }
-
         public bool IsHit { get; set; }
-    }
 
+        public bool IsValid(int boardSize)
+        {
+            return X >= 0 && X < boardSize && Y >= 0 && Y < boardSize;
+        }
+    }
 }

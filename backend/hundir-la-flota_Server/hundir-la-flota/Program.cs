@@ -45,6 +45,8 @@ namespace hundir_la_flota
                 var serviceProvider = sp;
                 return new WebSocketService(logger, serviceProvider);
             });
+
+
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             //builder.Services.AddScoped<GameSimulation>();
@@ -56,6 +58,8 @@ namespace hundir_la_flota
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IGameParticipantRepository, GameParticipantRepository>();
+
 
 
 
