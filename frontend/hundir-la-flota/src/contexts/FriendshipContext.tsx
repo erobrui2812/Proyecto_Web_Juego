@@ -474,7 +474,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       }}
     >
       <FriendRequestNotification />
-      {auth.token}
       {children}
     </FriendshipContext.Provider>
   );
