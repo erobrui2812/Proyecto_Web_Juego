@@ -120,7 +120,7 @@ const FriendRequestNotification: React.FC = () => {
         console.log("WebSocket cerrado correctamente.");
       }
     };
-  }, [auth?.token, setFriends]);
+  }, [auth?.token]);
 
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;
@@ -473,7 +473,8 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchUserProfile,
       }}
     >
-      {auth.token && <FriendRequestNotification />}
+      <FriendRequestNotification />
+      {auth.token}
       {children}
     </FriendshipContext.Provider>
   );
