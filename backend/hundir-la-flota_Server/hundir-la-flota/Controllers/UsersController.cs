@@ -15,12 +15,12 @@ namespace hundir_la_flota.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRegisterDTO dto)
+        public async Task<IActionResult> Register([FromForm] UserRegisterDTO dto, IFormFile avatar)
         {
             if (dto == null)
                 return BadRequest("Los datos de registro no pueden estar vacíos.");
 
-            var result = await _userService.RegisterUserAsync(dto);
+            var result = await _userService.RegisterUserAsync(dto, avatar);
             if (!result.Success)
                 return BadRequest(new { success = false, message = result.Message });
 

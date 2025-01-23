@@ -22,31 +22,38 @@ const AvatarUsuario = () => {
   return (
     <div>
       <div className="flex items-center space-x-4">
-      <img
-        src={userDetail?.avatarUrl || "https://via.placeholder.com/150"}
-        alt="User Avatar"
-        className="w-12 h-12 rounded-full border-2 border-gold"
-      />
-      <div>
-        <h1 className="text-xl font-bold text-gold">{userDetail?.nickname}</h1>
-        <button
-          className="text-blue-400 hover:underline"
-          onClick={openProfileModal}
-        >
-          Ver Perfil
-        </button>
+        {userDetail ? (
+          <>
+            <img
+              src={userDetail.avatarUrl}
+              alt="User Avatar"
+              className="w-12 h-12 rounded-full border-2 border-gold"
+            />
+            <div>
+              <h1 className="text-xl font-bold text-gold">{userDetail.nickname}</h1>
+              <button
+                className="text-blue-400 hover:underline"
+                onClick={openProfileModal}
+              >
+                Ver Perfil
+              </button>
+            </div>
+            <button
+              className="text-red-500 hover:text-red-700 flex items-center space-x-2"
+              onClick={cerrarSesion}
+            >
+              <LogOut size={20} />
+              <span>Cerrar Sesión</span>
+            </button>
+          </>
+        ) : (
+          <p>Cargando...</p>
+        )}
       </div>
-      <button
-        className="text-red-500 hover:text-red-700 flex items-center space-x-2"
-        onClick={cerrarSesion}
-      >
-        <LogOut size={20} />
-        <span>Cerrar Sesión</span>
-      </button>
-      </div>
-      
 
-      
+
+
+
       {userDetail && (
         <ModalPerfil
           isOpen={isProfileModalOpen}

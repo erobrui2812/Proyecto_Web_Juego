@@ -22,11 +22,10 @@ type AuthContextType = {
     email: string,
     password: string,
     confirmPassword: string,
-    avatarUrl: string
+    avatar: File | null
   ) => Promise<void>;
   cerrarSesion: () => void;
   obtenerUserDetail: () => Promise<void>;
-  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   isAuthenticated: boolean;
   rol: string;
 };
@@ -54,8 +53,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const obtenerUserDetail = useCallback(async () => {
-    if (!auth.token) return;
-
+    if (!auth.token) {
+    //toast.warn("No hay token para obtener detalles del usuario.");
+      return;
+    }
     try {
       const response = await fetch(`https://localhost:7162/api/Users/detail`, {
         method: "GET",
@@ -68,63 +69,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("Error al obtener los detalles del usuario");
       }
 
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data;
 
-      setUserDetail((prev) => {
-        return prev
-          ? { ...prev, ...data }
-          : {
-              id: data.id,
-              avatarUrl: data.avatarUrl,
-              nickname: data.nickname,
-              mail: data.mail,
-              rol: data.rol || "usuario",
-            };
+      console.log("Datos obtenidos de la API:", data);
+
+      if (!data.id || !data.nickname || !data.avatarUrl) {
+        throw new Error("Datos incompletos del usuario");
+      }
+
+      setUserDetail({
+        id: data.id,
+        avatarUrl: data.avatarUrl,
+        nickname: data.nickname,
+        mail: data.email,
+        rol: "usuario",
       });
-    } catch (error) {
-      console.error("Error al obtener detalles del usuario:", error);
+    } catch (error: any) {
+      console.error("Error obteniendo detalles del usuario:", error);
+      toast.error(error.message || "Error al obtener los detalles del usuario.");
       setUserDetail(null);
     }
   }, [auth.token]);
+
 
   useEffect(() => {
     const decodeToken = (token: string) => {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        console.log("Payload del token:", payload);
         return {
           role: payload["role"] || "usuario",
-          userId: payload["id"] || 0, 
+          userId: payload["id"] || 0,
         };
-      } catch (error) {
-        console.error("Error al decodificar el token:", error);
+      } catch {
         return null;
       }
     };
 
     if (auth.token) {
-      setAuthenticated(true);
-
       const decoded = decodeToken(auth.token);
-
       if (decoded) {
+        setAuthenticated(true);
         setRol(decoded.role);
         obtenerUserDetail();
-        setUserDetail((prevDetail) => {
-          return prevDetail
-            ? {
-                ...prevDetail,
-                id: decoded.userId,
-                rol: decoded.role,
-              }
-            : {
-                id: decoded.userId,
-                rol: decoded.role,
-                avatarUrl: "",
-                nickname: "",
-                mail: "",
-              };
-        });
+      } else {
+        toast.error("El token es inválido o ha expirado. Por favor, inicia sesión nuevamente.");
+        cerrarSesion();
       }
     } else {
       setAuthenticated(false);
@@ -146,21 +136,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify({ nicknameMail, password }),
       });
-
       if (!response.ok) {
         throw new Error("Credenciales incorrectas o error en el servidor.");
       }
-
       const { token } = await response.json();
       setAuth({ token });
-
       if (mantenerSesion) {
         localStorage.setItem("token", token);
       } else {
         sessionStorage.setItem("token", token);
       }
+      setAuthenticated(true);
+      await obtenerUserDetail();
     } catch (error: any) {
-      console.error("Error al iniciar sesión:", error.message);
       toast.error(error.message || "Error desconocido");
       throw error;
     }
@@ -171,33 +159,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     email: string,
     password: string,
     confirmPassword: string,
-    avatarUrl: string
+    avatar: File | null
   ) => {
     try {
-      const response = await fetch(
-        `https://localhost:7162/api/Users/register`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            nickname,
-            email,
-            password,
-            confirmPassword,
-            avatarUrl,
-          }),
-        }
-      );
-
+      const formData = new FormData();
+      formData.append("nickname", nickname);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("confirmPassword", confirmPassword);
+      if (avatar) {
+        formData.append("avatar", avatar);
+      }
+      const response = await fetch("https://localhost:7162/api/Users/register", {
+        method: "POST",
+        body: formData,
+      });
       if (!response.ok) {
         throw new Error("Error al registrar usuario.");
       }
-
       toast.success("Usuario registrado correctamente");
+      await obtenerUserDetail();
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
+      console.error("Error registrando usuario:", error);
       toast.error("Error al registrar usuario.");
     }
   };
@@ -220,7 +203,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         registrarUsuario,
         cerrarSesion,
         obtenerUserDetail,
-        setAuthenticated,
         isAuthenticated,
         rol,
       }}
@@ -233,7 +215,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth debe usarse dentro de un AuthProvider");
   }
   return context;
 };

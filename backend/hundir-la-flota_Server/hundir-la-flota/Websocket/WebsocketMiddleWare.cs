@@ -24,6 +24,8 @@
                 return;
             }
 
+            context.Request.Method = "GET";
+
             _logger.LogInformation($"Token extraído del query: {token}");
             context.Request.Headers["Authorization"] = $"Bearer {token}";
         }
