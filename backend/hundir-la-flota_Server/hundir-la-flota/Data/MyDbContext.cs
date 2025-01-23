@@ -8,7 +8,7 @@ public class MyDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<Game> Games { get; set; }
-    public DbSet<GameParticipant> GameParticipants { get; set; } // Declaración añadida
+    public DbSet<GameParticipant> GameParticipants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,29 +22,22 @@ public class MyDbContext : DbContext
             .HasOne(gp => gp.User)
             .WithMany()
             .HasForeignKey(gp => gp.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<GameParticipant>()
             .HasIndex(gp => new { gp.GameId, gp.UserId })
             .IsUnique();
 
 
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.User)
-            .WithMany()
-            .HasForeignKey(f => f.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.Friend)
-            .WithMany()
-            .HasForeignKey(f => f.FriendId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<Friendship>()
-            .HasIndex(f => new { f.UserId, f.FriendId })
-            .IsUnique();
-
+        modelBuilder.Entity<User>().HasData(new User
+        {
+            Id = -1,
+            Nickname = "Bot",
+            Email = "bot@hundirlaflota.com",
+            PasswordHash = "hashdummy",
+            AvatarUrl = null,
+            CreatedAt = DateTime.UtcNow
+        });
 
         modelBuilder.Entity<Game>()
             .HasKey(g => g.GameId);

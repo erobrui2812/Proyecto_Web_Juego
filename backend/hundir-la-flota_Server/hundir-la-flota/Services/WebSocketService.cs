@@ -149,32 +149,17 @@ namespace hundir_la_flota.Services
 
                 switch (action)
                 {
-                    case "StartGame":
-                        UpdateUserState(userId, UserState.Playing);
-                        await NotifyUserStatusChangeAsync(userId, UserState.Playing);
-                        _logger.LogInformation($"Usuario {userId} ha iniciado un juego.");
-                        break;
-
-                    case "EndGame":
-                        UpdateUserState(userId, UserState.Connected);
-                        await NotifyUserStatusChangeAsync(userId, UserState.Connected);
-                        _logger.LogInformation($"Usuario {userId} ha terminado un juego.");
-                        break;
-
-                    case "FriendRequest":
-                        if (int.TryParse(payload, out var recipientId))
+                    case "ChatMessage":
+                        var payloadParts = payload.Split(':');
+                        if (payloadParts.Length < 2)
                         {
-                            await HandleSendFriendRequestAsync(userId, recipientId);
+                            _logger.LogWarning($"Formato de payload inválido para ChatMessage: {payload}");
+                            return;
                         }
-                        else
-                        {
-                            _logger.LogWarning($"Payload inválido para FriendRequest: {payload}");
-                        }
-                        break;
 
-                    case "AbandonGame":
-                        await NotifyUserStatusChangeAsync(userId, UserState.Connected);
-                        _logger.LogInformation($"Usuario {userId} ha abandonado un juego.");
+                        var gameId = Guid.Parse(payloadParts[0]);
+                        var chatMessage = payloadParts[1];
+                        await HandleChatMessageAsync(gameId, userId, chatMessage);
                         break;
 
                     default:
@@ -191,6 +176,41 @@ namespace hundir_la_flota.Services
                 _logger.LogError($"Error procesando mensaje de {userId}: {ex.Message}");
             }
         }
+
+        private async Task HandleChatMessageAsync(Guid gameId, int senderId, string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                _logger.LogWarning($"Mensaje vacío recibido en el juego {gameId} de usuario {senderId}.");
+                return;
+            }
+
+            var chatService = _serviceProvider.GetRequiredService<IChatService>();
+
+            var response = await chatService.SendMessageAsync(gameId, senderId, message);
+            if (!response.Success)
+            {
+                _logger.LogWarning($"Error al enviar mensaje: {response.Message}");
+                return;
+            }
+
+
+            if (_connectedUsers.TryGetValue(senderId, out var senderWebSocket))
+            {
+                var notificationPayload = $"{senderId}:{message}";
+                var gameUsers = _connectedUsers.Keys.Where(userId =>
+                    userId != senderId);
+
+                foreach (var userId in gameUsers)
+                {
+                    if (_connectedUsers.TryGetValue(userId, out var webSocket))
+                    {
+                        await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
+                    }
+                }
+            }
+        }
+
 
 
         private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
