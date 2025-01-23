@@ -149,6 +149,8 @@ namespace hundir_la_flota
 
             app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
+            app.UseStaticFiles();
+            
             app.UseWebSockets();
             app.UseMiddleware<WebSocketMiddleware>();
 

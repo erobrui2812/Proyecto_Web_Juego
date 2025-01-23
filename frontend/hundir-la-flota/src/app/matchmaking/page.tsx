@@ -11,7 +11,7 @@ import { toast } from "react-toastify";
 
 const MatchmakingPage = () => {
   const { auth } = useAuth();
-  const token = auth?.token || null; // Asegúrate de que el token sea accesible
+  const token = auth?.token || null; 
   const router = useRouter();
 
   const [amigosConectados, setAmigosConectados] = useState<Friend[]>([]);
@@ -19,7 +19,6 @@ const MatchmakingPage = () => {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Manejar la obtención de amigos conectados
   useEffect(() => {
     const fetchAmigos = async () => {
       if (!token) {
@@ -50,7 +49,6 @@ const MatchmakingPage = () => {
     fetchAmigos();
   }, [token]);
 
-  // Jugar contra un bot
   const jugarContraBot = async () => {
     if (!token) {
       toast.error("Debes iniciar sesión para jugar.");
@@ -81,7 +79,6 @@ const MatchmakingPage = () => {
     }
   };
 
-  // Unirse a partida aleatoria
   const unirsePartidaAleatoria = async () => {
     if (!token) {
       toast.error("Debes iniciar sesión para unirte a una partida.");
@@ -116,7 +113,7 @@ const MatchmakingPage = () => {
     }
   };
 
-  // Invitar a un amigo
+
   const invitarAmigo = async (amigoId: string) => {
     if (!token) {
       toast.error("Debes iniciar sesión para invitar a un amigo.");

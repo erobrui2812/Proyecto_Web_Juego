@@ -6,7 +6,7 @@ namespace hundir_la_flota.Services
 {
     public interface IUserService
     {
-        Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto);
+        Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto, IFormFile avatar);
         ServiceResponse<string> AuthenticateUser(UserLoginDTO dto);
         Task<ServiceResponse<List<UserListDTO>>> GetAllUsersAsync();
         Task<ServiceResponse<object>> GetUserDetailAsync(string authorizationHeader);
@@ -26,28 +26,83 @@ namespace hundir_la_flota.Services
             _authService = authService;
         }
 
-        public async Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto)
+        public async Task<ServiceResponse<string>> RegisterUserAsync(UserRegisterDTO dto, IFormFile avatar)
         {
-            var existingUser = await _context.Users
-                .AnyAsync(u => u.Email == dto.Email || u.Nickname.ToLower() == dto.Nickname.ToLower());
+            var response = new ServiceResponse<string>();
 
-            if (existingUser)
-                return new ServiceResponse<string> { Success = false, Message = "Email or Nickname already in use" };
-
-            var user = new User
+            try
             {
-                Nickname = dto.Nickname,
-                Email = dto.Email,
-                PasswordHash = _authService.HashPassword(dto.Password),
-                AvatarUrl = dto.AvatarUrl
-            };
+                bool userExists = await _context.Users
+                    .AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower() || u.Nickname.ToLower() == dto.Nickname.ToLower());
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+                if (userExists)
+                {
+                    response.Success = false;
+                    response.Message = "Email o Nickname ya están en uso";
+                    return response;
+                }
 
-            return new ServiceResponse<string> { Success = true, Message = "User registered successfully" };
+                var user = new User
+                {
+                    Nickname = dto.Nickname,
+                    Email = dto.Email,
+                    PasswordHash = _authService.HashPassword(dto.Password),
+                    AvatarUrl = "https://localhost:7162/images/default/avatar-default.jpg"
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync(); 
+
+                if (avatar != null)
+                {
+                    try
+                    {
+                        string uploadsFolder = Path.Combine("wwwroot", "images", user.Id.ToString());
+
+                        if (!Directory.Exists(uploadsFolder))
+                        {
+                            Directory.CreateDirectory(uploadsFolder);
+                            Console.WriteLine($"Carpeta creada: {uploadsFolder}");
+                        }
+
+                        string filePath = Path.Combine(uploadsFolder, "avatar.jpg");
+
+                        if (File.Exists(filePath))
+                        {
+                            File.Delete(filePath);
+                        }
+
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await avatar.CopyToAsync(fileStream);
+                        }
+
+                        user.AvatarUrl = $"https://localhost:7162/images/{user.Id.ToString()}/avatar.jpg";
+                        _context.Users.Update(user);
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error al guardar el avatar: {ex.Message}");
+                        response.Success = false;
+                        response.Message = "Error al guardar el avatar del usuario.";
+                        return response;
+                    }
+                }
+
+                response.Success = true;
+                response.Message = "Usuario registrado exitosamente";
+                response.Data = user.Id.ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en el registro de usuario: {ex.Message}");
+                response.Success = false;
+                response.Message = "Ocurrió un error al registrar el usuario.";
+            }
+
+            return response;
         }
-
 
         public ServiceResponse<string> AuthenticateUser(UserLoginDTO dto)
         {
@@ -90,9 +145,10 @@ namespace hundir_la_flota.Services
                 .Where(u => u.Id == userIdInt.Value)
                 .Select(u => new
                 {
+                    u.Id,
                     u.Nickname,
                     u.Email,
-                    u.AvatarUrl
+                    u.AvatarUrl,
                 })
                 .FirstOrDefaultAsync();
 
