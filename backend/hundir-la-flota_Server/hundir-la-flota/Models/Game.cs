@@ -1,19 +1,29 @@
-﻿using System.ComponentModel;
-
-namespace hundir_la_flota.Models
+﻿namespace hundir_la_flota.Models
 {
     public class Game
     {
         public Guid GameId { get; set; } = Guid.NewGuid();
-        public int Player1Id { get; set; }
-        public int Player2Id { get; set; }
         public GameState State { get; set; } = GameState.WaitingForPlayers;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public int? WinnerId { get; set; }
+
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();
-        public int CurrentPlayerId { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public int? CurrentPlayerId { get; set; }
+
+        public List<GameAction> Actions { get; set; } = new List<GameAction>();
+        public List<GameParticipant> Participants { get; set; } = new List<GameParticipant>();
     }
 
+    public class GameAction
+    {
+        public int Id { get; set; }
+        public int PlayerId { get; set; }
+        public string ActionType { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public string Details { get; set; }
+    }
 
     public enum GameState
     {

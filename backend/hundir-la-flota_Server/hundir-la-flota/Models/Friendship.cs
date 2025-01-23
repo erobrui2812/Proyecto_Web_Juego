@@ -6,20 +6,22 @@ public class Friendship
     public int Id { get; set; }
 
     [Required]
-    [ForeignKey("User")]
     public int UserId { get; set; }
     public User User { get; set; }
 
     [Required]
-    [ForeignKey("Friend")]
     public int FriendId { get; set; }
     public User Friend { get; set; }
 
-    [Required]
     public bool IsConfirmed { get; set; }
-
-    [Required]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
     public DateTime? ConfirmedAt { get; set; }
+
+    public FriendshipStatus Status => IsConfirmed ? FriendshipStatus.Accepted : FriendshipStatus.Pending;
+
+    public enum FriendshipStatus
+    {
+        Pending,
+        Accepted
+    }
 }

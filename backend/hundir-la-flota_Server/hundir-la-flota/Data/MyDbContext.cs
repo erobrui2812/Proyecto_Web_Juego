@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using hundir_la_flota.Models;
+using Microsoft.EntityFrameworkCore;
 
 public class MyDbContext : DbContext
 {
@@ -6,25 +7,74 @@ public class MyDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<Game> Games { get; set; }
+    public DbSet<GameParticipant> GameParticipants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.User)
-            .WithMany()
-            .HasForeignKey(f => f.UserId)
+        modelBuilder.Entity<GameParticipant>()
+            .HasOne(gp => gp.Game)
+            .WithMany(g => g.Participants)
+            .HasForeignKey(gp => gp.GameId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.Friend)
+        modelBuilder.Entity<GameParticipant>()
+            .HasOne(gp => gp.User)
             .WithMany()
-            .HasForeignKey(f => f.FriendId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(gp => gp.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        // Para evitar duplicados...
-
-        modelBuilder.Entity<Friendship>()
-            .HasIndex(f => new { f.UserId, f.FriendId })
+        modelBuilder.Entity<GameParticipant>()
+            .HasIndex(gp => new { gp.GameId, gp.UserId })
             .IsUnique();
+
+
+        modelBuilder.Entity<User>().HasData(new User
+        {
+            Id = -1,
+            Nickname = "Bot",
+            Email = "bot@hundirlaflota.com",
+            PasswordHash = "hashdummy",
+            AvatarUrl = null,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        modelBuilder.Entity<Game>()
+            .HasKey(g => g.GameId);
+
+        modelBuilder.Entity<Game>()
+            .OwnsOne(g => g.Player1Board, board =>
+            {
+                board.Ignore(b => b.Grid);
+                board.OwnsMany(b => b.Ships, ship =>
+                {
+                    ship.ToTable("Player1_Ships");
+                    ship.OwnsMany(s => s.Coordinates, coord =>
+                    {
+                        coord.HasKey(c => new { c.X, c.Y });
+                    });
+                });
+            });
+
+        modelBuilder.Entity<Game>()
+            .OwnsOne(g => g.Player2Board, board =>
+            {
+                board.Ignore(b => b.Grid);
+                board.OwnsMany(b => b.Ships, ship =>
+                {
+                    ship.ToTable("Player2_Ships");
+                    ship.OwnsMany(s => s.Coordinates, coord =>
+                    {
+                        coord.HasKey(c => new { c.X, c.Y });
+                    });
+                });
+            });
+
+        modelBuilder.Entity<Game>()
+            .OwnsMany(g => g.Actions, action =>
+            {
+                action.WithOwner().HasForeignKey("GameId");
+                action.HasKey(a => new { a.Timestamp, a.PlayerId });
+            });
     }
 }

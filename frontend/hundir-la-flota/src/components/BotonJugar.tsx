@@ -1,12 +1,22 @@
 "use client";
 
-const BotonJugar = () => (
-  <button
-    onClick={() => alert("Ir a emparejamiento")}
-    className="p-4 bg-primary text-white rounded-md w-full text-center hover:bg-wine"
-  >
-    Jugar
-  </button>
-);
+import { useRouter } from "next/navigation";
+
+const BotonJugar = () => {
+  const router = useRouter();
+
+  const handleClick = () => {
+    router.push("/matchmaking");
+  };
+
+  return (
+    <button
+      className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md w-full"
+      onClick={handleClick}
+    >
+      Jugar
+    </button>
+  );
+};
 
 export default BotonJugar;

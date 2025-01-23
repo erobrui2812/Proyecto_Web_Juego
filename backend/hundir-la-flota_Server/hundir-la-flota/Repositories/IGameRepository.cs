@@ -1,6 +1,5 @@
 ﻿using hundir_la_flota.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+
 
 public interface IGameRepository
 {
@@ -8,4 +7,5 @@ public interface IGameRepository
     Task<Game> GetByIdAsync(Guid gameId);
     Task AddAsync(Game game);
     Task UpdateAsync(Game game);
+    Task<List<Game>> GetGamesByUserIdAsync(int userId);
 }

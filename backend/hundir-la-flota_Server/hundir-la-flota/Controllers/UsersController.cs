@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using hundir_la_flota.Services;
+using Microsoft.AspNetCore.Mvc;
 
 namespace hundir_la_flota.Controllers
 {
@@ -7,134 +7,87 @@ namespace hundir_la_flota.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly MyDbContext _context;
-        private readonly AuthService _authService;
+        private readonly UserService _userService;
 
-        public UsersController(MyDbContext context, AuthService authService)
+        public UsersController(UserService userService)
         {
-            _context = context;
-            _authService = authService;
+            _userService = userService;
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRegisterDTO dto)
+        public async Task<IActionResult> Register([FromForm] UserRegisterDTO dto, IFormFile avatar)
         {
-            if (_context.Users.Any(u => u.Email == dto.Email || u.Nickname.ToLower() == dto.Nickname.ToLower()))
-                return BadRequest("Email or Nickname already in use");
+            if (dto == null)
+                return BadRequest("Los datos de registro no pueden estar vacíos.");
 
-            var user = new User
-            {
-                Nickname = dto.Nickname,
-                Email = dto.Email,
-                PasswordHash = _authService.HashPassword(dto.Password),
-                AvatarUrl = dto.AvatarUrl
-            };
+            var result = await _userService.RegisterUserAsync(dto, avatar);
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return Ok("User registered successfully");
+            return Ok(new { success = true, message = result.Message });
         }
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginDTO dto)
         {
-            // Validación del DTO
             if (dto == null)
-            {
-                Console.WriteLine("Login failed: DTO is null");
-                return BadRequest("Request body is required.");
-            }
+                return BadRequest("Los datos de inicio de sesión no pueden estar vacíos.");
 
-            if (string.IsNullOrWhiteSpace(dto.NicknameMail))
-            {
-                Console.WriteLine("Login failed: Missing NicknameMail");
-                return BadRequest("Nickname or Email is required.");
-            }
+            var result = _userService.AuthenticateUser(dto);
+            if (!result.Success)
+                return Unauthorized(new { success = false, message = result.Message });
 
-            if (string.IsNullOrWhiteSpace(dto.Password))
-            {
-                Console.WriteLine("Login failed: Missing Password");
-                return BadRequest("Password is required.");
-            }
-
-            try
-            {
-                Console.WriteLine($"Login request: NicknameMail={dto.NicknameMail}, Password=****");
-
-                // Buscar usuario por Nickname o Email
-                var user = _context.Users.FirstOrDefault(u =>
-                    u.Email == dto.NicknameMail || u.Nickname.ToLower() == dto.NicknameMail.ToLower());
-
-                if (user == null)
-                {
-                    Console.WriteLine($"User not found for NicknameMail={dto.NicknameMail}");
-                    return Unauthorized("Invalid credentials");
-                }
-
-                // Verificar contraseña
-                if (!_authService.VerifyPassword(dto.Password, user.PasswordHash))
-                {
-                    Console.WriteLine($"Invalid password for user {user.Nickname}");
-                    return Unauthorized("Invalid credentials");
-                }
-
-                // Generar token JWT
-                var token = _authService.GenerateJwtToken(user);
-                Console.WriteLine($"Generated token for user {user.Nickname}: {token}");
-
-                // Devolver respuesta exitosa
-                return Ok(new { Token = token });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in login: {ex.Message} - {ex.StackTrace}");
-                return StatusCode(500, "An error occurred during login");
-            }
+            return Ok(new { success = true, token = result.Data });
         }
-
-
-
 
         [HttpGet("list")]
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _context.Users
-                .Select(u => new
-                {
-                    u.Id,
-                    u.Nickname,
-                    u.Email,
-                    u.PasswordHash,
-                    u.AvatarUrl
-                })
-                .ToListAsync();
+            var result = await _userService.GetAllUsersAsync();
+            if (!result.Success)
+                return StatusCode(500, new { success = false, message = "No se pudieron obtener los usuarios." });
 
-            return Ok(users);
+            return Ok(new { success = true, data = result.Data });
         }
 
         [HttpGet("detail")]
         public async Task<IActionResult> GetUserDetail()
         {
-            var userIdInt = _authService.GetUserIdFromTokenAsInt(Request.Headers["Authorization"].ToString());
-            if (!userIdInt.HasValue)
-                return Unauthorized("Invalid or missing token");
+            var authorizationHeader = Request.Headers["Authorization"].ToString();
+            if (string.IsNullOrWhiteSpace(authorizationHeader))
+                return Unauthorized(new { success = false, message = "El token de autorización es obligatorio." });
 
-            var user = await _context.Users
-                .Where(u => u.Id == userIdInt.Value)
-                .Select(u => new
-                {
-                    u.Nickname,
-                    u.Email,
-                    u.AvatarUrl
-                })
-                .FirstOrDefaultAsync();
+            var result = await _userService.GetUserDetailAsync(authorizationHeader);
+            if (!result.Success)
+                return Unauthorized(new { success = false, message = result.Message });
 
-            if (user == null)
-                return NotFound("User not found");
-
-            return Ok(user);
+            return Ok(new { success = true, data = result.Data });
         }
 
+        [HttpGet("perfil/{id}")]
+        public async Task<IActionResult> GetProfile(int id)
+        {
+            if (id <= 0)
+                return BadRequest(new { success = false, message = "El ID del usuario debe ser mayor a 0." });
 
+            var result = await _userService.GetProfileByIdAsync(id);
+            if (!result.Success)
+                return NotFound(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, data = result.Data });
+        }
+
+        [HttpGet("historial/{id}")]
+        public async Task<IActionResult> GetGameHistory(int id)
+        {
+            if (id <= 0)
+                return BadRequest(new { success = false, message = "El ID del usuario debe ser mayor a 0." });
+
+            var result = await _userService.GetGameHistoryByIdAsync(id);
+            if (!result.Success)
+                return NotFound(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, data = result.Data });
+        }
     }
 }

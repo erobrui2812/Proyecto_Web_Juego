@@ -4,174 +4,279 @@ using System.Text;
 
 namespace hundir_la_flota.Services
 {
-    public class WebSocketService
+    public interface IWebSocketService
     {
+        Task HandleConnectionAsync(int userId, WebSocket webSocket);
+        Task NotifyUserStatusChangeAsync(int userId, WebSocketService.UserState newState);
+        Task SendMessageAsync(WebSocket webSocket, string action, string payload);
+        Task DisconnectUserAsync(int userId);
+        Task NotifyUserAsync(int userId, string action, string payload);
+        Task NotifyUsersAsync(IEnumerable<int> userIds, string action, string payload);
+        bool IsUserConnected(int userId);
+        WebSocketService.UserState GetUserState(int userId);
+        List<int> GetConnectedUserIds();
+    }
 
+    public class WebSocketService : IWebSocketService
+    {
         public enum UserState { Disconnected, Connected, Playing }
 
+        private readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
+        private readonly ConcurrentDictionary<int, UserState> _userStates = new();
+        private readonly ILogger<WebSocketService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
-        public readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
-        public readonly ConcurrentDictionary<int, UserState> _userStates = new();
+        public WebSocketService(ILogger<WebSocketService> logger, IServiceProvider serviceProvider)
+        {
+            _logger = logger;
+            _serviceProvider = serviceProvider;
+        }
 
+        private IGameService GetGameService()
+        {
+            return _serviceProvider.GetRequiredService<IGameService>();
+        }
+
+        public List<int> GetConnectedUserIds()
+        {
+            return _connectedUsers.Keys.ToList();
+        }
 
         public async Task HandleConnectionAsync(int userId, WebSocket webSocket)
         {
+            var socketWrapper = new WebSocketWrapper(webSocket);
 
             if (!_connectedUsers.TryAdd(userId, webSocket))
             {
-                Console.WriteLine($"El usuario {userId} ya está conectado. Rechazando conexión.");
-                await webSocket.CloseAsync(
+                _logger.LogWarning($"Usuario {userId} ya está conectado. Rechazando conexión.");
+                await socketWrapper.CloseAsync(
                     WebSocketCloseStatus.PolicyViolation,
-                    "Usuario ya conectado",
-                    CancellationToken.None
+                    "Usuario ya conectado"
                 );
                 return;
             }
 
-
-            _userStates[userId] = UserState.Connected;
+            UpdateUserState(userId, UserState.Connected);
             await NotifyUserStatusChangeAsync(userId, UserState.Connected);
-
-            Console.WriteLine($"Usuario {userId} conectado.");
 
             var buffer = new byte[1024 * 4];
             try
             {
-                WebSocketReceiveResult result;
-                do
+                while (socketWrapper.GetState() == WebSocketState.Open)
                 {
-                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    if (result.MessageType == WebSocketMessageType.Close) break;
-
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Console.WriteLine($"Mensaje recibido de {userId}: {message}");
-
+                    var message = await socketWrapper.ReceiveMessageAsync(buffer);
+                    if (string.IsNullOrEmpty(message)) break;
 
                     await ProcessMessageAsync(userId, message);
                 }
-                while (!result.CloseStatus.HasValue);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error en la conexión WebSocket de {userId}: {ex.Message}");
+                _logger.LogError($"Error en la conexión WebSocket para el usuario {userId}: {ex.Message}");
             }
             finally
             {
-
                 await DisconnectUserAsync(userId);
+            }
+        }
+
+
+
+
+        public async Task DisconnectUserAsync(int userId)
+        {
+            if (_connectedUsers.TryRemove(userId, out var webSocket))
+            {
+                UpdateUserState(userId, UserState.Disconnected);
+
+                try
+                {
+                    await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
+
+                    if (webSocket.State == WebSocketState.Open)
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error al cerrar la conexión WebSocket para el usuario {userId}: {ex.Message}");
+                }
+                finally
+                {
+                    webSocket.Dispose();
+                }
+
+                _logger.LogInformation($"Usuario {userId} desconectado.");
+            }
+        }
+
+
+
+        public async Task NotifyUserAsync(int userId, string action, string payload)
+        {
+            if (_connectedUsers.TryGetValue(userId, out var webSocket))
+            {
+                await SendMessageAsync(webSocket, action, payload);
+            }
+            else
+            {
+                _logger.LogWarning($"Intento de notificar al usuario {userId}, pero no está conectado.");
+            }
+        }
+
+        public async Task NotifyUsersAsync(IEnumerable<int> userIds, string action, string payload)
+        {
+            foreach (var userId in userIds)
+            {
+                await NotifyUserAsync(userId, action, payload);
             }
         }
 
         private async Task ProcessMessageAsync(int userId, string message)
         {
-            var parts = message.Split('|');
-            if (parts.Length < 2)
+            try
             {
-                Console.WriteLine($"Formato de mensaje inválido de {userId}.");
+                var parts = message.Split('|');
+                if (parts.Length < 2)
+                {
+                    _logger.LogWarning($"Formato de mensaje inválido de {userId}: {message}");
+                    return;
+                }
+
+                var action = parts[0];
+                var payload = parts[1];
+
+                switch (action)
+                {
+                    case "ChatMessage":
+                        var payloadParts = payload.Split(':');
+                        if (payloadParts.Length < 2)
+                        {
+                            _logger.LogWarning($"Formato de payload inválido para ChatMessage: {payload}");
+                            return;
+                        }
+
+                        var gameId = Guid.Parse(payloadParts[0]);
+                        var chatMessage = payloadParts[1];
+                        await HandleChatMessageAsync(gameId, userId, chatMessage);
+                        break;
+
+                    default:
+                        _logger.LogWarning($"Acción no reconocida: {action}");
+                        if (_connectedUsers.TryGetValue(userId, out var webSocket))
+                        {
+                            await SendMessageAsync(webSocket, "UnknownAction", "Acción no reconocida.");
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error procesando mensaje de {userId}: {ex.Message}");
+            }
+        }
+
+        private async Task HandleChatMessageAsync(Guid gameId, int senderId, string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                _logger.LogWarning($"Mensaje vacío recibido en el juego {gameId} de usuario {senderId}.");
                 return;
             }
 
-            var action = parts[0];
-            var payload = parts[1];
+            var chatService = _serviceProvider.GetRequiredService<IChatService>();
 
-            switch (action)
+            var response = await chatService.SendMessageAsync(gameId, senderId, message);
+            if (!response.Success)
             {
-                case "StartGame":
-                    Console.WriteLine($"El usuario {userId} ha iniciado un juego.");
-                    _userStates[userId] = UserState.Playing;
-                    await NotifyUserStatusChangeAsync(userId, UserState.Playing);
-                    break;
+                _logger.LogWarning($"Error al enviar mensaje: {response.Message}");
+                return;
+            }
 
-                case "EndGame":
-                    Console.WriteLine($"El usuario {userId} ha terminado el juego.");
-                    _userStates[userId] = UserState.Connected;
-                    await NotifyUserStatusChangeAsync(userId, UserState.Connected);
-                    break;
 
-                case "FriendRequest":
+            if (_connectedUsers.TryGetValue(senderId, out var senderWebSocket))
+            {
+                var notificationPayload = $"{senderId}:{message}";
+                var gameUsers = _connectedUsers.Keys.Where(userId =>
+                    userId != senderId);
 
-                    if (int.TryParse(payload, out var recipientId))
+                foreach (var userId in gameUsers)
+                {
+                    if (_connectedUsers.TryGetValue(userId, out var webSocket))
                     {
-                        Console.WriteLine($"Solicitud de amistad de {userId} a {recipientId}");
-                        await HandleSendFriendRequestAsync(userId, recipientId);
+                        await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
                     }
-                    else
-                    {
-                        Console.WriteLine($"El payload '{payload}' no es un ID de usuario válido.");
-                    }
-                    break;
-
-                default:
-                    Console.WriteLine($"Acción no reconocida: {action}");
-
-                    if (_connectedUsers.TryGetValue(userId, out var userWebSocket))
-                    {
-                        await SendMessageAsync(userWebSocket, "UnknownAction", "Acción no reconocida.");
-                    }
-                    break;
+                }
             }
         }
+
+
 
         private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
         {
             if (_connectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
             {
-                Console.WriteLine($"Enviando solicitud de amistad de {senderId} a {recipientId}");
-
+                _logger.LogInformation($"Enviando solicitud de amistad de {senderId} a {recipientId}");
                 await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId.ToString());
             }
             else
             {
-
-                Console.WriteLine($"El usuario {recipientId} no está conectado.");
-
+                _logger.LogWarning($"El usuario {recipientId} no está conectado. No se pudo enviar la solicitud de amistad.");
             }
         }
 
-
-        private async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
+        public async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
         {
-            var message = $"{userId}|{newState}";
-            // Enviamos a todos los sockets conectados
-            foreach (var kvp in _connectedUsers)
-            {
-                var webSocket = kvp.Value;
-                await SendMessageAsync(webSocket, "UserStatus", message);
-            }
-        }
+            UpdateUserState(userId, newState);
 
-        private async Task SendMessageAsync(WebSocket webSocket, string action, string payload)
-        {
-            var message = $"{action}|{payload}";
-            var messageBytes = Encoding.UTF8.GetBytes(message);
-
-            await webSocket.SendAsync(
-                new ArraySegment<byte>(messageBytes),
-                WebSocketMessageType.Text,
-                true,
-                CancellationToken.None
-            );
-        }
-
-
-        private async Task DisconnectUserAsync(int userId)
-        {
-            if (_connectedUsers.TryRemove(userId, out var webSocket))
-            {
-                _userStates[userId] = UserState.Disconnected;
-                await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
-
-                if (webSocket.State == WebSocketState.Open)
+            var message = $"{userId}:{newState}";
+            var tasks = _connectedUsers
+                .Where(kvp => kvp.Key != userId)
+                .Select(async kvp =>
                 {
-                    await webSocket.CloseAsync(
-                        WebSocketCloseStatus.NormalClosure,
-                        "Desconexión",
-                        CancellationToken.None
-                    );
-                }
-                webSocket.Dispose();
-                Console.WriteLine($"Usuario {userId} desconectado.");
+                    if (kvp.Value.State == WebSocketState.Open)
+                    {
+                        await SendMessageAsync(kvp.Value, "UserStatus", message);
+                    }
+                });
+
+            try
+            {
+                await Task.WhenAll(tasks);
+                _logger.LogInformation($"Estado del usuario {userId} actualizado a {newState}");
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error notificando cambios de estado para el usuario {userId}: {ex.Message}");
+            }
+        }
+
+
+        public async Task SendMessageAsync(WebSocket webSocket, string action, string payload)
+        {
+            var socketWrapper = new WebSocketWrapper(webSocket);
+            await socketWrapper.SendMessageAsync(action, payload);
+        }
+
+
+        public bool IsUserConnected(int userId)
+        {
+            return _connectedUsers.ContainsKey(userId);
+        }
+
+        public UserState GetUserState(int userId)
+        {
+            if (_userStates.TryGetValue(userId, out var state))
+            {
+                return state;
+            }
+            return UserState.Disconnected;
+        }
+
+        private void UpdateUserState(int userId, UserState newState)
+        {
+            _userStates[userId] = newState;
         }
     }
 }

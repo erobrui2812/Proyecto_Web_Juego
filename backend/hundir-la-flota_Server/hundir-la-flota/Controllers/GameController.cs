@@ -2,10 +2,7 @@
 using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
+using System.ComponentModel.DataAnnotations;
 
 [ApiController]
 [Route("api/game")]
@@ -13,9 +10,9 @@ using System.Threading;
 public class GameController : ControllerBase
 {
     private readonly IGameService _gameService;
-    private readonly WebSocketService _webSocketService;
+    private readonly IWebSocketService _webSocketService;
 
-    public GameController(IGameService gameService, WebSocketService webSocketService)
+    public GameController(IGameService gameService, IWebSocketService webSocketService)
     {
         _gameService = gameService;
         _webSocketService = webSocketService;
@@ -25,98 +22,171 @@ public class GameController : ControllerBase
     {
         var userIdClaim = User.FindFirst("id")?.Value;
         if (string.IsNullOrEmpty(userIdClaim))
-            throw new InvalidOperationException("No se encontró el ID del usuario en el token.");
+        {
+            throw new UnauthorizedAccessException("No se encontró el ID del usuario en el token.");
+        }
         return int.Parse(userIdClaim);
     }
 
-    private async Task NotifyUserViaWebSocket(int userId, string action, string payload)
-    {
-        if (_webSocketService._connectedUsers.TryGetValue(userId, out var webSocket))
-        {
-            var message = $"{action}|{payload}";
-            var bytes = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-        }
-    }
 
     [HttpPost("create")]
     public async Task<IActionResult> CreateGame()
     {
-        var userIdInt = GetUserIdFromClaim();
-        var userIdString = userIdInt.ToString();
-        var result = await _gameService.CreateGameAsync(userIdString);
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Data);
+        try
+        {
+            var userId = GetUserIdFromClaim();
+            var response = await _gameService.CreateGameAsync(userId.ToString());
+            if (!response.Success)
+                return BadRequest(response.Message);
+            return Ok(response.Data);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { success = false, message = ex.Message });
+        }
+    }
+
+
+    [HttpPost("{gameId}/abandon")]
+    public async Task<IActionResult> AbandonGame(Guid gameId)
+    {
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.AbandonGameAsync(gameId, userId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Connected);
+        return Ok("Juego abandonado correctamente.");
+    }
+
+    [HttpPost("{gameId}/reassign")]
+    public async Task<IActionResult> ReassignRoles(Guid gameId)
+    {
+        var response = await _gameService.ReassignRolesAsync(gameId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        return Ok("Roles reasignados correctamente.");
     }
 
     [HttpPost("{gameId}/join")]
-    public IActionResult JoinGame(Guid gameId, int playerId)
+    public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] int playerId)
     {
-        var result = _gameService.JoinGameAsync(gameId, playerId).Result;
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Message);
+        var response = await _gameService.JoinGameAsync(gameId, playerId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+
+        await _webSocketService.NotifyUserStatusChangeAsync(playerId, WebSocketService.UserState.Playing);
+        return Ok(response.Message);
     }
 
     [HttpPost("{gameId}/place-ships")]
-    public IActionResult PlaceShips(Guid gameId, int playerId, List<Ship> ships)
+    public async Task<IActionResult> PlaceShips(Guid gameId, [FromBody] PlaceShipsRequest request)
     {
-        var result = _gameService.PlaceShipsAsync(gameId, playerId, ships).Result;
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Message);
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var response = await _gameService.PlaceShipsAsync(gameId, request.PlayerId, request.Ships);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        return Ok(response.Message);
     }
 
+
     [HttpPost("{gameId}/attack")]
-    public IActionResult Attack(Guid gameId, int playerId, int x, int y)
+    public async Task<IActionResult> Attack(Guid gameId, [FromBody] AttackRequest request)
     {
-        var result = _gameService.AttackAsync(gameId, playerId, x, y).Result;
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Message);
+        var response = await _gameService.AttackAsync(gameId, request.PlayerId, request.X, request.Y);
+        if (!response.Success)
+            return BadRequest(response.Message);
+        return Ok(response.Message);
     }
 
     [HttpGet("{gameId}")]
     public async Task<IActionResult> GetGameState(Guid gameId)
     {
-        var userIdInt = GetUserIdFromClaim();
-        var userIdString = userIdInt.ToString();
-        var result = await _gameService.GetGameStateAsync(userIdString, gameId);
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Data);
+        var response = await _gameService.GetGameStateAsync(GetUserIdFromClaim().ToString(), gameId);
+        if (!response.Success)
+            return BadRequest(response.Message);
+
+        return Ok(response.Data);
     }
 
     [HttpPost("invite")]
-    public async Task<IActionResult> InviteFriend(int friendId)
+    public async Task<IActionResult> InviteFriend([FromBody] int friendId)
     {
         var currentUserId = GetUserIdFromClaim();
-        await NotifyUserViaWebSocket(friendId, "GameInvitation", currentUserId.ToString());
+        await _webSocketService.NotifyUserAsync(friendId, "GameInvitation", currentUserId.ToString());
         return Ok("Invitación enviada.");
     }
 
     [HttpPost("accept-invitation")]
-    public async Task<IActionResult> AcceptInvitation(int hostId)
+    public async Task<IActionResult> AcceptInvitation([FromBody] Guid hostId)
     {
-        var currentUserId = GetUserIdFromClaim();
-        await NotifyUserViaWebSocket(hostId, "InvitationAccepted", currentUserId.ToString());
-        return Ok("Invitación aceptada.");
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.JoinGameAsync(hostId, userId);
+
+        if (!response.Success)
+            return BadRequest(response.Message);
+
+        return Ok(response.Message);
     }
+
+
 
     [HttpPost("join-random-match")]
     public async Task<IActionResult> JoinRandomMatch()
     {
-        var userIdInt = GetUserIdFromClaim();
-        var userIdString = userIdInt.ToString();
-        var opponent = await _gameService.FindRandomOpponentAsync(userIdString);
-        if (opponent == null) return Ok("Esperando a un oponente...");
-        //await NotifyUserViaWebSocket(opponent.Data.GameId, "Matched", userIdString);
-        return Ok(new { OpponentId = opponent.Data.GameId });
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.FindRandomOpponentAsync(userId.ToString());
+        if (!response.Success)
+            return Ok("Esperando a un oponente...");
+
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Playing);
+        return Ok(new { OpponentId = response.Data.GameId });
     }
 
     [HttpPost("play-with-bot")]
     public async Task<IActionResult> PlayWithBot()
     {
-        var userIdInt = GetUserIdFromClaim();
-        var userIdString = userIdInt.ToString();
-        var result = await _gameService.CreateBotGameAsync(userIdString);
-        if (!result.Success) return BadRequest(result.Message);
-        return Ok(result.Data);
+        var userId = GetUserIdFromClaim();
+        var response = await _gameService.CreateBotGameAsync(userId.ToString());
+        if (!response.Success)
+            return BadRequest(response.Message);
+
+        await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Playing);
+        return Ok(response.Data);
+    }
+
+    [HttpPost("disconnect")]
+    public async Task<IActionResult> Disconnect()
+    {
+        var userId = GetUserIdFromClaim();
+        await _webSocketService.DisconnectUserAsync(userId);
+        return Ok("Usuario desconectado correctamente.");
     }
 }
+
+// Clases auxiliares
+public class PlaceShipsRequest
+{
+    [Required]
+    public int PlayerId { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "Debes colocar al menos un barco.")]
+    public List<Ship> Ships { get; set; }
+}
+
+public class AttackRequest
+{
+    [Required]
+    public int PlayerId { get; set; }
+
+    [Range(0, 9, ErrorMessage = "El valor de X debe estar entre 0 y 9.")]
+    public int X { get; set; }
+
+    [Range(0, 9, ErrorMessage = "El valor de Y debe estar entre 0 y 9.")]
+    public int Y { get; set; }
+}
+

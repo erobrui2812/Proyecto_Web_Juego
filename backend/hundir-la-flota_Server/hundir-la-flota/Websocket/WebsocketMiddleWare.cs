@@ -1,37 +1,35 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Net.WebSockets;
-using System.Text;
-
-namespace hundir_la_flota.Websocket
+﻿public class WebSocketMiddleware
 {
-    public class WebSocketMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<WebSocketMiddleware> _logger;
+
+    public WebSocketMiddleware(RequestDelegate next, ILogger<WebSocketMiddleware> logger)
     {
-        private readonly RequestDelegate _next;
+        _next = next;
+        _logger = logger;
+    }
 
-        public WebSocketMiddleware(RequestDelegate next)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        if (context.WebSockets.IsWebSocketRequest)
         {
-            _next = next;
-        }
-
-        public async Task InvokeAsync(HttpContext context)
-        {
-            if (context.WebSockets.IsWebSocketRequest)
+            var token = context.Request.Query["token"].ToString();
+            if (string.IsNullOrEmpty(token))
             {
-                var token = context.Request.Query["token"].ToString();
-
-                if (string.IsNullOrEmpty(token))
+                _logger.LogWarning("Token faltante en solicitud WebSocket.");
+                if (!context.Response.HasStarted)
                 {
-                    Console.WriteLine("Token faltante en la solicitud WebSocket.");
                     context.Response.StatusCode = 400;
-                    return;
                 }
-
-                Console.WriteLine($"Token extraído del query: {token}");
-                context.Request.Headers["Authorization"] = $"Bearer {token}";
+                return;
             }
 
-            await _next(context);
+            context.Request.Method = "GET";
+
+            _logger.LogInformation($"Token extraído del query: {token}");
+            context.Request.Headers["Authorization"] = $"Bearer {token}";
         }
 
+        await _next(context);
     }
 }

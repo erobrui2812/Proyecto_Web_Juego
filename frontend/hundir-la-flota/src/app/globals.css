@@ -29,3 +29,34 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* * {
+  outline: 1px solid red;
+} */
+
+.custom-shape-divider-bottom-1737375958 {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+  transform: rotate(180deg);
+}
+
+.custom-shape-divider-bottom-1737375958 svg {
+  position: relative;
+  display: block;
+  width: calc(100% + 1.3px);
+  height: 64px;
+}
+
+.custom-shape-divider-bottom-1737375958 .shape-fill {
+  fill: #FFFFFF;
+}

@@ -19,10 +19,10 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        primary: "#800020", // rojo vino
-        secondary: "#1A1A40", // azul marino oscuro
-        gold: "#E5C07B", // dorado suave
-        silver: "#B0B0B0", // gris metálico
+        primary: "#800020",
+        secondary: "#1A1A40",
+        gold: "#E5C07B",
+        silver: "#B0B0B0",
       },
     },
   },

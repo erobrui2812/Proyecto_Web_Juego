@@ -1,36 +1,46 @@
 ﻿using hundir_la_flota.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 public class GameRepository : IGameRepository
 {
-    private readonly List<Game> _games = new List<Game>();
+    private readonly MyDbContext _context;
 
-    public Task<List<Game>> GetAllAsync()
+    public GameRepository(MyDbContext context)
     {
-        return Task.FromResult(_games);
+        _context = context;
     }
 
-    public Task<Game> GetByIdAsync(Guid gameId)
+    public async Task<List<Game>> GetAllAsync()
     {
-        return Task.FromResult(_games.FirstOrDefault(g => g.GameId == gameId));
+        return await _context.Games
+            .Include(g => g.Participants)
+            .ToListAsync();
     }
 
-    public Task AddAsync(Game game)
+    public async Task<Game> GetByIdAsync(Guid gameId)
     {
-        _games.Add(game);
-        return Task.CompletedTask;
+        return await _context.Games
+            .Include(g => g.Participants)
+            .FirstOrDefaultAsync(g => g.GameId == gameId);
     }
 
-    public Task UpdateAsync(Game game)
+    public async Task AddAsync(Game game)
     {
-        var index = _games.FindIndex(g => g.GameId == game.GameId);
-        if (index != -1)
-        {
-            _games[index] = game;
-        }
-        return Task.CompletedTask;
+        _context.Games.Add(game);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(Game game)
+    {
+        _context.Games.Update(game);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<Game>> GetGamesByUserIdAsync(int userId)
+    {
+        return await _context.Games
+            .Include(g => g.Participants)
+            .Where(g => g.Participants.Any(p => p.UserId == userId))
+            .ToListAsync();
     }
 }

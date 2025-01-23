@@ -1,64 +1,74 @@
 ﻿using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.WebSockets;
 
 [ApiController]
 [Route("ws")]
-public class WebSocketController : ControllerBase
+public class WebSocketController
 {
-    private readonly WebSocketService _webSocketService;
-    private readonly AuthService _authService;
+    private readonly IWebSocketService _webSocketService;
+    private readonly IAuthService _authService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<WebSocketController> _logger;
 
-
-    public WebSocketController(WebSocketService webSocketService, AuthService authService)
+    public WebSocketController(
+        IWebSocketService webSocketService,
+        IAuthService authService,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<WebSocketController> logger)
     {
         _webSocketService = webSocketService;
         _authService = authService;
+        _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
     }
 
     [HttpGet]
-    public async Task Connect()
+    public async Task<IActionResult> Connect()
     {
-        if (HttpContext.WebSockets.IsWebSocketRequest)
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext == null)
         {
-
-            var authorizationHeader = HttpContext.Request.Headers["Authorization"].ToString();
-            if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
-            {
-                Console.WriteLine("Conexión WebSocket rechazada: token no proporcionado.");
-                HttpContext.Response.StatusCode = 401;
-                return;
-            }
-
-            var token = authorizationHeader.Substring("Bearer ".Length).Trim();
-            Console.WriteLine($"Verificando token: {token}");
-
-            try
-            {
-
-                var userId = _authService.GetUserIdFromTokenAsInt("Bearer " + token);
-                if (!userId.HasValue)
-                {
-                    Console.WriteLine("Conexión WebSocket rechazada: token inválido o no se pudo extraer userId.");
-                    HttpContext.Response.StatusCode = 401;
-                    return;
-                }
-
-                Console.WriteLine($"Token recibido: {token}");
-                var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
-
-                await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error al manejar la conexión WebSocket: {ex.Message}");
-            }
+            _logger.LogError("No se pudo obtener el contexto HTTP.");
+            return new ObjectResult("Error en el servidor.") { StatusCode = 500 };
         }
-        else
+
+        if (!httpContext.WebSockets.IsWebSocketRequest)
         {
-            Console.WriteLine("Conexión WebSocket rechazada: no es una solicitud WebSocket.");
-            HttpContext.Response.StatusCode = 400;
+            _logger.LogWarning("Solicitud rechazada: No es una solicitud de WebSocket.");
+            return new BadRequestObjectResult("La solicitud no es un WebSocket.");
+        }
+
+        var authorizationHeader = httpContext.Request.Headers["Authorization"].ToString();
+        if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
+        {
+            _logger.LogWarning("Solicitud rechazada: Token de autorización no proporcionado o inválido.");
+            return new UnauthorizedObjectResult("Token no proporcionado o inválido.");
+        }
+
+        var token = authorizationHeader.Substring("Bearer ".Length).Trim();
+        try
+        {
+            var userId = _authService.GetUserIdFromToken(token);
+            if (!userId.HasValue)
+            {
+                _logger.LogWarning("Solicitud rechazada: Token inválido o usuario no autorizado.");
+                return new UnauthorizedObjectResult("Token inválido o usuario no autorizado.");
+            }
+
+            var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
+            _logger.LogInformation($"Usuario {userId.Value} conectado vía WebSocket.");
+
+           
+            await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
+
+            
+            return new EmptyResult(); 
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error en la conexión WebSocket: {ex.Message}");
+            return new ObjectResult("Error en el servidor.") { StatusCode = 500 };
         }
     }
+
 }

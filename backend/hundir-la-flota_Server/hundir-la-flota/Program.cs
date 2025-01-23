@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using hundir_la_flota.Websocket;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
 
@@ -14,33 +13,60 @@ namespace hundir_la_flota
     {
         public static async Task Main(string[] args)
         {
-            // Desactiva mapeos automáticos de System.IdentityModel.Tokens.Jwt
+
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
             JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
 
             var builder = WebApplication.CreateBuilder(args);
 
+
             string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
             string connectionString = $"Data Source={dbPath};";
+
+
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+
 
             builder.Services.AddDbContext<MyDbContext>(options =>
                 options.UseSqlite(connectionString));
 
-            builder.Services.AddSingleton<AuthService>(sp =>
+
+            builder.Services.AddSingleton<IAuthService>(sp =>
                 new AuthService(
-                    builder.Configuration["JWT_KEY"],
+                    builder.Configuration["JWT_KEY"] ?? throw new InvalidOperationException("JWT_KEY no configurada"),
                     sp.GetRequiredService<ILogger<AuthService>>()
                 )
             );
 
-            builder.Services.AddSingleton<WebSocketService>();
+            builder.Services.AddSingleton<IWebSocketService, WebSocketService>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<WebSocketService>>();
+                var serviceProvider = sp;
+                return new WebSocketService(logger, serviceProvider);
+            });
 
-            builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
 
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
-            builder.Services.AddScoped<GameSimulation>();
+            //builder.Services.AddScoped<GameSimulation>();
+            builder.Services.AddScoped<IFriendshipService, FriendshipService>();
+            builder.Services.AddScoped<UserService>();
+            builder.Services.AddScoped<IStatsService, StatsService>();
+            builder.Services.AddScoped<IGameRepository, GameRepository>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IGameRepository, GameRepository>();
+            builder.Services.AddScoped<IGameService, GameService>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IGameParticipantRepository, GameParticipantRepository>();
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddSingleton<IChatService, ChatService>();
+
+
+
+
+
+
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -50,7 +76,9 @@ namespace hundir_la_flota
                         ValidateIssuer = false,
                         ValidateAudience = false,
                         ValidateLifetime = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes("6457984657981246597895234124615498")),
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(
+                            builder.Configuration["JWT_KEY"] ?? throw new InvalidOperationException("JWT_KEY no configurada")
+                        )),
                         ClockSkew = TimeSpan.Zero
                     };
 
@@ -68,6 +96,7 @@ namespace hundir_la_flota
                         }
                     };
                 });
+
 
             builder.Services.AddSwaggerGen(c =>
             {
@@ -99,6 +128,10 @@ namespace hundir_la_flota
                 });
             });
 
+
+            builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+
             var app = builder.Build();
 
             using (var scope = app.Services.CreateScope())
@@ -107,24 +140,28 @@ namespace hundir_la_flota
                 dbContext.Database.EnsureCreated();
             }
 
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
-
-            app.UseRouting();
             app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
             app.UseWebSockets();
             app.UseMiddleware<WebSocketMiddleware>();
 
+            app.UseHttpsRedirection();
+            app.UseRouting();
+
+            app.UseStaticFiles();
+
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
+
 
             app.Run();
         }

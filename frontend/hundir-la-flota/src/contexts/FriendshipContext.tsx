@@ -6,6 +6,20 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "./AuthContext";
 
+type UserProfile = {
+  nickname: string;
+  avatarUrl: string;
+  email: string;
+};
+
+type GameHistory = {
+  gameId: string;
+  player1Nickname: string;
+  player2Nickname: string;
+  datePlayed: string;
+  result: string;
+};
+
 type Friend = {
   id: string;
   nickname: string;
@@ -16,6 +30,7 @@ type Friend = {
 
 type FriendshipContextType = {
   friends: Friend[];
+  setFriends: React.Dispatch<React.SetStateAction<Friend[]>>;
   searchResults: Friend[];
   sendFriendRequest: (nicknameOrEmail: string) => void;
   respondToFriendRequest: (senderId: string, accepted: boolean) => void;
@@ -23,6 +38,8 @@ type FriendshipContextType = {
   searchUsers: (query: string) => void;
   fetchPendingRequests: () => Promise<PendingRequest[]>;
   fetchFriends: () => void;
+  fetchUserProfile: (id: string) => Promise<UserProfile>;
+  fetchUserGameHistory: (id: string) => Promise<GameHistory[]>;
 };
 
 const FriendshipContext = createContext<FriendshipContextType | undefined>(
@@ -31,7 +48,7 @@ const FriendshipContext = createContext<FriendshipContextType | undefined>(
 
 const FriendRequestNotification: React.FC = () => {
   const { auth } = useAuth();
-  const { fetchFriends, respondToFriendRequest } = useFriendship();
+  const { fetchFriends, respondToFriendRequest, setFriends } = useFriendship();
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
@@ -61,7 +78,7 @@ const FriendRequestNotification: React.FC = () => {
       try {
         const [action, payload] = event.data.split("|");
         if (!action || !payload) {
-          throw new Error("Formato de mensaje WebSocket inválido");
+          throw new Error("Formato de mensaje WebSocket erroneo");
         }
 
         switch (action) {
@@ -74,10 +91,21 @@ const FriendRequestNotification: React.FC = () => {
           case "FriendRemoved":
             handleFriendRemoved(payload);
             break;
-          case "UserStatus":
-            console.log(`Estado del usuario actualizado: ${payload}`);
-            fetchFriends();
+          case "UserStatus": {
+            const [userId, newStatus] = payload.split(":");
+            console.log("Evento UserStatus recibido:", { userId, newStatus });
+            setFriends((prevFriends) => {
+              const updatedFriends = prevFriends.map((friend) =>
+                String(friend.id) === String(userId)
+                  ? { ...friend, status: newStatus }
+                  : friend
+              );
+              console.log("Amigos actualizados:", updatedFriends);
+              return updatedFriends;
+            });
+
             break;
+          }
           default:
             console.warn("Acción no reconocida:", action);
         }
@@ -91,10 +119,10 @@ const FriendRequestNotification: React.FC = () => {
     return () => {
       if (newSocket.readyState === WebSocket.OPEN) {
         newSocket.close();
-        console.log("WebSocket cerrado limpiamente.");
+        console.log("WebSocket cerrado correctamente.");
       }
     };
-  }, [auth?.token]);
+  }, [auth.token]);
 
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;
@@ -102,15 +130,15 @@ const FriendRequestNotification: React.FC = () => {
     try {
       const nickname = await userIdANickname(senderId, auth.token);
       toast(
-        <div>
+        <div className="text-center">
           <p>Nueva solicitud de amistad de: {nickname}</p>
-          <div style={{ display: "flex", justifyContent: "space-around" }}>
+          <div className="flex justify-center gap-6 mt-4">
             <button
               onClick={() => {
                 respondToFriendRequest(senderId, true);
                 toast.dismiss();
               }}
-              style={{ backgroundColor: "green", color: "white" }}
+              className="bg-green-500 text-white px-6 py-2 w-32 rounded hover:bg-green-600 transition"
             >
               Aceptar
             </button>
@@ -119,7 +147,7 @@ const FriendRequestNotification: React.FC = () => {
                 respondToFriendRequest(senderId, false);
                 toast.dismiss();
               }}
-              style={{ backgroundColor: "red", color: "white" }}
+              className="bg-red-500 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>
@@ -202,7 +230,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         nickname: friend.friendNickname,
         email: friend.friendMail,
         urlAvatar: friend.avatarUrl || "https://via.placeholder.com/150",
-        status: friend.status,
+        status: friend.status || "Disconnected",
       }));
       setFriends(mappedFriends);
     } catch (error) {
@@ -216,7 +244,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isAuthenticated]);
 
-  // En este método, enviamos POST a 'send' con Nickname o Email
   const sendFriendRequest = async (nicknameOrEmail: string) => {
     if (!auth?.token) return;
     try {
@@ -229,7 +256,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
             Authorization: `Bearer ${auth.token}`,
           },
           body: JSON.stringify({
-            Nickname: nicknameOrEmail, // O Email, si el usuario introdujo un correo
+            Nickname: nicknameOrEmail,
             Email: "",
           }),
         }
@@ -246,7 +273,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Aceptar/Rechazar solicitudes
   const respondToFriendRequest = async (
     friendId: string,
     accepted: boolean
@@ -285,21 +311,19 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Eliminar un amigo
   const removeFriend = async (friendId: string) => {
     if (!auth?.token) return;
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/remove",
+        `https://localhost:7162/api/Friendship/remove/${friendId}`,
         {
           method: "DELETE",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${auth.token}`,
           },
-          body: JSON.stringify(parseInt(friendId)),
         }
       );
+
       if (!response.ok) {
         const text = await response.text();
         toast.error(`Error al eliminar amigo: ${text}`);
@@ -313,7 +337,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Búsqueda de usuarios
   const searchUsers = async (query: string) => {
     if (!auth?.token) return;
     if (!query) {
@@ -332,7 +355,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       );
       if (response.status === 404) {
-        // No se encontraron usuarios
         setSearchResults([]);
         toast.info("No se encontraron usuarios con ese nickname");
         return;
@@ -342,7 +364,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
       const mapped = data.map((u: any) => ({
         id: u.id.toString(),
         nickname: u.nickname,
-        email: "", // El endpoint no devuelve mail en la búsqueda
+        email: "",
         urlAvatar: u.avatarUrl || "https://via.placeholder.com/150",
         status: "Disconnected",
       }));
@@ -353,7 +375,6 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Peticiones pendientes
   const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
     if (!auth?.token) return [];
     try {
@@ -375,10 +396,74 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
+    if (!auth?.token) {
+      throw new Error("Token de autenticación no disponible.");
+    }
+    try {
+      const response = await fetch(
+        `https://localhost:7162/api/Users/perfil/${userId.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error al obtener el perfil: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return {
+        nickname: data.nickname,
+        avatarUrl: data.avatarUrl,
+        email: data.email,
+      };
+    } catch (error) {
+      console.error("Error en fetchUserProfile:", error);
+      throw error;
+    }
+  };
+
+  const fetchUserGameHistory = async (
+    userId: string
+  ): Promise<GameHistory[]> => {
+    if (!auth?.token) {
+      throw new Error("Token de autenticación no disponible.");
+    }
+
+    try {
+      const response = await fetch(
+        `https://localhost:7162/api/Users/historial/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Error al obtener el historial: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      return data.data.map((game: any) => ({
+        gameId: game.gameId,
+        player1Nickname: game.player1Nickname,
+        player2Nickname: game.player2Nickname,
+        datePlayed: game.datePlayed,
+        result: game.result,
+      }));
+    } catch (error) {
+      console.error("Error en fetchUserGameHistory:", error);
+      throw error;
+    }
+  };
+
   return (
     <FriendshipContext.Provider
       value={{
         friends,
+        setFriends,
         searchResults,
         sendFriendRequest,
         respondToFriendRequest,
@@ -386,9 +471,11 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         searchUsers,
         fetchFriends,
         fetchPendingRequests,
+        fetchUserGameHistory,
+        fetchUserProfile,
       }}
     >
-      {auth.token && <FriendRequestNotification />}
+      <FriendRequestNotification />
       {children}
     </FriendshipContext.Provider>
   );

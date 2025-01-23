@@ -1,313 +1,121 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using System.Text;
-using System.Net.WebSockets;
+﻿using hundir_la_flota.DTOs;
 using hundir_la_flota.Services;
-using hundir_la_flota.DTOs;
+using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
 public class FriendshipController : ControllerBase
 {
-    private readonly MyDbContext _dbContext;
-    private readonly WebSocketService _webSocketService;
+    private readonly IFriendshipService _friendshipService;
 
-    public FriendshipController(MyDbContext dbContext, WebSocketService webSocketService)
+    public FriendshipController(IFriendshipService friendshipService)
     {
-        _dbContext = dbContext;
-        _webSocketService = webSocketService;
-    }
-
-    private async Task NotifyUserViaWebSocket(int userId, string action, string payload)
-    {
-        if (_webSocketService._connectedUsers.TryGetValue(userId, out var webSocket))
-        {
-            var message = $"{action}|{payload}";
-            var bytes = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-        }
+        _friendshipService = friendshipService;
     }
 
     [HttpPost("send")]
     public async Task<IActionResult> SendFriendRequest([FromBody] FriendRequestDto request)
     {
         var userId = GetUserId();
-        if (string.IsNullOrEmpty(request.Nickname) && string.IsNullOrEmpty(request.Email))
-            return BadRequest("Debes proporcionar un nickname o un correo electrónico.");
-
-        User friend = null;
-
-
-        if (!string.IsNullOrEmpty(request.Nickname))
-        {
-            var normalizedNickname = NormalizeString(request.Nickname).Trim();
-            friend = _dbContext.Users
-                .AsEnumerable()
-                .FirstOrDefault(u => NormalizeString(u.Nickname) == normalizedNickname);
-        }
-
-
-        if (friend == null && !string.IsNullOrEmpty(request.Email))
-        {
-            friend = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-        }
-
-
-        if (friend == null)
-            return NotFound("No se encontró el usuario.");
-
-        var friendId = friend.Id;
-
-        if (userId == friendId)
-            return BadRequest("No puedes enviarte una solicitud de amistad a ti mismo.");
-
-        var existingFriendship = await _dbContext.Friendships
-            .FirstOrDefaultAsync(f =>
-                (f.UserId == userId && f.FriendId == friendId) ||
-                (f.UserId == friendId && f.FriendId == userId));
-
-        if (existingFriendship != null)
-            return BadRequest("Ya existe una solicitud de amistad o ya sois amigos.");
-
-        var friendship = new Friendship
-        {
-            UserId = userId,
-            FriendId = friendId,
-            IsConfirmed = false,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.Friendships.Add(friendship);
-        await _dbContext.SaveChangesAsync();
-
-        await NotifyUserViaWebSocket(friendId, "FriendRequest", userId.ToString());
-        return Ok("Solicitud de amistad enviada.");
-    }
-
-    [HttpPost("add-{userId}")]
-    public async Task<IActionResult> AddFriendById(int userId)
-    {
-        var currentUserId = GetUserId();
-        if (currentUserId == userId)
-            return BadRequest("No puedes enviarte una solicitud de amistad a ti mismo.");
-
-        var friend = await _dbContext.Users.FindAsync(userId);
-        if (friend == null)
-            return NotFound("No se encontró el usuario.");
-
-        var existingFriendship = await _dbContext.Friendships
-            .FirstOrDefaultAsync(f =>
-                (f.UserId == currentUserId && f.FriendId == userId) ||
-                (f.UserId == userId && f.FriendId == currentUserId));
-
-        if (existingFriendship != null)
-            return BadRequest("Ya existe una solicitud de amistad o ya sois amigos.");
-
-        var friendship = new Friendship
-        {
-            UserId = currentUserId,
-            FriendId = userId,
-            IsConfirmed = false,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.Friendships.Add(friendship);
-        await _dbContext.SaveChangesAsync();
-
-        await NotifyUserViaWebSocket(userId, "FriendRequest", currentUserId.ToString());
-        return Ok("Solicitud de amistad enviada.");
+        var result = await _friendshipService.SendFriendRequestAsync(userId, request);
+        if (!result.Success) return BadRequest(result.Message);
+        return Ok(result.Message);
     }
 
     [HttpPost("respond")]
     public async Task<IActionResult> RespondToFriendRequest([FromBody] FriendRequestResponseDto response)
     {
+        try
+        {
+            var userId = GetUserId();
+            var result = await _friendshipService.RespondToFriendRequestAsync(userId, response);
+
+            if (!result.Success)
+            {
+                return NotFound(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+        catch (Exception ex)
+        {
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, error = ex.Message });
+        }
+    }
+
+
+    [HttpDelete("remove/{friendId}")]
+    public async Task<IActionResult> RemoveFriend(int friendId)
+    {
         var userId = GetUserId();
-
-        var friendship = await _dbContext.Friendships
-            .FirstOrDefaultAsync(f =>
-                f.UserId == response.SenderId &&
-                f.FriendId == userId &&
-                !f.IsConfirmed);
-
-        if (friendship == null)
-            return NotFound(new { success = false, message = "Solicitud de amistad no encontrada." });
-
-        if (response.Accept)
-        {
-            friendship.IsConfirmed = true;
-            friendship.ConfirmedAt = DateTime.UtcNow;
-        }
-        else
-        {
-            _dbContext.Friendships.Remove(friendship);
-        }
-
-        await _dbContext.SaveChangesAsync();
-
-        var responseMessage = response.Accept ? "Accepted" : "Rejected";
-        await NotifyUserViaWebSocket(response.SenderId, "FriendRequestResponse", responseMessage);
-        return Ok(new
-        {
-            success = true,
-            message = response.Accept ? "Solicitud de amistad aceptada." : "Solicitud de amistad rechazada."
-        });
+        var result = await _friendshipService.RemoveFriendAsync(userId, friendId);
+        if (!result.Success) return NotFound(result.Message);
+        return Ok(result.Message);
     }
 
     [HttpGet("list")]
     public async Task<IActionResult> GetFriends()
     {
         var userId = GetUserId();
-
-        var friendships = await _dbContext.Friendships
-            .Where(f => (f.UserId == userId || f.FriendId == userId) && f.IsConfirmed)
-            .Select(f => new
-            {
-                FriendId = f.UserId == userId ? f.FriendId : f.UserId,
-                FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
-                FriendMail = f.UserId == userId ? f.Friend.Email : f.User.Email,
-                AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl
-            })
-            .ToListAsync();
-
-        var webSocketService = HttpContext.RequestServices.GetService<WebSocketService>();
-        if (webSocketService == null)
-            return StatusCode(StatusCodes.Status500InternalServerError, "WebSocketService no disponible.");
-
-        var friendsWithStatus = friendships.Select(f => new
-        {
-            f.FriendId,
-            f.FriendNickname,
-            f.FriendMail,
-            f.AvatarUrl,
-            Status = webSocketService._userStates.TryGetValue(f.FriendId, out var state)
-                ? state.ToString()
-                : WebSocketService.UserState.Disconnected.ToString()
-        }).ToList();
-
-        return Ok(friendsWithStatus);
-    }
-
-    [HttpDelete("remove")]
-    public async Task<IActionResult> RemoveFriend([FromBody] int friendId)
-    {
-        var userId = GetUserId();
-
-        var friendship = await _dbContext.Friendships
-            .FirstOrDefaultAsync(f =>
-                (f.UserId == userId && f.FriendId == friendId) ||
-                (f.UserId == friendId && f.FriendId == userId)
-                && f.IsConfirmed);
-
-        if (friendship == null)
-            return NotFound("No se encontró la amistad.");
-
-        _dbContext.Friendships.Remove(friendship);
-        await _dbContext.SaveChangesAsync();
-
-        return Ok("Amigo eliminado.");
-    }
-
-    [HttpGet("unaccepted")]
-    public async Task<IActionResult> GetUnacceptedFriendRequests()
-    {
-        var userId = GetUserId();
-
-        var unacceptedRequests = await _dbContext.Friendships
-            .Where(f => f.UserId == userId && !f.IsConfirmed)
-            .Include(f => f.Friend)
-            .ToListAsync();
-
-        var result = unacceptedRequests.Select(f => new
-        {
-            f.Id,
-            ToUserId = f.FriendId,
-            ToUserNickname = f.Friend.Nickname,
-            CreatedAt = f.CreatedAt
-        });
-
-        return Ok(result);
+        var result = await _friendshipService.GetFriendsAsync(userId);
+        if (!result.Success) return StatusCode(StatusCodes.Status500InternalServerError, result.Message);
+        return Ok(result.Data);
     }
 
     [HttpGet("pending")]
     public async Task<IActionResult> GetPendingFriendRequests()
     {
         var userId = GetUserId();
+        var result = await _friendshipService.GetPendingRequestsAsync(userId);
+        if (!result.Success) return BadRequest(result.Message);
+        return Ok(result.Data);
+    }
 
-        var pendingRequests = await _dbContext.Friendships
-            .Where(f => f.FriendId == userId && !f.IsConfirmed)
-            .Include(f => f.User)
-            .ToListAsync();
-
-        var result = pendingRequests.Select(f => new
-        {
-            f.Id,
-            FromUserId = f.UserId,
-            FromUserNickname = f.User.Nickname,
-            CreatedAt = f.CreatedAt
-        });
-
-        return Ok(result);
+    [HttpGet("unaccepted")]
+    public async Task<IActionResult> GetUnacceptedFriendRequests()
+    {
+        var userId = GetUserId();
+        var result = await _friendshipService.GetUnacceptedRequestsAsync(userId);
+        if (!result.Success) return BadRequest(result.Message);
+        return Ok(result.Data);
     }
 
     [HttpGet("search")]
-    public IActionResult SearchUser([FromQuery] string nickname)
+    public async Task<IActionResult> SearchUsers([FromQuery] string nickname)
     {
-        if (string.IsNullOrEmpty(nickname))
-            return BadRequest("El nickname no puede estar vacío.");
-
-        var normalizedSearch = NormalizeString(nickname).Trim();
-
-
-        var users = _dbContext.Users
-            .AsEnumerable()
-            .Where(u => NormalizeString(u.Nickname).Contains(normalizedSearch))
-            .Select(u => new
-            {
-                u.Id,
-                u.Nickname,
-                u.AvatarUrl
-            })
-            .ToList();
-
-        if (users.Count == 0)
-            return NotFound("No se encontraron usuarios con ese nickname.");
-
-        return Ok(users);
+        if (string.IsNullOrEmpty(nickname)) return BadRequest("El nickname no puede estar vacío.");
+        var result = await _friendshipService.SearchUsersAsync(nickname);
+        if (!result.Success) return NotFound(result.Message);
+        return Ok(result.Data);
     }
 
     [HttpGet("get-nickname/{userId}")]
     public async Task<IActionResult> GetNickname(int userId)
     {
-        var user = await _dbContext.Users.FindAsync(userId);
-        if (user == null)
-            return NotFound(new { success = false, message = "Usuario no encontrado." });
-
-        return Ok(new { success = true, nickname = user.Nickname });
+        var result = await _friendshipService.GetNicknameAsync(userId);
+        if (!result.Success) return NotFound(new { success = false, message = result.Message });
+        return Ok(new { success = true, nickname = result.Data });
     }
+
+    [HttpGet("connected")]
+    public async Task<IActionResult> GetConnectedFriends()
+    {
+        var userId = GetUserId();
+        var result = await _friendshipService.GetConnectedFriendsAsync(userId);
+        if (!result.Success) return StatusCode(StatusCodes.Status500InternalServerError, result.Message);
+        return Ok(result.Data);
+    }
+
 
     private int GetUserId()
     {
-        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "id");
-        if (userIdClaim == null)
-            throw new InvalidOperationException("No se puede obtener el ID del usuario desde el token.");
-
-        return int.Parse(userIdClaim.Value);
-    }
-
-    private string NormalizeString(string input)
-    {
-        var normalizedString = input.Normalize(NormalizationForm.FormD);
-        var stringBuilder = new StringBuilder();
-
-        foreach (var character in normalizedString)
+        var userIdClaim = User.FindFirst("id")?.Value;
+        if (string.IsNullOrEmpty(userIdClaim))
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
-            {
-                stringBuilder.Append(character);
-            }
+            throw new UnauthorizedAccessException("No se puede obtener el ID del usuario desde el token.");
         }
-
-        return stringBuilder.ToString().Normalize(NormalizationForm.FormC).ToLower();
+        return int.Parse(userIdClaim);
     }
+
 }

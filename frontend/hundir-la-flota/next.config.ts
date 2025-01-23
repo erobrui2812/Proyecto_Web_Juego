@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    appDir: true,
+  },
   images: {
-    // Permitir protocolo HTTP y HTTPS desde cualquier hostname ( ** )
     remotePatterns: [
       {
         protocol: "http",
