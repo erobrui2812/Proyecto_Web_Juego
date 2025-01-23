@@ -145,14 +145,15 @@ namespace hundir_la_flota
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
-
             app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
-            app.UseStaticFiles();
-            
             app.UseWebSockets();
             app.UseMiddleware<WebSocketMiddleware>();
+
+            app.UseHttpsRedirection();
+            app.UseRouting();
+
+            app.UseStaticFiles();
 
             app.UseAuthentication();
             app.UseAuthorization();
