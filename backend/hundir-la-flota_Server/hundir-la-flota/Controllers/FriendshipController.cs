@@ -25,11 +25,25 @@ public class FriendshipController : ControllerBase
     [HttpPost("respond")]
     public async Task<IActionResult> RespondToFriendRequest([FromBody] FriendRequestResponseDto response)
     {
-        var userId = GetUserId();
-        var result = await _friendshipService.RespondToFriendRequestAsync(userId, response);
-        if (!result.Success) return NotFound(new { success = false, message = result.Message });
-        return Ok(new { success = true, message = result.Message });
+        try
+        {
+            var userId = GetUserId();
+            var result = await _friendshipService.RespondToFriendRequestAsync(userId, response);
+
+            if (!result.Success)
+            {
+                return NotFound(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+        catch (Exception ex)
+        {
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, error = ex.Message });
+        }
     }
+
 
     [HttpDelete("remove/{friendId}")]
     public async Task<IActionResult> RemoveFriend(int friendId)

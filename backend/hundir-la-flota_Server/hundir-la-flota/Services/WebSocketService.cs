@@ -57,8 +57,6 @@ namespace hundir_la_flota.Services
             }
 
             UpdateUserState(userId, UserState.Connected);
-            _logger.LogInformation($"Usuario {userId} conectado.");
-
             await NotifyUserStatusChangeAsync(userId, UserState.Connected);
 
             var buffer = new byte[1024 * 4];
@@ -84,24 +82,36 @@ namespace hundir_la_flota.Services
 
 
 
+
         public async Task DisconnectUserAsync(int userId)
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
                 UpdateUserState(userId, UserState.Disconnected);
 
-
-                await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
-
-                if (webSocket.State == WebSocketState.Open)
+                try
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
+                    await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
+
+                    if (webSocket.State == WebSocketState.Open)
+                    {
+                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error al cerrar la conexión WebSocket para el usuario {userId}: {ex.Message}");
+                }
+                finally
+                {
+                    webSocket.Dispose();
                 }
 
-                webSocket.Dispose();
-                Console.WriteLine($"Usuario {userId} desconectado.");
+                _logger.LogInformation($"Usuario {userId} desconectado.");
             }
         }
+
+
 
         public async Task NotifyUserAsync(int userId, string action, string payload)
         {
@@ -203,7 +213,13 @@ namespace hundir_la_flota.Services
             var message = $"{userId}:{newState}";
             var tasks = _connectedUsers
                 .Where(kvp => kvp.Key != userId)
-                .Select(kvp => SendMessageAsync(kvp.Value, "UserStatus", message));
+                .Select(async kvp =>
+                {
+                    if (kvp.Value.State == WebSocketState.Open)
+                    {
+                        await SendMessageAsync(kvp.Value, "UserStatus", message);
+                    }
+                });
 
             try
             {
@@ -215,9 +231,6 @@ namespace hundir_la_flota.Services
                 _logger.LogError($"Error notificando cambios de estado para el usuario {userId}: {ex.Message}");
             }
         }
-
-
-
 
 
         public async Task SendMessageAsync(WebSocket webSocket, string action, string payload)

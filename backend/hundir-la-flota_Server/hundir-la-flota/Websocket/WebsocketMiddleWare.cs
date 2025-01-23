@@ -17,7 +17,10 @@
             if (string.IsNullOrEmpty(token))
             {
                 _logger.LogWarning("Token faltante en solicitud WebSocket.");
-                context.Response.StatusCode = 400;
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = 400;
+                }
                 return;
             }
 

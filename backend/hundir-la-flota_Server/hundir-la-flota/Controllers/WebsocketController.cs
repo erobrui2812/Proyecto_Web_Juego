@@ -58,9 +58,11 @@ public class WebSocketController
             var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
             _logger.LogInformation($"Usuario {userId.Value} conectado vía WebSocket.");
 
+           
             await _webSocketService.HandleConnectionAsync(userId.Value, webSocket);
 
-            return new OkObjectResult("Conexión WebSocket cerrada correctamente.");
+            
+            return new EmptyResult(); 
         }
         catch (Exception ex)
         {
@@ -68,4 +70,5 @@ public class WebSocketController
             return new ObjectResult("Error en el servidor.") { StatusCode = 500 };
         }
     }
+
 }

@@ -94,14 +94,16 @@ const FriendRequestNotification: React.FC = () => {
           case "UserStatus": {
             const [userId, newStatus] = payload.split(":");
             console.log("Evento UserStatus recibido:", { userId, newStatus });
-            setFriends((prevFriends) =>
-              prevFriends.map((friend) =>
-                friend.id === userId ? { ...friend, status: newStatus } : friend
-              )
-            );
-            console.log(
-              `Estado del usuario actualizado: ${userId} -> ${newStatus}`
-            );
+            setFriends((prevFriends) => {
+              const updatedFriends = prevFriends.map((friend) =>
+                String(friend.id) === String(userId)
+                  ? { ...friend, status: newStatus }
+                  : friend
+              );
+              console.log("Amigos actualizados:", updatedFriends);
+              return updatedFriends;
+            });
+
             break;
           }
           default:

@@ -14,6 +14,11 @@ namespace hundir_la_flota.Services
 
         public async Task SendMessageAsync(string action, string payload)
         {
+            if (_webSocket.State != WebSocketState.Open)
+            {
+                throw new InvalidOperationException("El WebSocket está cerrado y no puede enviar mensajes.");
+            }
+
             try
             {
                 var message = $"{action}|{payload}";
@@ -29,6 +34,7 @@ namespace hundir_la_flota.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error enviando mensaje por WebSocket: {ex.Message}");
+                throw;
             }
         }
 

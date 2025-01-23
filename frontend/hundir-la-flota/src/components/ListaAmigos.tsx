@@ -7,7 +7,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactPaginate from "react-paginate";
 
-const translateStatus = (status: string) => {
+const translateStatus = (status) => {
   switch (status) {
     case "Connected":
       return "Conectado";
@@ -25,9 +25,8 @@ const ListaAmigos = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{id: string, nickname: string} | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
 
@@ -38,11 +37,11 @@ const ListaAmigos = () => {
   );
   const pageCount = Math.ceil(friends.length / friendsPerPage);
 
-  const changePage = (selectedItem: { selected: number }) => {
+  const changePage = (selectedItem) => {
     setPageNumber(selectedItem.selected);
   };
 
-  const openProfileModal = (userId: string) => {
+  const openProfileModal = (userId) => {
     setSelectedUserId(userId);
     setIsProfileModalOpen(true);
   };
@@ -52,7 +51,7 @@ const ListaAmigos = () => {
     setIsProfileModalOpen(false);
   };
 
-  const openDeleteModal = (friend: { id: string; nickname: string }) => {
+  const openDeleteModal = (friend) => {
     setSelectedFriend(friend);
     setIsModalOpen(true);
   };
@@ -71,7 +70,7 @@ const ListaAmigos = () => {
 
   useEffect(() => {
     fetchFriends();
-  }, []); 
+  }, []);
 
   useEffect(() => {
     console.log("Amigos actuales:", friends);
@@ -189,9 +188,9 @@ const ListaAmigos = () => {
         title="Confirmar eliminación"
       >
         <p>
-          ¿Estás seguro de que deseas eliminar a{" "}
-          <span className="font-bold">{selectedFriend?.nickname}</span> de tu
-          lista de amigos?
+          ¿Estás seguro de que deseas eliminar a
+          <span className="font-bold"> {selectedFriend?.nickname} </span>
+          de tu lista de amigos?
         </p>
         <div className="flex justify-end space-x-4 mt-4">
           <button

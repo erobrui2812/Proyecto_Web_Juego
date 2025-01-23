@@ -222,22 +222,40 @@ namespace hundir_la_flota.Services
 
         public async Task<ServiceResponse<List<FriendDto>>> GetConnectedFriendsAsync(int userId)
         {
-            var connectedFriends = await _dbContext.Friendships
+            var friendships = await _dbContext.Friendships
                 .Where(f => (f.UserId == userId || f.FriendId == userId) && f.IsConfirmed)
-                .Include(f => f.Friend)
                 .Include(f => f.User)
-                .Select(f => new FriendDto
-                {
-                    FriendId = f.UserId == userId ? f.FriendId : f.UserId,
-                    FriendNickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
-                    AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
-                    Status = _webSocketService.IsUserConnected(f.UserId == userId ? f.FriendId : f.UserId) ? "Connected" : "Disconnected"
-                })
-                .Where(f => f.Status == "Connected")
+                .Include(f => f.Friend)
                 .ToListAsync();
 
-            return new ServiceResponse<List<FriendDto>> { Success = true, Data = connectedFriends };
+            var connectedFriends = friendships
+                .Select(f => new
+                {
+                    FriendId = f.UserId == userId ? f.FriendId : f.UserId,
+                    Nickname = f.UserId == userId ? f.Friend.Nickname : f.User.Nickname,
+                    Email = f.UserId == userId ? f.Friend.Email : f.User.Email,
+                    AvatarUrl = f.UserId == userId ? f.Friend.AvatarUrl : f.User.AvatarUrl,
+                    Status = _webSocketService.IsUserConnected(f.UserId == userId ? f.FriendId : f.UserId)
+                        ? "Connected"
+                        : "Disconnected"
+                })
+                .Where(f => f.Status == "Connected")
+                .ToList();
+
+            var result = connectedFriends.Select(f => new FriendDto
+            {
+                FriendId = f.FriendId,
+                FriendNickname = f.Nickname,
+                FriendMail = f.Email,
+                AvatarUrl = f.AvatarUrl,
+                Status = f.Status
+            }).ToList();
+
+            return new ServiceResponse<List<FriendDto>> { Success = true, Data = result };
         }
+
+
+
 
 
         private string NormalizeString(string input)
