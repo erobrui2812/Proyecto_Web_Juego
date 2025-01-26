@@ -28,7 +28,6 @@ public class GameController : ControllerBase
         return int.Parse(userIdClaim);
     }
 
-
     [HttpPost("create")]
     public async Task<IActionResult> CreateGame()
     {
@@ -38,6 +37,7 @@ public class GameController : ControllerBase
             var response = await _gameService.CreateGameAsync(userId.ToString());
             if (!response.Success)
                 return BadRequest(response.Message);
+
             return Ok(response.Data);
         }
         catch (UnauthorizedAccessException ex)
@@ -46,7 +46,6 @@ public class GameController : ControllerBase
         }
     }
 
-
     [HttpPost("{gameId}/abandon")]
     public async Task<IActionResult> AbandonGame(Guid gameId)
     {
@@ -54,6 +53,7 @@ public class GameController : ControllerBase
         var response = await _gameService.AbandonGameAsync(gameId, userId);
         if (!response.Success)
             return BadRequest(response.Message);
+
         await _webSocketService.NotifyUserStatusChangeAsync(userId, WebSocketService.UserState.Connected);
         return Ok("Juego abandonado correctamente.");
     }
@@ -64,6 +64,7 @@ public class GameController : ControllerBase
         var response = await _gameService.ReassignRolesAsync(gameId);
         if (!response.Success)
             return BadRequest(response.Message);
+
         return Ok("Roles reasignados correctamente.");
     }
 
@@ -82,16 +83,14 @@ public class GameController : ControllerBase
     public async Task<IActionResult> PlaceShips(Guid gameId, [FromBody] PlaceShipsRequest request)
     {
         if (!ModelState.IsValid)
-        {
             return BadRequest(ModelState);
-        }
 
         var response = await _gameService.PlaceShipsAsync(gameId, request.PlayerId, request.Ships);
         if (!response.Success)
             return BadRequest(response.Message);
+
         return Ok(response.Message);
     }
-
 
     [HttpPost("{gameId}/attack")]
     public async Task<IActionResult> Attack(Guid gameId, [FromBody] AttackRequest request)
@@ -99,6 +98,7 @@ public class GameController : ControllerBase
         var response = await _gameService.AttackAsync(gameId, request.PlayerId, request.X, request.Y);
         if (!response.Success)
             return BadRequest(response.Message);
+
         return Ok(response.Message);
     }
 
@@ -115,24 +115,45 @@ public class GameController : ControllerBase
     [HttpPost("invite")]
     public async Task<IActionResult> InviteFriend([FromBody] int friendId)
     {
-        var currentUserId = GetUserIdFromClaim();
-        await _webSocketService.NotifyUserAsync(friendId, "GameInvitation", currentUserId.ToString());
-        return Ok("Invitación enviada.");
+        try
+        {
+            var currentUserId = GetUserIdFromClaim();
+
+            var createGameResponse = await _gameService.CreateGameAsync(currentUserId.ToString());
+            if (!createGameResponse.Success)
+            {
+                return BadRequest(createGameResponse.Message);
+            }
+
+            var newGame = createGameResponse.Data;
+
+            string payload = $"{currentUserId}|{newGame.GameId}";
+
+            await _webSocketService.NotifyUserAsync(friendId, "GameInvitation", payload);
+
+            return Ok("Invitación enviada.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("accept-invitation")]
-    public async Task<IActionResult> AcceptInvitation([FromBody] Guid hostId)
+    public async Task<IActionResult> AcceptInvitation([FromBody] Guid gameId)
     {
         var userId = GetUserIdFromClaim();
-        var response = await _gameService.JoinGameAsync(hostId, userId);
+        var response = await _gameService.JoinGameAsync(gameId, userId);
 
         if (!response.Success)
             return BadRequest(response.Message);
 
         return Ok(response.Message);
     }
-
-
 
     [HttpPost("join-random-match")]
     public async Task<IActionResult> JoinRandomMatch()
@@ -189,4 +210,3 @@ public class AttackRequest
     [Range(0, 9, ErrorMessage = "El valor de Y debe estar entre 0 y 9.")]
     public int Y { get; set; }
 }
-

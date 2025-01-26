@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
+import { useRouter } from "next/navigation"; 
 import { useAuth } from "./AuthContext";
 import { useFriendship } from "./FriendshipContext";
 
@@ -19,26 +19,20 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { auth } = useAuth();
   const { respondToFriendRequest, fetchFriends, setFriends } = useFriendship();
-
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!auth?.token) {
-      return;
-    }
+    if (!auth?.token) return;
 
-    const newSocket = new WebSocket(
-      `wss://localhost:7162/ws?token=${auth.token}`
-    );
+    const newSocket = new WebSocket(`wss://localhost:7162/ws?token=${auth.token}`);
 
     newSocket.onopen = () => {
       console.log("Conexión establecida con WebSocket");
     };
 
     newSocket.onclose = (event) => {
-      console.warn(
-        `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
-      );
+      console.warn(`Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`);
     };
 
     newSocket.onerror = (error) => {
@@ -47,30 +41,31 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
     newSocket.onmessage = (event) => {
       try {
-        const [action, payload] = event.data.split("|");
-        if (!action || !payload) {
-          throw new Error("Formato de mensaje WebSocket erroneo");
-        }
-
+        const parts = event.data.split("|");
+        const action = parts[0];
         switch (action) {
           case "FriendRequest":
-            handleFriendRequest(payload);
+            handleFriendRequest(parts[1]);
             break;
 
           case "FriendRequestResponse":
-            handleFriendRequestResponse(payload);
+            handleFriendRequestResponse(parts[1]);
             break;
 
           case "FriendRemoved":
-            handleFriendRemoved(payload);
+            handleFriendRemoved(parts[1]);
             break;
 
           case "ChatMessage":
-           
+            // Ejemplo para futuros mensajes de chat
             break;
 
           case "UserStatus":
-            handleUserStatus(payload);
+            handleUserStatus(parts[1]);
+            break;
+
+          case "GameInvitation":
+            handleGameInvitation(parts[1], parts[2]);
             break;
 
           default:
@@ -89,11 +84,10 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("WebSocket cerrado correctamente.");
       }
     };
-  }, [auth.token]);
+  }, [auth?.token]);
 
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;
-
     try {
       const nickname = await userIdANickname(senderId, auth.token);
       toast(
@@ -114,7 +108,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
                 respondToFriendRequest(senderId, false);
                 toast.dismiss();
               }}
-              className="bg-redError text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
+              className="bg-red-500 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>
@@ -130,16 +124,13 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";
     toast.info(
-      accepted
-        ? "Solicitud de amistad aceptada"
-        : "Solicitud de amistad rechazada"
+      accepted ? "Solicitud de amistad aceptada" : "Solicitud de amistad rechazada"
     );
     fetchFriends();
   };
 
   const handleFriendRemoved = async (friendId: string) => {
     if (!auth?.token) return;
-
     try {
       const nickname = await userIdANickname(friendId, auth.token);
       toast.info(`Amigo eliminado: ${nickname}`);
@@ -151,10 +142,8 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleUserStatus = (payload: string) => {
     const [userId, newStatus] = payload.split(":");
-    console.log("Evento UserStatus recibido:", { userId, newStatus });
-
-    setFriends((prevFriends) =>
-      prevFriends.map((friend) =>
+    setFriends((prev) =>
+      prev.map((friend) =>
         String(friend.id) === String(userId)
           ? { ...friend, status: newStatus }
           : friend
@@ -162,17 +151,70 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
+  const handleGameInvitation = async (hostId: string, gameId: string) => {
+    if (!auth?.token) return;
+    try {
+      const nickname = await userIdANickname(hostId, auth.token);
+      toast(
+        <div className="text-center">
+          <p>¡Has recibido una invitación de {nickname} para jugar!</p>
+          <div className="flex justify-center gap-6 mt-4">
+            <button
+              onClick={() => {
+                acceptGameInvitation(gameId);
+                router.push(`/game/${gameId}`);
+                toast.dismiss();
+              }}
+              className="bg-green-500 text-white px-6 py-2 w-32 rounded hover:bg-green-600 transition"
+            >
+              Aceptar
+            </button>
+            <button
+              onClick={() => toast.dismiss()}
+              className="bg-redError text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
+            >
+              Rechazar
+            </button>
+          </div>
+        </div>,
+        { autoClose: false }
+      );
+    } catch (error) {
+      console.error("Error mostrando la invitación de juego:", error);
+    }
+  };
+
+  async function acceptGameInvitation(gameId: string) {
+    if (!auth?.token) return;
+    try {
+      const response = await fetch("https://localhost:7162/api/game/accept-invitation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify(gameId),
+      });
+      if (!response.ok) {
+        const msg = await response.text();
+        toast.error(msg);
+        return;
+      }
+      const okMsg = await response.text();
+      toast.success(`Te has unido a la partida: ${okMsg}`);
+    } catch (error) {
+      console.error("Error aceptando la invitación de juego:", error);
+      toast.error("Error aceptando la invitación de juego.");
+    }
+  }
+
   async function userIdANickname(userId: string, token: string): Promise<string> {
     try {
-      const response = await fetch(
-        `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) throw new Error(`Error: ${response.statusText}`);
-      const data = await response.json();
+      const resp = await fetch(`https://localhost:7162/api/Friendship/get-nickname/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error(`Error: ${resp.statusText}`);
+      const data = await resp.json();
       return data.nickname || "Usuario desconocido";
     } catch (error) {
       console.error("Error obteniendo nickname:", error);

@@ -46,6 +46,7 @@ public class MyDbContext : DbContext
             .OwnsOne(g => g.Player1Board, board =>
             {
                 board.Ignore(b => b.Grid);
+                board.Ignore(b => b.GridForSerialization);
                 board.OwnsMany(b => b.Ships, ship =>
                 {
                     ship.ToTable("Player1_Ships");
@@ -60,6 +61,7 @@ public class MyDbContext : DbContext
             .OwnsOne(g => g.Player2Board, board =>
             {
                 board.Ignore(b => b.Grid);
+                board.Ignore(b => b.GridForSerialization); 
                 board.OwnsMany(b => b.Ships, ship =>
                 {
                     ship.ToTable("Player2_Ships");

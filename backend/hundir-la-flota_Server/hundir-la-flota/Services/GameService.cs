@@ -176,9 +176,10 @@ public class GameService : IGameService
             : game.Player1Board;
 
         var cell = opponentBoard.Grid
-            .Where(kvp => kvp.Key.X == x && kvp.Key.Y == y)
+            .Where(kvp => kvp.Key.Item1 == x && kvp.Key.Item2 == y)
             .Select(kvp => kvp.Value)
             .FirstOrDefault();
+    
 
         if (cell == null)
             return new ServiceResponse<string> { Success = false, Message = "Celda fuera de los límites del tablero." };
