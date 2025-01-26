@@ -38,7 +38,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
       try {
         const profileData = await fetchUserProfile(userId);
         const historyData = await fetchUserGameHistory(userId);
-
+        
         setProfile(profileData);
         setGameHistory(historyData);
       } catch (error) {
