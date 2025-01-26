@@ -50,7 +50,7 @@ const Header = () => {
         {auth.isAuthenticated && auth.userDetail ? (
           <div className="flex items-center space-x-2">
             <img
-              src={auth.userDetail.avatarUrl || "/placeholder-avatar.png"}
+              src={auth.userDetail.avatarUrl}
               alt="Perfil"
               width={30}
               height={30}
@@ -58,7 +58,7 @@ const Header = () => {
             />
 
             <span className="text-lg truncate max-w-[150px] sm:max-w-none">
-              {auth.userDetail.nickname || "Usuario"}
+              {auth.userDetail.nickname}
             </span>
           </div>
         ) : (

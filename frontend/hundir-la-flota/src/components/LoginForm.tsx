@@ -44,11 +44,11 @@ const LoginForm = () => {
           {...register("identificador", {
             required: "Este campo es obligatorio",
           })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.identificador ? "border-red-500" : "border-gray-300"
+          className={`mt-1 block w-full px-3 py-2 border ${errors.identificador ? "border-redError" : "border-gray-300"
             } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
         {errors.identificador && (
-          <p className="text-red-500 text-sm">
+          <p className="text-redError text-sm">
             {errors.identificador.message}
           </p>
         )}
@@ -66,11 +66,11 @@ const LoginForm = () => {
           {...register("password", {
             required: "Este campo es obligatorio",
           })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-red-500" : "border-gray-300"
+          className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-redError" : "border-gray-300"
             } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
         {errors.password && (
-          <p className="text-red-500 text-sm">{errors.password.message}</p>
+          <p className="text-redError text-sm">{errors.password.message}</p>
         )}
       </div>
       <div className="flex items-center mb-4">
@@ -82,7 +82,7 @@ const LoginForm = () => {
         />
         <label
           htmlFor="mantenerSesion"
-          className="ml-2 block text-sm text-gray-900"
+          className="ml-2 block text-sm text-dark"
         >
           Mantener sesión activa
         </label>

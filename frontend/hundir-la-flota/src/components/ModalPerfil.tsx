@@ -63,7 +63,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <img
-              src={profile.avatarUrl || "https://via.placeholder.com/150"}
+              src={profile.avatarUrl}
               alt="Avatar"
               className="w-20 h-20 rounded-full border-2 border-gold"
             />
@@ -75,7 +75,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
           
           {userDetail?.id !== undefined && userId !== null && String(userDetail.id) === userId && (
             <button
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="px-4 py-2 bg-blueLink text-white rounded opacity-1 hover:underline"
               onClick={() => alert("Abrir formulario para modificar perfil")}
             >
               Modificar perfil

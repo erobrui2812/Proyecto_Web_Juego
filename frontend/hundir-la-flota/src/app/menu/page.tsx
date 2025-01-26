@@ -25,7 +25,7 @@ const MenuPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-white">
-      <div className="bg-gray-900 w-full">
+      <div className="bg-dark w-full">
         <div className="max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8 text-black">
           <div className="flex flex-col md:flex-row md:gap-4">
             <div
@@ -82,7 +82,7 @@ const MenuPage = () => {
         </div>
       </div>
 
-      <div className="relative h-16 bg-gray-900">
+      <div className="relative h-16 bg-dark">
         <div className="custom-shape-divider-bottom-1737375958">
           <svg
             data-name="Layer 1"

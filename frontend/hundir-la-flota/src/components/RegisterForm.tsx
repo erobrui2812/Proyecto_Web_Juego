@@ -56,9 +56,9 @@ const RegisterForm = () => {
           type="text"
           id="nickname"
           {...register("nickname", { required: "Este campo es obligatorio" })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.nickname ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
+          className={`mt-1 block w-full px-3 py-2 border ${errors.nickname ? "border-redError" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
-        {errors.nickname && <p className="text-red-500 text-sm">{errors.nickname.message}</p>}
+        {errors.nickname && <p className="text-redError text-sm">{errors.nickname.message}</p>}
       </div>
       <div className="mb-4">
         <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -74,9 +74,9 @@ const RegisterForm = () => {
               message: "Email no válido",
             },
           })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.email ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
+          className={`mt-1 block w-full px-3 py-2 border ${errors.email ? "border-redError" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
-        {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+        {errors.email && <p className="text-redError text-sm">{errors.email.message}</p>}
       </div>
       <div className="mb-4">
         <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -86,9 +86,9 @@ const RegisterForm = () => {
           type="password"
           id="password"
           {...register("password", { required: "Este campo es obligatorio" })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
+          className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-redError" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
-        {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
+        {errors.password && <p className="text-redError text-sm">{errors.password.message}</p>}
       </div>
       <div className="mb-4">
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -101,9 +101,9 @@ const RegisterForm = () => {
             required: "Este campo es obligatorio",
             validate: (value) => value === watch("password") || "Las contraseñas no coinciden",
           })}
-          className={`mt-1 block w-full px-3 py-2 border ${errors.confirmPassword ? "border-red-500" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
+          className={`mt-1 block w-full px-3 py-2 border ${errors.confirmPassword ? "border-redError" : "border-gray-300"} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
         />
-        {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword.message}</p>}
+        {errors.confirmPassword && <p className="text-redError text-sm">{errors.confirmPassword.message}</p>}
       </div>
       <div className="mb-4">
         <label htmlFor="avatar" className="block text-sm font-medium text-gray-700">

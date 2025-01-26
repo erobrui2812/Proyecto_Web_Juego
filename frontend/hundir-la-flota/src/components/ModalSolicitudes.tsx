@@ -40,7 +40,7 @@ const ModalSolicitudes = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                 </button>
                 <button
                   onClick={() => respondToFriendRequest(request.senderId, false)}
-                  className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                  className="p-2 bg-redError text-white rounded-md hover:bg-red-600"
                 >
                   Rechazar
                 </button>

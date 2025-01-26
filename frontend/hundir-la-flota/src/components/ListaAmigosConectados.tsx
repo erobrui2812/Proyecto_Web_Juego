@@ -70,7 +70,7 @@ const ListaAmigosConectados = () => {
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.urlAvatar || "https://via.placeholder.com/150"}
+                  src={friend.urlAvatar}
                   alt={`${friend.nickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
@@ -112,7 +112,7 @@ const ListaAmigosConectados = () => {
             "px-2 py-1 border rounded hover:bg-gray-300 transition"
           }
           disabledClassName={"opacity-50 cursor-not-allowed"}
-          activeClassName={"bg-blue-500 text-white"}
+          activeClassName={"bg-blueLink text-white"}
         />
       </div>
     </div>

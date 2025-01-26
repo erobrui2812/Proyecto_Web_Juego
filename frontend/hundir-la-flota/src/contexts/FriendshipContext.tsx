@@ -147,7 +147,7 @@ const FriendRequestNotification: React.FC = () => {
                 respondToFriendRequest(senderId, false);
                 toast.dismiss();
               }}
-              className="bg-red-500 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
+              className="bg-redError text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>
@@ -229,7 +229,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         id: friend.friendId,
         nickname: friend.friendNickname,
         email: friend.friendMail,
-        urlAvatar: friend.avatarUrl || "https://via.placeholder.com/150",
+        urlAvatar: friend.avatarUrl,
         status: friend.status || "Disconnected",
       }));
       setFriends(mappedFriends);
@@ -365,7 +365,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
         id: u.id.toString(),
         nickname: u.nickname,
         email: "",
-        urlAvatar: u.avatarUrl || "https://via.placeholder.com/150",
+        urlAvatar: u.avatarUrl,
         status: "Disconnected",
       }));
       setSearchResults(mapped);

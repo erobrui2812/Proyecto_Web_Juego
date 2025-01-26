@@ -24,7 +24,7 @@ const GameGrid = () => {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-gray-900">
+      <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
         {grid.map((row, y) =>
           row.map((cell, x) => (
             <BoardSquare
@@ -74,7 +74,7 @@ const DraggableShip = ({ id }: { id: string }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className="w-32 h-8 bg-blue-500 text-white flex items-center justify-center rounded shadow-lg cursor-grab"
+      className="w-32 h-8 bg-blueLink text-white flex items-center justify-center rounded shadow-lg cursor-grab"
     >
       🚢🚢🚢🚢
     </div>

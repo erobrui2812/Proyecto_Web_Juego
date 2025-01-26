@@ -107,7 +107,7 @@ const ListaAmigos = () => {
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.urlAvatar || "https://via.placeholder.com/150"}
+                  src={friend.urlAvatar}
                   alt={`${friend.nickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
@@ -120,7 +120,7 @@ const ListaAmigos = () => {
                       friend.status === "Connected"
                         ? "text-green-400"
                         : friend.status === "Playing"
-                        ? "text-blue-400"
+                        ? "text-blueLink"
                         : "text-gray-400"
                     }`}
                   >
@@ -136,13 +136,13 @@ const ListaAmigos = () => {
               <div className="flex justify-between items-center mt-auto">
                 <button
                   onClick={() => openProfileModal(friend.id)}
-                  className="text-blue-400 hover:underline"
+                  className="text-blueLink hover:underline"
                 >
                   Ver perfil
                 </button>
                 <button
                   onClick={() => openDeleteModal(friend)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-redError hover:text-red-700"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -172,7 +172,7 @@ const ListaAmigos = () => {
             "px-2 py-1 border rounded hover:bg-gray-300 transition"
           }
           disabledClassName={"opacity-50 cursor-not-allowed"}
-          activeClassName={"bg-blue-500 text-white"}
+          activeClassName={"text-dark"}
         />
       </div>
 
@@ -201,7 +201,7 @@ const ListaAmigos = () => {
           </button>
           <button
             onClick={confirmRemoveFriend}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="px-4 py-2 bg-redError text-white rounded hover:bg-red-600"
           >
             Confirmar
           </button>
