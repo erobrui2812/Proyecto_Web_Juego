@@ -1,8 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { useRouter } from "next/navigation"; 
 import { useAuth } from "./AuthContext";
 import { useFriendship } from "./FriendshipContext";
 
@@ -25,18 +25,29 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!auth?.token) return;
 
-    const newSocket = new WebSocket(`wss://localhost:7162/ws?token=${auth.token}`);
+    const newSocket = new WebSocket(
+      `wss://localhost:7162/ws?token=${auth.token}`
+    );
 
     newSocket.onopen = () => {
       console.log("Conexión establecida con WebSocket");
     };
 
     newSocket.onclose = (event) => {
-      console.warn(`Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`);
+      console.warn(
+        `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
+      );
     };
 
     newSocket.onerror = (error) => {
       console.error("Error en WebSocket:", error);
+    };
+
+    newSocket.onclose = (event) => {
+      console.warn(
+        `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
+      );
+      fetchFriends();
     };
 
     newSocket.onmessage = (event) => {
@@ -124,7 +135,9 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";
     toast.info(
-      accepted ? "Solicitud de amistad aceptada" : "Solicitud de amistad rechazada"
+      accepted
+        ? "Solicitud de amistad aceptada"
+        : "Solicitud de amistad rechazada"
     );
     fetchFriends();
   };
@@ -187,14 +200,17 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   async function acceptGameInvitation(gameId: string) {
     if (!auth?.token) return;
     try {
-      const response = await fetch("https://localhost:7162/api/game/accept-invitation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${auth.token}`,
-        },
-        body: JSON.stringify(gameId),
-      });
+      const response = await fetch(
+        "https://localhost:7162/api/game/accept-invitation",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth.token}`,
+          },
+          body: JSON.stringify(gameId),
+        }
+      );
       if (!response.ok) {
         const msg = await response.text();
         toast.error(msg);
@@ -208,11 +224,17 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }
 
-  async function userIdANickname(userId: string, token: string): Promise<string> {
+  async function userIdANickname(
+    userId: string,
+    token: string
+  ): Promise<string> {
     try {
-      const resp = await fetch(`https://localhost:7162/api/Friendship/get-nickname/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resp = await fetch(
+        `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (!resp.ok) throw new Error(`Error: ${resp.statusText}`);
       const data = await resp.json();
       return data.nickname || "Usuario desconocido";
@@ -232,7 +254,9 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useWebsocket = (): WebsocketContextType => {
   const context = useContext(WebsocketContext);
   if (!context) {
-    throw new Error("useWebsocket debe ser usado dentro de un WebsocketProvider");
+    throw new Error(
+      "useWebsocket debe ser usado dentro de un WebsocketProvider"
+    );
   }
   return context;
 };

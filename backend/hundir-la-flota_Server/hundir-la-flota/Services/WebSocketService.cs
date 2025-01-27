@@ -88,28 +88,14 @@ namespace hundir_la_flota.Services
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
                 UpdateUserState(userId, UserState.Disconnected);
-
-                try
+                await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
+                if (webSocket.State == WebSocketState.Open)
                 {
-                    await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
-
-                    if (webSocket.State == WebSocketState.Open)
-                    {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
-                    }
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error al cerrar la conexión WebSocket para el usuario {userId}: {ex.Message}");
-                }
-                finally
-                {
-                    webSocket.Dispose();
-                }
-
-                _logger.LogInformation($"Usuario {userId} desconectado.");
             }
         }
+
 
 
 
