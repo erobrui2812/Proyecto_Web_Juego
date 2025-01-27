@@ -68,7 +68,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             break;
 
           case "ChatMessage":
-            // Ejemplo para futuros mensajes de chat
+            
             break;
 
           case "UserStatus":

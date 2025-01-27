@@ -3,6 +3,12 @@
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useEffect, useState } from "react";
 import ReactPaginate from "react-paginate";
+import { Friend } from "@/types/friendship";
+
+type ListaAmigosConectadosProps = {
+  friends: Friend[];
+  onSelect: (friend: Friend) => void;
+};
 
 const translateStatus = (status: string) => {
   switch (status) {
@@ -17,9 +23,7 @@ const translateStatus = (status: string) => {
   }
 };
 
-const ListaAmigosConectados = () => {
-  const { friends, fetchFriends } = useFriendship();
-
+const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, onSelect }) => {
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
 
@@ -35,10 +39,6 @@ const ListaAmigosConectados = () => {
   const changePage = (selectedItem: { selected: number }) => {
     setPageNumber(selectedItem.selected);
   };
-
-  useEffect(() => {
-    fetchFriends();
-  }, []);
 
   return (
     <div>
@@ -67,6 +67,7 @@ const ListaAmigosConectados = () => {
             <div
               key={`${friend.id}`}
               className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
+              onClick={() => onSelect(friend)}
             >
               <div className="flex items-center mb-2">
                 <img

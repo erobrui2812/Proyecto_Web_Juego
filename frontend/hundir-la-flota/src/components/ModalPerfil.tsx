@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Modal from "@/components/Modal";
+import ReactPaginate from "react-paginate";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,6 +29,9 @@ type GameHistory = {
 const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
+  const [filteredHistory, setFilteredHistory] = useState<GameHistory[]>([]);
+  const [pageNumber, setPageNumber] = useState(0);
+  const [gamesPerPage, setGamesPerPage] = useState(5);
   const { fetchUserProfile, fetchUserGameHistory } = useFriendship();
   const { userDetail } = useAuth();
 
@@ -38,7 +42,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
       try {
         const profileData = await fetchUserProfile(userId);
         const historyData = await fetchUserGameHistory(userId);
-        
+
         setProfile(profileData);
         setGameHistory(historyData);
       } catch (error) {
@@ -48,6 +52,23 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
 
     fetchData();
   }, [isOpen, userId, fetchUserProfile, fetchUserGameHistory]);
+
+  useEffect(() => {
+    const startIndex = pageNumber * gamesPerPage;
+    const endIndex = startIndex + gamesPerPage;
+    setFilteredHistory(gameHistory.slice(startIndex, endIndex));
+  }, [pageNumber, gamesPerPage, gameHistory]);
+
+  const pageCount = Math.ceil(gameHistory.length / gamesPerPage);
+
+  const changePage = ({ selected }: { selected: number }) => {
+    setPageNumber(selected);
+  };
+
+  const handleGamesPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setGamesPerPage(Number(e.target.value));
+    setPageNumber(0);
+  };
 
   if (!profile) {
     return (
@@ -72,7 +93,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
               <p className="text-gray-400">{profile.email}</p>
             </div>
           </div>
-          
+
           {userDetail?.id !== undefined && userId !== null && String(userDetail.id) === userId && (
             <button
               className="px-4 py-2 bg-blueLink text-white rounded opacity-1 hover:underline"
@@ -85,24 +106,51 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
 
         <div>
           <h3 className="text-lg font-semibold text-gold mb-2">Historial de Partidas</h3>
-          <ul className="divide-y divide-gray-600">
-            {gameHistory.length > 0 ? (
-              gameHistory.map((game) => (
-                <li key={game.gameId} className="py-2">
-                  <p>
-                    <span className="font-semibold">{game.player1Nickname}</span> vs{" "}
-                    <span className="font-semibold">{game.player2Nickname}</span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Fecha: {new Date(game.datePlayed).toLocaleDateString()} - Resultado:{" "}
-                    {game.result}
-                  </p>
-                </li>
-              ))
-            ) : (
-              <p className="text-gray-400">No hay partidas registradas.</p>
-            )}
-          </ul>
+          <div className="overflow-y-auto max-h-60">
+            <ul className="divide-y divide-gray-600">
+              {filteredHistory.length > 0 ? (
+                filteredHistory.map((game) => (
+                  <li key={game.gameId} className="py-2">
+                    <p>
+                      <span className="font-semibold">{game.player1Nickname}</span> vs{" "}
+                      <span className="font-semibold">{game.player2Nickname}</span>
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Fecha: {new Date(game.datePlayed).toLocaleDateString()} - Resultado: {game.result}
+                    </p>
+                  </li>
+                ))
+              ) : (
+                <p className="text-gray-400">No hay partidas registradas.</p>
+              )}
+            </ul>
+          </div>
+
+          <div className="mt-4 flex justify-between items-center">
+            <select
+              value={gamesPerPage}
+              onChange={handleGamesPerPageChange}
+              className="px-3 py-2 border rounded"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+            </select>
+
+            <ReactPaginate
+              previousLabel={"<"}
+              nextLabel={">"}
+              pageCount={pageCount}
+              onPageChange={changePage}
+              forcePage={pageNumber}
+              containerClassName={"flex gap-2"}
+              pageLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
+              previousLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
+              nextLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
+              disabledClassName={"opacity-50 cursor-not-allowed"}
+              activeClassName={"text-dark font-bold"}
+            />
+          </div>
         </div>
       </div>
     </Modal>

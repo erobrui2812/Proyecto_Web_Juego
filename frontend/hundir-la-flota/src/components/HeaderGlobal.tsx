@@ -32,12 +32,12 @@ const Header = () => {
         >
           Inicio
         </Link>
-        <Link
+        {/* <Link
           href="/juego"
           className="hover:text-secondary hover:tracking-[.15em] transition-all"
         >
           Juego
-        </Link>
+        </Link> */}
         <Link
           href="/menu"
           className="hover:text-secondary hover:tracking-[.15em] transition-all"
