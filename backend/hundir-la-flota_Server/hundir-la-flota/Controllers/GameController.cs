@@ -143,6 +143,7 @@ public class GameController : ControllerBase
         }
     }
 
+
     [HttpPost("accept-invitation")]
     public async Task<IActionResult> AcceptInvitation([FromBody] Guid gameId)
     {

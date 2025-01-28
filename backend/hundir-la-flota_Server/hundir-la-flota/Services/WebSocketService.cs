@@ -21,6 +21,9 @@ namespace hundir_la_flota.Services
     {
         public enum UserState { Disconnected, Connected, Playing }
 
+        // esto es la cola
+        private static readonly ConcurrentQueue<int> _matchmakingQueue = new();
+
         private readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
         private readonly ConcurrentDictionary<int, UserState> _userStates = new();
         private readonly ILogger<WebSocketService> _logger;
@@ -32,10 +35,7 @@ namespace hundir_la_flota.Services
             _serviceProvider = serviceProvider;
         }
 
-        private IGameService GetGameService()
-        {
-            return _serviceProvider.GetRequiredService<IGameService>();
-        }
+        
 
         public List<int> GetConnectedUserIds()
         {
@@ -48,10 +48,10 @@ namespace hundir_la_flota.Services
 
             if (!_connectedUsers.TryAdd(userId, webSocket))
             {
-                _logger.LogWarning($"Usuario {userId} ya está conectado. Rechazando conexión.");
+                _logger.LogWarning($"User {userId} is already connected. Connection rejected.");
                 await socketWrapper.CloseAsync(
                     WebSocketCloseStatus.PolicyViolation,
-                    "Usuario ya conectado"
+                    "User already connected"
                 );
                 return;
             }
@@ -72,7 +72,7 @@ namespace hundir_la_flota.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error en la conexión WebSocket para el usuario {userId}: {ex.Message}");
+                _logger.LogError($"WebSocket error for user {userId}: {ex.Message}");
             }
             finally
             {
@@ -80,24 +80,22 @@ namespace hundir_la_flota.Services
             }
         }
 
-
-
-
         public async Task DisconnectUserAsync(int userId)
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
                 UpdateUserState(userId, UserState.Disconnected);
                 await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
+
+
+                RemoveFromMatchmakingQueue(userId);
+
                 if (webSocket.State == WebSocketState.Open)
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
                 }
             }
         }
-
-
-
 
         public async Task NotifyUserAsync(int userId, string action, string payload)
         {
@@ -107,7 +105,7 @@ namespace hundir_la_flota.Services
             }
             else
             {
-                _logger.LogWarning($"Intento de notificar al usuario {userId}, pero no está conectado.");
+                _logger.LogWarning($"Attempt to notify user {userId}, but they are not connected.");
             }
         }
 
@@ -126,7 +124,7 @@ namespace hundir_la_flota.Services
                 var parts = message.Split('|');
                 if (parts.Length < 2)
                 {
-                    _logger.LogWarning($"Formato de mensaje inválido de {userId}: {message}");
+                    _logger.LogWarning($"Invalid message format from {userId}: {message}");
                     return;
                 }
 
@@ -136,80 +134,143 @@ namespace hundir_la_flota.Services
                 switch (action)
                 {
                     case "ChatMessage":
-                        var payloadParts = payload.Split(':');
-                        if (payloadParts.Length < 2)
-                        {
-                            _logger.LogWarning($"Formato de payload inválido para ChatMessage: {payload}");
-                            return;
-                        }
+                        await HandleChatMessageAsync(userId, payload);
+                        break;
 
-                        var gameId = Guid.Parse(payloadParts[0]);
-                        var chatMessage = payloadParts[1];
-                        await HandleChatMessageAsync(gameId, userId, chatMessage);
+                    case "Matchmaking":
+                        // Ejemplo: "Matchmaking|random" o "Matchmaking|cancel"
+                        await HandleMatchmakingAsync(userId, payload);
                         break;
 
                     default:
-                        _logger.LogWarning($"Acción no reconocida: {action}");
+                        _logger.LogWarning($"Unrecognized action: {action}");
                         if (_connectedUsers.TryGetValue(userId, out var webSocket))
                         {
-                            await SendMessageAsync(webSocket, "UnknownAction", "Acción no reconocida.");
+                            await SendMessageAsync(webSocket, "UnknownAction", "Unrecognized action.");
                         }
                         break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error procesando mensaje de {userId}: {ex.Message}");
+                _logger.LogError($"Error processing message from {userId}: {ex.Message}");
             }
         }
 
-        private async Task HandleChatMessageAsync(Guid gameId, int senderId, string message)
+        private async Task HandleChatMessageAsync(int senderId, string payload)
         {
-            if (string.IsNullOrWhiteSpace(message))
+
+            var payloadParts = payload.Split(':');
+            if (payloadParts.Length < 2)
             {
-                _logger.LogWarning($"Mensaje vacío recibido en el juego {gameId} de usuario {senderId}.");
+                _logger.LogWarning($"Invalid payload for ChatMessage: {payload}");
+                return;
+            }
+
+            var gameId = Guid.Parse(payloadParts[0]);
+            var chatMessage = payloadParts[1];
+
+            if (string.IsNullOrWhiteSpace(chatMessage))
+            {
+                _logger.LogWarning($"Empty chat message received in game {gameId} from user {senderId}.");
                 return;
             }
 
             var chatService = _serviceProvider.GetRequiredService<IChatService>();
+            var response = await chatService.SendMessageAsync(gameId, senderId, chatMessage);
 
-            var response = await chatService.SendMessageAsync(gameId, senderId, message);
             if (!response.Success)
             {
-                _logger.LogWarning($"Error al enviar mensaje: {response.Message}");
+                _logger.LogWarning($"Error sending chat message: {response.Message}");
                 return;
             }
 
 
-            if (_connectedUsers.TryGetValue(senderId, out var senderWebSocket))
-            {
-                var notificationPayload = $"{senderId}:{message}";
-                var gameUsers = _connectedUsers.Keys.Where(userId =>
-                    userId != senderId);
+            var notificationPayload = $"{senderId}:{chatMessage}";
+            var recipients = _connectedUsers.Keys.Where(uid => uid != senderId);
 
-                foreach (var userId in gameUsers)
+            foreach (var userId in recipients)
+            {
+                if (_connectedUsers.TryGetValue(userId, out var webSocket))
                 {
-                    if (_connectedUsers.TryGetValue(userId, out var webSocket))
-                    {
-                        await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
-                    }
+                    await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
                 }
             }
         }
 
-
-
-        private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
+        private async Task HandleMatchmakingAsync(int userId, string payload)
         {
-            if (_connectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
+            if (payload == "random")
             {
-                _logger.LogInformation($"Enviando solicitud de amistad de {senderId} a {recipientId}");
-                await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId.ToString());
+              
+                if (!_matchmakingQueue.Contains(userId))
+                {
+                    _matchmakingQueue.Enqueue(userId);
+                    _logger.LogInformation($"User {userId} added to matchmaking queue.");
+                }
+
+          
+                await MatchUsersInQueue();
             }
-            else
+            else if (payload == "cancel")
             {
-                _logger.LogWarning($"El usuario {recipientId} no está conectado. No se pudo enviar la solicitud de amistad.");
+              
+                RemoveFromMatchmakingQueue(userId);
             }
+        }
+
+        private async Task MatchUsersInQueue()
+        {
+          
+            while (_matchmakingQueue.Count >= 2)
+            {
+                if (_matchmakingQueue.TryDequeue(out int user1) &&
+                    _matchmakingQueue.TryDequeue(out int user2))
+                {
+                    _logger.LogInformation($"Matchmaking pair found: {user1} and {user2}");
+
+                 
+                    using var scope = _serviceProvider.CreateScope();
+                    var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                 
+                    var createGameResponse = await gameService.CreateGameAsync(user1.ToString());
+                    if (!createGameResponse.Success)
+                    {
+                        _logger.LogError($"Error creating game: {createGameResponse.Message}");
+                     
+                        continue;
+                    }
+
+                    var newGame = createGameResponse.Data;
+
+                
+                    var joinResponse = await gameService.JoinGameAsync(newGame.GameId, user2);
+                    if (!joinResponse.Success)
+                    {
+                        _logger.LogError($"Error joining user {user2} to game {newGame.GameId}: {joinResponse.Message}");
+                       
+                        continue;
+                    }
+
+                  
+                    await NotifyUserAsync(user1, "MatchFound", newGame.GameId.ToString());
+                    await NotifyUserAsync(user2, "MatchFound", newGame.GameId.ToString());
+                }
+            }
+        }
+
+        private void RemoveFromMatchmakingQueue(int userId)
+        {
+
+            var allUsers = _matchmakingQueue.ToList();
+            var newQueue = new ConcurrentQueue<int>(allUsers.Where(u => u != userId));
+
+
+            while (_matchmakingQueue.TryDequeue(out _))
+                foreach (var u in newQueue) _matchmakingQueue.Enqueue(u);
+
+            _logger.LogInformation($"User {userId} removed from matchmaking queue (if was present).");
         }
 
         public async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
@@ -230,21 +291,19 @@ namespace hundir_la_flota.Services
             try
             {
                 await Task.WhenAll(tasks);
-                _logger.LogInformation($"Estado del usuario {userId} actualizado a {newState}");
+                _logger.LogInformation($"User {userId} state changed to {newState}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error notificando cambios de estado para el usuario {userId}: {ex.Message}");
+                _logger.LogError($"Error notifying user status change for {userId}: {ex.Message}");
             }
         }
-
 
         public async Task SendMessageAsync(WebSocket webSocket, string action, string payload)
         {
             var socketWrapper = new WebSocketWrapper(webSocket);
             await socketWrapper.SendMessageAsync(action, payload);
         }
-
 
         public bool IsUserConnected(int userId)
         {

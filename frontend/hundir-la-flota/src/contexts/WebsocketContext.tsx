@@ -37,17 +37,12 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn(
         `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
       );
+
+      fetchFriends();
     };
 
     newSocket.onerror = (error) => {
       console.error("Error en WebSocket:", error);
-    };
-
-    newSocket.onclose = (event) => {
-      console.warn(
-        `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
-      );
-      fetchFriends();
     };
 
     newSocket.onmessage = (event) => {
@@ -68,7 +63,6 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             break;
 
           case "ChatMessage":
-            
             break;
 
           case "UserStatus":
@@ -76,7 +70,12 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             break;
 
           case "GameInvitation":
+            // part1 para el host id, part2 para el gameid
             handleGameInvitation(parts[1], parts[2]);
+            break;
+
+          case "MatchFound":
+            handleMatchFound(parts[1]);
             break;
 
           default:
@@ -195,6 +194,11 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error) {
       console.error("Error mostrando la invitación de juego:", error);
     }
+  };
+
+  const handleMatchFound = (gameId: string) => {
+    toast.success("¡Emparejado con un oponente!");
+    router.push(`/game/${gameId}`);
   };
 
   async function acceptGameInvitation(gameId: string) {

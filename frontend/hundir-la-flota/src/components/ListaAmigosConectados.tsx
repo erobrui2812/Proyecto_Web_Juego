@@ -1,12 +1,12 @@
 "use client";
 
-import { useFriendship } from "@/contexts/FriendshipContext";
-import { useEffect, useState } from "react";
-import ReactPaginate from "react-paginate";
 import { Friend } from "@/types/friendship";
+import { useState } from "react";
+import ReactPaginate from "react-paginate";
 
 type ListaAmigosConectadosProps = {
   friends: Friend[];
+
   onSelect: (friend: Friend) => void;
 };
 
@@ -23,11 +23,16 @@ const translateStatus = (status: string) => {
   }
 };
 
-const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, onSelect }) => {
+const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
+  friends,
+  onSelect,
+}) => {
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
 
-  const connectedFriends = friends.filter((friend) => friend.status === "Connected");
+  const connectedFriends = friends.filter(
+    (friend) => friend.status === "Connected"
+  );
 
   const pagesVisited = pageNumber * friendsPerPage;
   const currentFriends = connectedFriends.slice(
@@ -56,6 +61,7 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, 
           className="p-1 border rounded"
         >
           <option value={2}>2</option>
+          <option value={3}>3</option>
           <option value={4}>4</option>
           <option value={8}>8</option>
         </select>
@@ -66,7 +72,7 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, 
           {currentFriends.map((friend) => (
             <div
               key={`${friend.id}`}
-              className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
+              className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md cursor-pointer"
               onClick={() => onSelect(friend)}
             >
               <div className="flex items-center mb-2">
@@ -84,7 +90,6 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, 
                   </span>
                 </div>
               </div>
-
               <p className="text-sm text-gray-200 mb-2">
                 {friend.email || "Correo no disponible"}
               </p>
@@ -92,7 +97,9 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({ friends, 
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">No hay amigos conectados disponibles.</p>
+        <p className="text-gray-500">
+          No hay amigos conectados disponibles para invitar.
+        </p>
       )}
 
       <div className="mt-4">
