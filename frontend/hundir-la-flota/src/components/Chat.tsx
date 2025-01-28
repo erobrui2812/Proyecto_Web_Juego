@@ -4,9 +4,9 @@ import { useWebsocket } from "@/contexts/WebsocketContext";
 import { useEffect, useState } from "react";
 
 export default function Chat({ gameId }) {
-  const { socket } = useWebsocket(); // Obtenemos el WebSocket del contexto
-  const [messages, setMessages] = useState([]); // Mensajes del chat
-  const [newMessage, setNewMessage] = useState(""); // Mensaje que se está escribiendo
+  const { socket } = useWebsocket();
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
 
   useEffect(() => {
     if (!socket) {
