@@ -1,5 +1,6 @@
 "use client";
 
+import Chat from "@/components/Chat";
 import { useParams } from "next/navigation";
 
 export default function GamePage() {
@@ -7,10 +8,10 @@ export default function GamePage() {
   const gameId = params.gameId;
 
   return (
-    <div>
-      <h1>Página de partida</h1>
-      <p>El ID de la partida es: {gameId}</p>
-      
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Página de partida</h1>
+      <p className="mb-4">El ID de la partida es: {gameId}</p>
+      <Chat gameId={gameId} />
     </div>
   );
 }
