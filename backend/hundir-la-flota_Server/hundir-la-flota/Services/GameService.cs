@@ -2,6 +2,7 @@
 using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
+using hundir_la_flota.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -179,7 +180,7 @@ public class GameService : IGameService
             .Where(kvp => kvp.Key.Item1 == x && kvp.Key.Item2 == y)
             .Select(kvp => kvp.Value)
             .FirstOrDefault();
-    
+
 
         if (cell == null)
             return new ServiceResponse<string> { Success = false, Message = "Celda fuera de los límites del tablero." };
@@ -300,20 +301,19 @@ public class GameService : IGameService
             GameId = game.GameId,
             Player1Nickname = player1Data?.Nickname ?? "Vacante",
             Player2Nickname = player2Data?.Nickname ?? "Vacante",
-            Player1Display = $"{player1Data?.Nickname ?? "Vacante"} - {player1?.Role.ToString() ?? "Vacante"}",
-            Player2Display = $"{player2Data?.Nickname ?? "Vacante"} - {player2?.Role.ToString() ?? "Vacante"}",
-            Player1Role = player1?.Role.ToString(),
-            Player2Role = player2?.Role.ToString(),
+            Player1Role = player1?.Role.ToString() ?? "Vacante",
+            Player2Role = player2?.Role.ToString() ?? "Vacante",
             StateDescription = GetStateDescription(game.State),
-            Player1Board = game.Player1Board,
-            Player2Board = game.Player2Board,
-            Actions = game.Actions.ToList(),
+            Player1Board = DTOMapper.ToBoardDTO(game.Player1Board), // Conversión explícita
+            Player2Board = DTOMapper.ToBoardDTO(game.Player2Board), // Conversión explícita
+            Actions = game.Actions.Select(DTOMapper.ToGameActionDTO).ToList(), // Conversión explícita
             CurrentPlayerId = game.CurrentPlayerId ?? 0,
             CreatedAt = game.CreatedAt
         };
 
         return new ServiceResponse<GameResponseDTO> { Success = true, Data = response };
     }
+
 
 
 

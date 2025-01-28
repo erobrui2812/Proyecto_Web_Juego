@@ -7,14 +7,14 @@ namespace hundir_la_flota.DTOs
         public Guid GameId { get; set; }
         public string Player1Nickname { get; set; }
         public string Player2Nickname { get; set; }
-        public string Player1Display { get; set; }
-        public string Player2Display { get; set; }
         public string Player1Role { get; set; }
         public string Player2Role { get; set; }
+        public string Player1Display => $"{Player1Nickname} - {Player1Role}"; // Nueva propiedad calculada
+        public string Player2Display => $"{Player2Nickname} - {Player2Role}"; // Nueva propiedad calculada
         public string StateDescription { get; set; }
-        public Board Player1Board { get; set; }
-        public Board Player2Board { get; set; }
-        public List<GameAction> Actions { get; set; }
+        public BoardDTO Player1Board { get; set; }
+        public BoardDTO Player2Board { get; set; }
+        public List<GameActionDTO> Actions { get; set; }
         public int CurrentPlayerId { get; set; }
         public DateTime CreatedAt { get; set; }
     }
