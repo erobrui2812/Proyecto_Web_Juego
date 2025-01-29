@@ -183,7 +183,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             </button>
             <button
               onClick={() => toast.dismiss()}
-              className="bg-redError text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
+              className="!bg-red-500 dark:bg-red-600 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>

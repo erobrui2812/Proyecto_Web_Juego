@@ -6,6 +6,14 @@ export default {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    "bg-red-500",
+    "bg-red-600",
+    "bg-red-700",
+    "hover:bg-red-500",
+    "hover:bg-red-600",
+    "hover:bg-red-700",
+  ],
   darkMode: "class",
   theme: {
     extend: {
