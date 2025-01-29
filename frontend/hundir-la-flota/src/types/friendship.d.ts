@@ -14,14 +14,6 @@ export type Friend = {
   status: "Connected" | "Disconnected" | "Playing";
 }
 
-export type FriendConnected = {
-  friendId: string;
-  friendNickname: string;
-  friendMail: string;
-  avatarUrl?: string;
-  status: "Connected" | "Disconnected" | "Playing";
-}
-
 export type GameResponse = {
   gameId: string;
   OpponentId?: string;

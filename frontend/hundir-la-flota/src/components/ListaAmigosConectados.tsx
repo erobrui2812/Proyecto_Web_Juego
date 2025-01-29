@@ -1,13 +1,10 @@
-"use client";
-
-import { FriendConnected } from "@/types/friendship";
+import { Friend } from "@/types/friendship";
 import { useState } from "react";
 import ReactPaginate from "react-paginate";
 
 type ListaAmigosConectadosProps = {
-  friends: FriendConnected[];
-
-  onSelect: (friend: FriendConnected) => void;
+  friends: Friend[];
+  onSelect: (friend: Friend) => void;
 };
 
 const translateStatus = (status: string) => {
@@ -61,29 +58,32 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
           className="p-1 border rounded"
         >
           <option value={2}>2</option>
-          <option value={3}>3</option>
           <option value={4}>4</option>
           <option value={8}>8</option>
         </select>
       </div>
+      <p>Haz click sobre una tarjeta para invitar a tu amigo</p>
+      <hr />
+      <br />
 
       {connectedFriends.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
           {currentFriends.map((friend) => (
             <div
-              key={friend.friendId}
+              key={friend.id}
               className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md cursor-pointer"
               onClick={() => onSelect(friend)}
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.avatarUrl}
-                  alt={`${friend.friendNickname}'s Avatar`}
+                  src={friend.urlAvatar}
+                  alt={`${friend.nickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
                 <div>
                   <span className="font-semibold text-gold block">
-                    {friend.friendNickname}
+                    {friend.nickname}
                   </span>
                   <span className="text-sm text-green-400">
                     {translateStatus(friend.status)}
@@ -91,7 +91,7 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
                 </div>
               </div>
               <p className="text-sm text-gray-200 mb-2">
-                {friend.friendMail || "Correo no disponible"}
+                {friend.email || "Correo no disponible"}
               </p>
             </div>
           ))}

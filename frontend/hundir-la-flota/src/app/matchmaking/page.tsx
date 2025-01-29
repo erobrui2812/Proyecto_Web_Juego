@@ -27,7 +27,7 @@ const MatchmakingPage = () => {
   useEffect(() => {
     const fetchAmigos = async () => {
       if (!token) return;
-
+  
       try {
         const response = await fetch(
           "https://localhost:7162/api/Friendship/connected",
@@ -36,17 +36,27 @@ const MatchmakingPage = () => {
           }
         );
         if (!response.ok) throw new Error("Error al obtener amigos conectados");
+  
+        const data = await response.json();
 
-        const data: Friend[] = await response.json();
-        setAmigosConectados(data);
+        const friendsMapped: Friend[] = data.map((friend: any) => ({
+          id: friend.friendId, 
+          nickname: friend.friendNickname,
+          email: friend.friendMail,
+          urlAvatar: friend.avatarUrl,
+          status: friend.status,
+        }));
+  
+        setAmigosConectados(friendsMapped);
       } catch (error) {
         toast.error("Error al obtener amigos conectados.");
         console.error("Error fetching connected friends:", error);
       }
     };
-
+  
     fetchAmigos();
   }, [token]);
+  
 
   const jugarContraBot = async () => {
     if (!token) {
@@ -131,7 +141,7 @@ const MatchmakingPage = () => {
     <div className="flex flex-col items-center justify-center py-10">
       <h1 className="text-3xl font-bold text-gold mb-6">Emparejamiento</h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Button
           onClick={jugarContraBot}
           loading={loading}
@@ -148,12 +158,6 @@ const MatchmakingPage = () => {
           Jugar contra un oponente aleatorio
         </Button>
 
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
-        >
-          Invitar a un amigo
-        </Button>
       </div>
 
       <div className="mt-6 w-full max-w-4xl">
@@ -172,20 +176,20 @@ const MatchmakingPage = () => {
         </h2>
         {selectedFriend && (
           <div className="mt-4">
-            <p className="text-lg text-white">
+            <p className="text-lg text-black">
               ¿Enviar invitación a <strong>{selectedFriend.nickname}</strong>?
             </p>
             <div className="flex gap-4 mt-4">
               <Button
                 onClick={() => invitarAmigo(selectedFriend.id)}
                 loading={loading}
-                className="bg-primary hover:bg-dark text-white border-gold"
+                className="bg-primary p-4 rounded-md hover:bg-dark text-white border-gold"
               >
                 Sí
               </Button>
               <Button
                 onClick={() => setModalOpen(false)}
-                className="bg-gray-600 hover:bg-gray-800 text-white border-gold"
+                className="bg-gray-600 p-4 rounded-md hover:bg-gray-800 text-white border-gold"
               >
                 Cancelar
               </Button>
