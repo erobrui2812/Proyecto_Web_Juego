@@ -181,7 +181,6 @@ public class GameService : IGameService
             .Select(kvp => kvp.Value)
             .FirstOrDefault();
 
-
         if (cell == null)
             return new ServiceResponse<string> { Success = false, Message = "Celda fuera de los límites del tablero." };
 
@@ -200,32 +199,45 @@ public class GameService : IGameService
                 game.State = GameState.Finished;
                 game.WinnerId = playerId;
                 actionDetails += " Fin del juego.";
+
+
+                await _webSocketService.NotifyUsersAsync(new List<int> { playerId, opponent.UserId }, "GameOver", $"El jugador {playerId} ha ganado la partida.");
             }
         }
         else
         {
-            actionDetails += " ¡Fallo!";
+            actionDetails += " Fallo.";
         }
 
-        game.Actions.Add(new GameAction
+
+        await _webSocketService.NotifyUserAsync(opponent.UserId, "AttackResult", actionDetails);
+
+
+        game.State = game.State == GameState.WaitingForPlayer1Shot ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
+        await _gameRepository.UpdateAsync(game);
+
+
+        int nextPlayerId = game.State == GameState.WaitingForPlayer1Shot ? participants.First(p => p.Role == ParticipantRole.Host).UserId : participants.First(p => p.Role == ParticipantRole.Guest).UserId;
+        await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
+
+
+        _ = Task.Run(async () =>
         {
-            PlayerId = playerId,
-            ActionType = "Shot",
-            Timestamp = DateTime.UtcNow,
-            Details = actionDetails
+            await Task.Delay(TimeSpan.FromMinutes(2));
+            var updatedGame = await _gameRepository.GetByIdAsync(gameId);
+            if (updatedGame.State == game.State) // Si el turno no ha cambiado
+            {
+                updatedGame.State = GameState.Finished;
+                updatedGame.WinnerId = opponent.UserId;
+                await _gameRepository.UpdateAsync(updatedGame);
+                await _webSocketService.NotifyUsersAsync(new List<int> { playerId, opponent.UserId }, "GameOver", $"Tiempo agotado. El jugador {opponent.UserId} gana por inactividad.");
+            }
         });
 
-        if (game.State != GameState.Finished)
-        {
-            game.CurrentPlayerId = opponent.UserId;
-            game.State = currentPlayer.Role == ParticipantRole.Host
-                ? GameState.WaitingForPlayer2Shot
-                : GameState.WaitingForPlayer1Shot;
-        }
-
-        await _gameRepository.UpdateAsync(game);
         return new ServiceResponse<string> { Success = true, Message = actionDetails };
     }
+
+
 
 
 
