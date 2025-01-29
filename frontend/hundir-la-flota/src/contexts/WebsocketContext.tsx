@@ -8,6 +8,7 @@ import { useFriendship } from "./FriendshipContext";
 
 type WebsocketContextType = {
   socket: WebSocket | null;
+  sendMessage: (type: string, payload: any) => void;
 };
 
 const WebsocketContext = createContext<WebsocketContextType | undefined>(
@@ -37,7 +38,6 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn(
         `Conexión cerrada: Código ${event.code}, Razón: ${event.reason}`
       );
-
       fetchFriends();
     };
 
@@ -49,7 +49,16 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const parts = event.data.split("|");
         const action = parts[0];
+
         switch (action) {
+          case "AttackResult":
+            handleAttackResult(JSON.parse(parts[1]));
+            break;
+
+          case "GameOver":
+            handleGameOver(parts[1]);
+            break;
+
           case "FriendRequest":
             handleFriendRequest(parts[1]);
             break;
@@ -62,15 +71,11 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             handleFriendRemoved(parts[1]);
             break;
 
-          case "ChatMessage":
-            break;
-
           case "UserStatus":
             handleUserStatus(parts[1]);
             break;
 
           case "GameInvitation":
-            // part1 para el host id, part2 para el gameid
             handleGameInvitation(parts[1], parts[2]);
             break;
 
@@ -96,10 +101,33 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [auth?.token]);
 
+  const sendMessage = (type, payload) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      if (typeof payload === "object") {
+        const formattedPayload = Object.values(payload).join("|");
+        socket.send(`${type}|${formattedPayload}`);
+      } else {
+        socket.send(`${type}|${payload}`);
+      }
+    }
+  };
+
+  const handleAttackResult = (data: {
+    x: number;
+    y: number;
+    result: string;
+  }) => {
+    toast.info(`Ataque en (${data.x}, ${data.y}): ${data.result}`);
+  };
+
+  const handleGameOver = (message: string) => {
+    toast.success(`Juego terminado: ${message}`);
+  };
+
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;
     try {
-      const nickname = await userIdANickname(senderId, auth.token);
+      const nickname = await userIdANickname(senderId);
       toast(
         <div className="text-center">
           <p>Nueva solicitud de amistad de: {nickname}</p>
@@ -131,6 +159,11 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const handleMatchFound = (gameId: string) => {
+    toast.success("¡Emparejado con un oponente!");
+    router.push(`/game/${gameId}`);
+  };
+
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";
     toast.info(
@@ -144,7 +177,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleFriendRemoved = async (friendId: string) => {
     if (!auth?.token) return;
     try {
-      const nickname = await userIdANickname(friendId, auth.token);
+      const nickname = await userIdANickname(friendId);
       toast.info(`Amigo eliminado: ${nickname}`);
       fetchFriends();
     } catch (error) {
@@ -166,14 +199,14 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleGameInvitation = async (hostId: string, gameId: string) => {
     if (!auth?.token) return;
     try {
-      const nickname = await userIdANickname(hostId, auth.token);
+      const nickname = await userIdANickname(hostId);
       toast(
         <div className="text-center">
           <p>¡Has recibido una invitación de {nickname} para jugar!</p>
           <div className="flex justify-center gap-6 mt-4">
             <button
               onClick={() => {
-                acceptGameInvitation(gameId);
+                handleGameInvitation(hostId, gameId);
                 router.push(`/game/${gameId}`);
                 toast.dismiss();
               }}
@@ -196,47 +229,12 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const handleMatchFound = (gameId: string) => {
-    toast.success("¡Emparejado con un oponente!");
-    router.push(`/game/${gameId}`);
-  };
-
-  async function acceptGameInvitation(gameId: string) {
-    if (!auth?.token) return;
-    try {
-      const response = await fetch(
-        "https://localhost:7162/api/game/accept-invitation",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.token}`,
-          },
-          body: JSON.stringify(gameId),
-        }
-      );
-      if (!response.ok) {
-        const msg = await response.text();
-        toast.error(msg);
-        return;
-      }
-      const okMsg = await response.text();
-      toast.success(`Te has unido a la partida: ${okMsg}`);
-    } catch (error) {
-      console.error("Error aceptando la invitación de juego:", error);
-      toast.error("Error aceptando la invitación de juego.");
-    }
-  }
-
-  async function userIdANickname(
-    userId: string,
-    token: string
-  ): Promise<string> {
+  async function userIdANickname(userId: string): Promise<string> {
     try {
       const resp = await fetch(
         `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${auth?.token}` },
         }
       );
       if (!resp.ok) throw new Error(`Error: ${resp.statusText}`);
@@ -249,7 +247,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   }
 
   return (
-    <WebsocketContext.Provider value={{ socket }}>
+    <WebsocketContext.Provider value={{ socket, sendMessage }}>
       {children}
     </WebsocketContext.Provider>
   );

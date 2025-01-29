@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using hundir_la_flota.Models;
+using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 
@@ -137,10 +139,19 @@ namespace hundir_la_flota.Services
                         await HandleChatMessageAsync(userId, payload);
                         break;
 
+                    case "placeShips":
+                        await HandlePlaceShips(userId, parts);
+                        break;
+
+                    case "joinGame":
+                        await HandleJoinGame(userId, parts);
+                        break;
+
                     case "Matchmaking":
-                        // Ejemplo: "Matchmaking|random" o "Matchmaking|cancel"
+                        
                         await HandleMatchmakingAsync(userId, payload);
                         break;
+
 
                     default:
                         _logger.LogWarning($"Unrecognized action: {action}");
@@ -156,6 +167,97 @@ namespace hundir_la_flota.Services
                 _logger.LogError($"Error processing message from {userId}: {ex.Message}");
             }
         }
+
+        private async Task HandleJoinGame(int userId, string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                _logger.LogWarning($"Invalid joinGame format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = userId;
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.JoinGameAsync(gameId, playerId);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error joining game: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} joined game {gameId} successfully");
+                await NotifyUserAsync(userId, "GameJoined", "Successfully joined game.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing joinGame from {userId}: {ex.Message}");
+            }
+        }
+
+
+        private async Task HandlePlaceShips(int userId, string[] parts)
+        {
+            if (parts.Length < 3)
+            {
+                _logger.LogWarning($"Invalid placeShips format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = int.Parse(parts[2]);
+                var shipsData = parts[3];
+
+                var ships = shipsData.Split(";")
+                    .Select(ship => ship.Split(","))
+                    .Select(shipParts => new Ship
+                    {
+                        Name = $"Barco-{shipParts[0]}",
+                        Size = int.Parse(shipParts[2]),
+                        Coordinates = new List<Coordinate>
+                        {
+                    new Coordinate
+                    {
+                        X = int.Parse(shipParts[0]),
+                        Y = int.Parse(shipParts[1])
+                    }
+                        }
+                    })
+                    .ToList();
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.PlaceShipsAsync(gameId, playerId, ships);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error placing ships: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} placed ships successfully in game {gameId}");
+
+                var responseMessage = new { message = "Ships have been placed" };
+                await NotifyUserAsync(userId, "ShipsPlaced", JsonConvert.SerializeObject(responseMessage));
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing placeShips from {userId}: {ex.Message}");
+            }
+        }
+
+
+
 
         private async Task HandleChatMessageAsync(int senderId, string payload)
         {
