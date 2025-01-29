@@ -1,12 +1,23 @@
 "use client";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { useWebsocket } from "@/contexts/WebsocketContext";
 import { useEffect, useState } from "react";
 
-export default function Chat({ gameId }) {
+interface Message {
+  userId: string | number;
+  message: string;
+}
+
+export default function Chat({ gameId }: { gameId: string }) {
   const { socket } = useWebsocket();
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState<string>("");
+  const { userDetail } = useAuth();
+
+  // useEffect(() => {
+  //   console.log(messages);
+  // }, [messages]);
 
   useEffect(() => {
     if (!socket) {
@@ -14,8 +25,7 @@ export default function Chat({ gameId }) {
       return;
     }
 
-    // Escuchar mensajes del WebSocket
-    const handleMessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       const data = event.data.split("|");
       const action = data[0];
       const payload = data[1];
@@ -28,7 +38,6 @@ export default function Chat({ gameId }) {
 
     socket.addEventListener("message", handleMessage);
 
-    // Cleanup al desmontar
     return () => {
       socket.removeEventListener("message", handleMessage);
     };
@@ -46,8 +55,11 @@ export default function Chat({ gameId }) {
     }
 
     const payload = `${gameId}:${newMessage}`;
-    socket.send(`ChatMessage|${payload}`); // Enviar mensaje al servidor
-    setNewMessage(""); // Limpiar el campo de entrada
+    const idUsuario = userDetail?.id || "1";
+
+    setMessages((prev) => [...prev, { userId: idUsuario, message: newMessage }]);
+    socket.send(`ChatMessage|${payload}`);
+    setNewMessage("");
   };
 
   return (
