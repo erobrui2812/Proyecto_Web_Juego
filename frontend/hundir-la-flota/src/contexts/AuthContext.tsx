@@ -1,6 +1,13 @@
 "use client";
+import React from "react";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { toast } from "react-toastify";
 
 type AuthContextType = {
@@ -54,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const obtenerUserDetail = useCallback(async () => {
     if (!auth.token) {
-    //toast.warn("No hay token para obtener detalles del usuario.");
+      //toast.warn("No hay token para obtener detalles del usuario.");
       return;
     }
     try {
@@ -87,11 +94,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
     } catch (error: any) {
       console.error("Error obteniendo detalles del usuario:", error);
-      toast.error(error.message || "Error al obtener los detalles del usuario.");
+      toast.error(
+        error.message || "Error al obtener los detalles del usuario."
+      );
       setUserDetail(null);
     }
   }, [auth.token]);
-
 
   useEffect(() => {
     const decodeToken = (token: string) => {
@@ -113,7 +121,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setRol(decoded.role);
         obtenerUserDetail();
       } else {
-        toast.error("El token es inválido o ha expirado. Por favor, inicia sesión nuevamente.");
+        toast.error(
+          "El token es inválido o ha expirado. Por favor, inicia sesión nuevamente."
+        );
         cerrarSesion();
       }
     } else {
@@ -170,10 +180,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (avatar) {
         formData.append("avatar", avatar);
       }
-      const response = await fetch("https://localhost:7162/api/Users/register", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        "https://localhost:7162/api/Users/register",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       if (!response.ok) {
         throw new Error("Error al registrar usuario.");
       }
