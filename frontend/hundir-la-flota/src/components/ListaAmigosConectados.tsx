@@ -1,13 +1,13 @@
 "use client";
 
-import { Friend } from "@/types/friendship";
+import { FriendConnected } from "@/types/friendship";
 import { useState } from "react";
 import ReactPaginate from "react-paginate";
 
 type ListaAmigosConectadosProps = {
-  friends: Friend[];
+  friends: FriendConnected[];
 
-  onSelect: (friend: Friend) => void;
+  onSelect: (friend: FriendConnected) => void;
 };
 
 const translateStatus = (status: string) => {
@@ -71,19 +71,19 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {currentFriends.map((friend) => (
             <div
-              key={`${friend.id}`}
+              key={friend.friendId}
               className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md cursor-pointer"
               onClick={() => onSelect(friend)}
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.urlAvatar}
-                  alt={`${friend.nickname}'s Avatar`}
+                  src={friend.avatarUrl}
+                  alt={`${friend.friendNickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
                 <div>
                   <span className="font-semibold text-gold block">
-                    {friend.nickname}
+                    {friend.friendNickname}
                   </span>
                   <span className="text-sm text-green-400">
                     {translateStatus(friend.status)}
@@ -91,7 +91,7 @@ const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
                 </div>
               </div>
               <p className="text-sm text-gray-200 mb-2">
-                {friend.email || "Correo no disponible"}
+                {friend.friendMail || "Correo no disponible"}
               </p>
             </div>
           ))}
