@@ -14,6 +14,7 @@ type ModalPerfilProps = {
 };
 
 type UserProfile = {
+  id: string;
   nickname: string;
   avatarUrl: string;
   email: string;
@@ -30,12 +31,16 @@ type GameHistory = {
 const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
-  const [filteredHistory, setFilteredHistory] = useState<GameHistory[]>([]);
   const [pageNumber, setPageNumber] = useState(0);
   const [gamesPerPage, setGamesPerPage] = useState(5);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const { fetchUserProfile, fetchUserGameHistory } = useFriendship();
-  const { userDetail,auth } = useAuth();
+  const { fetchUserProfile, fetchUserGameHistory, friends, removeFriend, sendFriendRequest } = useFriendship();
+  const { userDetail, auth } = useAuth();
+  const [isFriend, setIsFriend] = useState(false);
+
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [friendToDelete, setFriendToDelete] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -45,21 +50,23 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
         const profileData = await fetchUserProfile(userId);
         const historyData = await fetchUserGameHistory(userId);
 
-        setProfile(profileData);
+        const formattedProfile: UserProfile = {
+          id: userId,
+          nickname: profileData.nickname,
+          avatarUrl: profileData.avatarUrl,
+          email: profileData.email,
+        };
+    
+        setProfile(formattedProfile);
         setGameHistory(historyData);
+        setIsFriend(friends.some((friend) => friend.id === userId));
       } catch (error) {
         console.error("Error fetching profile or game history:", error);
       }
     };
 
     fetchData();
-  }, [isOpen, userId, fetchUserProfile, fetchUserGameHistory]);
-
-  useEffect(() => {
-    const startIndex = pageNumber * gamesPerPage;
-    const endIndex = startIndex + gamesPerPage;
-    setFilteredHistory(gameHistory.slice(startIndex, endIndex));
-  }, [pageNumber, gamesPerPage, gameHistory]);
+  }, [isOpen, userId, fetchUserProfile, fetchUserGameHistory, friends]);
 
   const pageCount = Math.ceil(gameHistory.length / gamesPerPage);
 
@@ -70,6 +77,37 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
   const handleGamesPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setGamesPerPage(Number(e.target.value));
     setPageNumber(0);
+  };
+
+  const handleAddFriend = async () => {
+    if (!profile) return;
+    try {
+      await sendFriendRequest(profile.nickname);
+      setIsFriend(true);
+    } catch (error) {
+      console.error("Error al enviar solicitud de amistad:", error);
+    }
+  };
+
+   const openDeleteModal = (friend: UserProfile) => {
+    setFriendToDelete(friend);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setFriendToDelete(null);
+    setIsDeleteModalOpen(false);
+  };
+
+  const confirmRemoveFriend = async () => {
+    if (!friendToDelete) return;
+    try {
+      await removeFriend(friendToDelete.id);
+      setIsFriend(false);
+    } catch (error) {
+      console.error("Error al eliminar amigo:", error);
+    }
+    closeDeleteModal();
   };
 
   const handleEditSubmit = async (data: {
@@ -109,7 +147,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
 
       const updatedProfile = await response.json();
       setProfile((prev) => ({
-        ...prev,
+        ...prev!,
         nickname: updatedProfile.nickname,
         email: updatedProfile.email,
         avatarUrl: updatedProfile.avatarUrl,
@@ -147,12 +185,26 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
               </div>
             </div>
 
-            {userDetail?.id !== undefined && userId !== null && String(userDetail.id) === userId && (
+            {userDetail?.id !== undefined && userId !== null && String(userDetail.id) === userId ? (
               <button
-                className="px-4 py-2 bg-blueLink text-white rounded opacity-1 hover:underline"
+                className="px-4 py-2 bg-blueLink text-white rounded hover:underline"
                 onClick={() => setIsEditModalOpen(true)}
               >
                 Modificar perfil
+              </button>
+            ) : isFriend ? (
+              <button
+                className="px-4 py-2 bg-redError text-white rounded hover:bg-red-600"
+                onClick={() => openDeleteModal(profile)}
+              >
+                Eliminar amigo
+              </button>
+            ) : (
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                onClick={handleAddFriend}
+              >
+                Agregar amigo
               </button>
             )}
           </div>
@@ -161,19 +213,21 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
             <h3 className="text-lg font-semibold text-gold mb-2">Historial de Partidas</h3>
             <div className="overflow-y-auto max-h-60">
               <ul className="divide-y divide-gray-600">
-                {filteredHistory.length > 0 ? (
-                  filteredHistory.map((game) => (
-                    <li key={game.gameId} className="py-2">
-                      <p>
-                        <span className="font-semibold">{game.player1Nickname}</span> vs{" "}
-                        <span className="font-semibold">{game.player2Nickname}</span>
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Fecha: {new Date(game.datePlayed).toLocaleDateString()} - Resultado:{" "}
-                        {game.result}
-                      </p>
-                    </li>
-                  ))
+                {gameHistory.length > 0 ? (
+                  gameHistory
+                    .slice(pageNumber * gamesPerPage, (pageNumber + 1) * gamesPerPage)
+                    .map((game) => (
+                      <li key={game.gameId} className="py-2">
+                        <p>
+                          <span className="font-semibold">{game.player1Nickname}</span> vs{" "}
+                          <span className="font-semibold">{game.player2Nickname}</span>
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Fecha: {new Date(game.datePlayed).toLocaleDateString()} - Resultado:{" "}
+                          {game.result}
+                        </p>
+                      </li>
+                    ))
                 ) : (
                   <p className="text-gray-400">No hay partidas registradas.</p>
                 )}
@@ -199,9 +253,6 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
                 forcePage={pageNumber}
                 containerClassName={"flex gap-2"}
                 pageLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
-                previousLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
-                nextLinkClassName={"px-2 py-1 border rounded hover:bg-gray-300 transition"}
-                disabledClassName={"opacity-50 cursor-not-allowed"}
                 activeClassName={"text-dark font-bold"}
               />
             </div>
@@ -209,7 +260,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
         </div>
       </Modal>
 
-      {isEditModalOpen && (
+      {isEditModalOpen && profile && (
         <ModalEditarPerfil
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
@@ -221,6 +272,22 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
           onSubmit={handleEditSubmit}
         />
       )}
+
+      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal} title="Confirmar eliminación">
+        <p>
+          ¿Estás seguro de que deseas eliminar a
+          <span className="font-bold"> {friendToDelete?.nickname} </span>
+          de tu lista de amigos?
+        </p>
+        <div className="flex justify-end space-x-4 mt-4">
+          <button onClick={closeDeleteModal} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+            Cancelar
+          </button>
+          <button onClick={confirmRemoveFriend} className="px-4 py-2 bg-redError text-white rounded hover:bg-red-600">
+            Confirmar
+          </button>
+        </div>
+      </Modal>
     </>
   );
 };
