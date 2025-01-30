@@ -3,10 +3,7 @@ using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
 using hundir_la_flota.Utils;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+
 
 public interface IGameService
 {
@@ -316,9 +313,9 @@ public class GameService : IGameService
             Player1Role = player1?.Role.ToString() ?? "Vacante",
             Player2Role = player2?.Role.ToString() ?? "Vacante",
             StateDescription = GetStateDescription(game.State),
-            Player1Board = DTOMapper.ToBoardDTO(game.Player1Board), // Conversión explícita
-            Player2Board = DTOMapper.ToBoardDTO(game.Player2Board), // Conversión explícita
-            Actions = game.Actions.Select(DTOMapper.ToGameActionDTO).ToList(), // Conversión explícita
+            Player1Board = DTOMapper.ToBoardDTO(game.Player1Board),
+            Player2Board = DTOMapper.ToBoardDTO(game.Player2Board), 
+            Actions = game.Actions.Select(DTOMapper.ToGameActionDTO).ToList(),
             CurrentPlayerId = game.CurrentPlayerId ?? 0,
             CreatedAt = game.CreatedAt
         };

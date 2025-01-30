@@ -1,15 +1,15 @@
 "use client";
+import Chat from "@/components/Chat";
+import GameGrid from "@/components/GameGrid";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWebsocket } from "@/contexts/WebsocketContext";
 import { useParams } from "next/navigation";
 import React from "react";
-import Chat from "../../../components/Chat";
-import GameGrid from "../../../components/GameGrid";
-import { useAuth } from "../../../contexts/AuthContext";
-import { useWebsocket } from "../../../contexts/WebsocketContext";
 
 export default function GamePage() {
   const params = useParams();
   const gameId = params.gameId;
-  const { auth, userDetail } = useAuth(); // Obtener userDetail desde el contexto de autenticación
+  const { auth, userDetail } = useAuth();
   const { socket } = useWebsocket();
 
   if (!auth?.token) {
@@ -20,7 +20,6 @@ export default function GamePage() {
     );
   }
 
-  // Obtener el ID del usuario desde userDetail (o mostrar error si no está definido)
   const playerId = userDetail?.id;
 
   if (!playerId) {
