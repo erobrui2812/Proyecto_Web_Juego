@@ -6,8 +6,16 @@ import { useFriendship } from "@/contexts/FriendshipContext";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactPaginate from "react-paginate";
+import { SearchInput } from "@/components/SearchInput"; 
+import { useSearchParams } from "next/navigation";
 
-const translateStatus = (status) => {
+type ListaAmigosProps = {
+  searchParams?: {
+    search?: string;
+  };
+};
+
+const translateStatus = (status: string) => {
   switch (status) {
     case "Connected":
       return "Conectado";
@@ -20,28 +28,35 @@ const translateStatus = (status) => {
   }
 };
 
-const ListaAmigos = () => {
+const ListaAmigos = (/* { searchParams }: ListaAmigosProps */) => {
   const { friends, removeFriend, fetchFriends } = useFriendship();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState(null);
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
 
+  const searchParams = useSearchParams();
+  const searchTerm = searchParams.get("search")?.toLowerCase() || "";
+
+  const filteredFriends = friends.filter((friend) =>
+    friend.nickname.toLowerCase().includes(searchTerm)
+  );
+
   const pagesVisited = pageNumber * friendsPerPage;
-  const currentFriends = friends.slice(
+  const currentFriends = filteredFriends.slice(
     pagesVisited,
     pagesVisited + friendsPerPage
   );
-  const pageCount = Math.ceil(friends.length / friendsPerPage);
+  const pageCount = Math.ceil(filteredFriends.length / friendsPerPage);
 
-  const changePage = (selectedItem) => {
+  const changePage = (selectedItem: { selected: number }) => {
     setPageNumber(selectedItem.selected);
   };
 
-  const openProfileModal = (userId) => {
+  const openProfileModal = (userId: string) => {
     setSelectedUserId(userId);
     setIsProfileModalOpen(true);
   };
@@ -51,7 +66,7 @@ const ListaAmigos = () => {
     setIsProfileModalOpen(false);
   };
 
-  const openDeleteModal = (friend) => {
+  const openDeleteModal = (friend: any) => {
     setSelectedFriend(friend);
     setIsModalOpen(true);
   };
@@ -78,6 +93,10 @@ const ListaAmigos = () => {
 
   return (
     <div>
+      <div className="mb-4">
+        <SearchInput placeholder="Buscar amigo..." />
+      </div>
+
       <div className="flex items-center gap-2 mb-4">
         <label htmlFor="friendsPerPage" className="font-semibold">
           Amigos por página:
@@ -98,7 +117,7 @@ const ListaAmigos = () => {
         </select>
       </div>
 
-      {friends.length > 0 ? (
+      {filteredFriends.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {currentFriends.map((friend) => (
             <div
@@ -156,8 +175,8 @@ const ListaAmigos = () => {
 
       <div className="mt-4">
         <ReactPaginate
-          previousLabel={"< Anterior"}
-          nextLabel={"Siguiente >"}
+          previousLabel={"<"}
+          nextLabel={">"}
           pageCount={pageCount}
           onPageChange={changePage}
           forcePage={pageNumber}

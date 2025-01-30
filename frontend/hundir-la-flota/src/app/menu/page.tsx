@@ -28,10 +28,7 @@ const MenuPage = () => {
       <div className="bg-dark w-full">
         <div className="max-w-7xl mx-auto py-8 px-4 md:px-6 lg:px-8 text-black">
           <div className="flex flex-col md:flex-row md:gap-4">
-            <div
-              className="w-full md:w-3/5 mb-8 md:mb-0 md:pr-4 flex flex-col gap-6 p-4
-                          rounded-md  "
-            >
+            <div className="w-full md:w-3/5 mb-8 md:mb-0 md:pr-4 flex flex-col gap-6 p-4 rounded-md">
               <div>
                 <AvatarUsuario />
               </div>
@@ -51,9 +48,7 @@ const MenuPage = () => {
             </div>
 
             <div
-              className="w-full md:w-2/5 p-4 flex flex-col gap-6
-                         border-2 border-gold rounded-md text-background "
-            >
+              className="w-full md:w-2/5 p-4 flex flex-col gap-6 border-2 border-gold rounded-md text-background">
               <div>
                 <h2 className="text-xl font-bold mb-2">Jugadores Online</h2>
                 <p>Aquí iría la lista de jugadores online...</p>
