@@ -17,6 +17,7 @@ namespace hundir_la_flota.Services
         bool IsUserConnected(int userId);
         WebSocketService.UserState GetUserState(int userId);
         List<int> GetConnectedUserIds();
+        int GetOnlineUsersCount();
     }
 
     public class WebSocketService : IWebSocketService
@@ -28,6 +29,7 @@ namespace hundir_la_flota.Services
 
         private readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
         private readonly ConcurrentDictionary<int, UserState> _userStates = new();
+
         private readonly ILogger<WebSocketService> _logger;
         private readonly IServiceProvider _serviceProvider;
 
@@ -425,5 +427,7 @@ namespace hundir_la_flota.Services
         {
             _userStates[userId] = newState;
         }
+
+        public int GetOnlineUsersCount() => _connectedUsers.Count;
     }
 }

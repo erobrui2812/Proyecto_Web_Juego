@@ -8,10 +8,12 @@ namespace hundir_la_flota.Controllers
     public class StatsController : ControllerBase
     {
         private readonly IStatsService _statsService;
+        private readonly IWebSocketService _webSocketService;
 
-        public StatsController(IStatsService statsService)
+        public StatsController(IStatsService statsService, IWebSocketService webSocketService)
         {
             _statsService = statsService;
+            _webSocketService = webSocketService;
         }
 
         [HttpGet("player/{userId}")]
@@ -32,6 +34,16 @@ namespace hundir_la_flota.Controllers
                 return BadRequest(new { success = false, message = leaderboard.Message });
 
             return Ok(leaderboard.Data);
+        }
+
+        [HttpGet("global")]
+        public IActionResult GetLiveStats()
+        {
+            var stats = new
+            {
+                OnlineUsers = _webSocketService.GetOnlineUsersCount()
+            };
+            return Ok(stats);
         }
     }
 }
