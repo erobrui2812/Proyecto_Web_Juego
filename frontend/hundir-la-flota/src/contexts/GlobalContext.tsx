@@ -3,7 +3,7 @@ import React, { createContext } from "react";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { GameProvider, useGame } from "./GameContext";
 import { FriendshipProvider, useFriendship } from "./FriendshipContext";
-import { WebsocketProvider } from "./WebsocketContext";
+import { WebsocketProvider, useWebsocket } from "./WebsocketContext";
 const GlobalContext = createContext(null);
 
 export const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
@@ -24,7 +24,7 @@ export const useGlobalContext = () => {
   const auth = useAuth();
   const game = useGame();
   const friendship = useFriendship();
-  // const websocket = useWebsocket();
+  const websocket = useWebsocket();
 
-  return { auth, game, friendship };
+  return { auth, game, friendship, websocket };
 };

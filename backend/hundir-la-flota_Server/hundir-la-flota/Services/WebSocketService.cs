@@ -58,7 +58,7 @@ namespace hundir_la_flota.Services
                 return;
             }
 
-            UpdateUserState(userId, UserState.Connected);
+            await UpdateUserStateAsync(userId, UserState.Connected);
             await NotifyUserStatusChangeAsync(userId, UserState.Connected);
 
             var buffer = new byte[1024 * 4];
@@ -86,9 +86,8 @@ namespace hundir_la_flota.Services
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
-                UpdateUserState(userId, UserState.Disconnected);
+                await UpdateUserStateAsync(userId, UserState.Disconnected);
                 await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
-
 
                 RemoveFromMatchmakingQueue(userId);
 
@@ -96,6 +95,11 @@ namespace hundir_la_flota.Services
                 {
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
                 }
+
+
+                var statsService = _serviceProvider.GetRequiredService<IStatsService>();
+                var globalStats = await statsService.GetGlobalStatsAsync();
+                await NotifyUsersAsync(_connectedUsers.Keys, "GlobalStatsUpdate", JsonConvert.SerializeObject(globalStats.Data));
             }
         }
 
@@ -377,7 +381,7 @@ namespace hundir_la_flota.Services
 
         public async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
         {
-            UpdateUserState(userId, newState);
+            await UpdateUserStateAsync(userId, newState);
 
             var message = $"{userId}:{newState}";
             var tasks = _connectedUsers
@@ -421,9 +425,14 @@ namespace hundir_la_flota.Services
             return UserState.Disconnected;
         }
 
-        private void UpdateUserState(int userId, UserState newState)
+        private async Task UpdateUserStateAsync(int userId, UserState newState)
         {
             _userStates[userId] = newState;
+            var statsService = _serviceProvider.GetRequiredService<IStatsService>();
+            var globalStats = await statsService.GetGlobalStatsAsync();
+
+            await NotifyUsersAsync(_connectedUsers.Keys, "GlobalStatsUpdate", JsonConvert.SerializeObject(globalStats.Data));
         }
+
     }
 }

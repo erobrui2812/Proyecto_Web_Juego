@@ -1,6 +1,7 @@
 ﻿using hundir_la_flota.Models;
 using hundir_la_flota.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 
 namespace hundir_la_flota.Services
 {
@@ -8,15 +9,20 @@ namespace hundir_la_flota.Services
     {
         Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId);
         Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync();
+        Task<ServiceResponse<GlobalStatsDTO>> GetGlobalStatsAsync();
     }
 
     public class StatsService : IStatsService
     {
         private readonly MyDbContext _context;
+        private readonly IWebSocketService _webSocketService;
+        private readonly IGameRepository _gameRepository;
 
-        public StatsService(MyDbContext context)
+        public StatsService(MyDbContext context, IWebSocketService webSocketService, IGameRepository gameRepository)
         {
             _context = context;
+            _webSocketService = webSocketService;
+            _gameRepository = gameRepository;
         }
 
         public async Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId)
@@ -45,7 +51,6 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<PlayerStatsDTO> { Success = true, Data = playerStats };
         }
 
-
         public async Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync()
         {
             var leaderboard = await _context.GameParticipants
@@ -65,5 +70,23 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<List<LeaderboardDTO>> { Success = true, Data = leaderboard };
         }
 
+        public async Task<ServiceResponse<GlobalStatsDTO>> GetGlobalStatsAsync()
+        {
+            var onlineUsers = _webSocketService.GetConnectedUserIds().Count;
+            var playingUsers = _webSocketService.GetConnectedUserIds()
+                .Count(userId => _webSocketService.GetUserState(userId) == WebSocketService.UserState.Playing);
+
+            var activeGames = (await _gameRepository.GetAllAsync())
+                .Count(g => g.State != GameState.Finished && g.State != GameState.WaitingForPlayers);
+
+            var stats = new GlobalStatsDTO
+            {
+                OnlineUsers = onlineUsers,
+                PlayersInGame = playingUsers,
+                ActiveGames = activeGames
+            };
+
+            return new ServiceResponse<GlobalStatsDTO> { Success = true, Data = stats };
+        }
     }
 }

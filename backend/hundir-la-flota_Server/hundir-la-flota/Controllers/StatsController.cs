@@ -33,5 +33,13 @@ namespace hundir_la_flota.Controllers
 
             return Ok(leaderboard.Data);
         }
+
+        [HttpGet("global")]
+        public async Task<IActionResult> GetGlobalStats()
+        {
+            var stats = await _statsService.GetGlobalStatsAsync();
+            return Ok(stats.Data);
+        }
+
     }
 }
