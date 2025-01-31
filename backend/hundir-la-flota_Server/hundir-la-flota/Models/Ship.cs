@@ -7,7 +7,7 @@ namespace hundir_la_flota.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public int Id { get; set; } = 0;
         public string Name { get; set; }
         public int Size { get; set; }
         public List<Coordinate> Coordinates { get; set; } = new List<Coordinate>();

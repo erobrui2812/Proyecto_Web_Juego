@@ -5,17 +5,7 @@ import { useWebsocket } from "../contexts/WebsocketContext";
 
 const shipSizes = [5, 4, 3, 3, 2];
 
-type Ship = {
-  x: number;
-  y: number;
-  size: number;
-  orientation: "horizontal" | "vertical";
-};
-
-const getRandomOrientation = (): "horizontal" | "vertical" =>
-  Math.random() > 0.5 ? "horizontal" : "vertical";
-
-const generateRandomBoard = (): { grid: any[][]; ships: Ship[] } => {
+const generateRandomBoard = () => {
   const newGrid = Array.from({ length: 10 }, () =>
     Array.from({ length: 10 }, () => ({
       hasShip: false,
@@ -24,25 +14,28 @@ const generateRandomBoard = (): { grid: any[][]; ships: Ship[] } => {
     }))
   );
 
-  const ships: Ship[] = [];
-
+  const ships = [];
   for (const size of shipSizes) {
     let placed = false;
-
     while (!placed) {
       const x = Math.floor(Math.random() * 10);
       const y = Math.floor(Math.random() * 10);
-      const orientation = getRandomOrientation();
+      const orientation = Math.random() > 0.5 ? "horizontal" : "vertical";
 
       if (orientation === "horizontal") {
-        if (x + size > 10) continue;
-        if (newGrid[y].slice(x, x + size).some((cell) => cell.hasShip))
+        if (
+          x + size > 10 ||
+          newGrid[y].slice(x, x + size).some((cell) => cell.hasShip)
+        )
           continue;
         for (let i = 0; i < size; i++) newGrid[y][x + i].hasShip = true;
         ships.push({ x, y, size, orientation });
       } else {
-        if (y + size > 10) continue;
-        if (newGrid.slice(y, y + size).some((row) => row[x].hasShip)) continue;
+        if (
+          y + size > 10 ||
+          newGrid.slice(y, y + size).some((row) => row[x].hasShip)
+        )
+          continue;
         for (let i = 0; i < size; i++) newGrid[y + i][x].hasShip = true;
         ships.push({ x, y, size, orientation });
       }
@@ -59,48 +52,43 @@ const GameGrid = ({ gameId, playerId }) => {
   const [{ grid, ships }, setBoard] = useState(generateRandomBoard);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [shipsPlaced, setShipsPlaced] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!socket) return;
-
-    // Unirse a la partida cuando se monta el componente
     sendMessage("joinGame", `${gameId}|${playerId}`);
-
-    const handleYourTurn = () => {
-      setIsMyTurn(true);
-    };
 
     const handleMessage = (event) => {
       try {
-        const parsedData = JSON.parse(event.data);
+        const parts = event.data.split("|");
+        const type = parts[0];
+        const payload = parts.slice(1).join("|");
 
-        if (!parsedData || typeof parsedData !== "object") {
-          console.warn(
-            "Mensaje WebSocket recibido, pero no es un objeto JSON:",
-            event.data
-          );
-          return;
-        }
-
-        const { type, ...data } = parsedData;
+        console.log(`Evento recibido: ${type}`, payload);
 
         switch (type) {
           case "YourTurn":
-            handleYourTurn();
+            setIsMyTurn(true);
+            break;
+          case "GameStarted":
+            setGameStarted(true);
             break;
           case "ShipsPlaced":
             setShipsPlaced(true);
+            break;
+          case "AttackResult":
+            handleAttackResult(payload);
             break;
           default:
             console.warn("Evento WebSocket no reconocido:", type);
         }
       } catch (error) {
-        console.warn("Mensaje WebSocket no es JSON válido:", event.data);
+        console.warn("Error procesando mensaje WebSocket:", event.data);
       }
     };
 
     socket.addEventListener("message", handleMessage);
-
     return () => {
       socket.removeEventListener("message", handleMessage);
     };
@@ -110,71 +98,125 @@ const GameGrid = ({ gameId, playerId }) => {
     const { grid: newGrid, ships } = generateRandomBoard();
     setBoard({ grid: newGrid, ships });
 
-    if (!ships.length) {
-      console.error("No hay barcos generados, no se puede enviar al servidor.");
-      return;
-    }
+    if (!ships.length) return;
 
-    // Formatear los barcos en el formato esperado por el backend
     const formattedShips = ships
       .map((ship) => `${ship.x},${ship.y},${ship.size},${ship.orientation}`)
       .join(";");
 
-    console.log(
-      "Enviando mensaje placeShips:",
-      `placeShips|${gameId}|${playerId}|${formattedShips}`
-    );
-
     sendMessage("placeShips", `${gameId}|${playerId}|${formattedShips}`);
   };
 
-  if (!grid) {
-    return <div className="text-white">Cargando tablero...</div>;
-  }
+  const handleConfirmReady = () => {
+    sendMessage("confirmReady", `${gameId}|${playerId}`);
+    setIsReady(true);
+  };
+
+  const handlePassTurn = () => {
+    if (isMyTurn) {
+      sendMessage("passTurn", `${gameId}|${playerId}`);
+      setIsMyTurn(false);
+    }
+  };
+
+  const handleAttack = (x, y) => {
+    if (isMyTurn) {
+      sendMessage("Attack", `${gameId}|${playerId}|${x}|${y}`);
+      setIsMyTurn(false); // Deshabilita el botón hasta que el oponente tenga su turno
+    }
+  };
+
+  const handleAttackResult = (result) => {
+    // Lógica para mostrar el resultado del ataque
+    const { x, y, result: attackResult } = JSON.parse(result);
+    const updatedGrid = [...grid];
+    updatedGrid[y][x].isHit = true;
+
+    setBoard({ grid: updatedGrid, ships });
+
+    if (attackResult === "hit") {
+      console.log(`¡Acierto! En la posición (${x}, ${y})`);
+    } else if (attackResult === "miss") {
+      console.log(`Fallaste el ataque en (${x}, ${y})`);
+    } else if (attackResult === "sunk") {
+      console.log(`¡Barco hundido! En la posición (${x}, ${y})`);
+    }
+
+    // Lógica para pasar el turno después del ataque
+    setIsMyTurn(false);
+  };
 
   return (
     <DndContext>
       <div className="mb-4 flex flex-col items-center">
-        <button
-          onClick={handlePlaceShips}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
-          disabled={shipsPlaced}
-        >
-          {shipsPlaced ? "Barcos colocados" : "Colocar Barcos Aleatoriamente"}
-        </button>
-      </div>
+        {!gameStarted ? (
+          <>
+            <button
+              onClick={handlePlaceShips}
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
+              disabled={shipsPlaced}
+            >
+              {shipsPlaced
+                ? "Barcos colocados"
+                : "Colocar Barcos Aleatoriamente"}
+            </button>
 
-      <div className="grid grid-cols-11 gap-1 border-2 border-primary p-2 bg-dark">
-        <div className="w-10 h-10"></div>
-        {Array.from({ length: 10 }, (_, i) => (
-          <div
-            key={`col-${i}`}
-            className="w-10 h-10 flex items-center justify-center text-white font-bold"
-          >
-            {String.fromCharCode(65 + i)}
-          </div>
-        ))}
-
-        {grid.map((row, y) => (
-          <React.Fragment key={y}>
-            <div className="w-10 h-10 flex items-center justify-center text-white font-bold">
-              {y + 1}
-            </div>
-
-            {row.map((cell, x) => (
-              <div
-                key={`${x}-${y}`}
-                className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
-                  cell.hasShip
-                    ? "bg-gray-700 border border-gray-500"
-                    : "bg-blue-500 hover:bg-blue-400 transition"
-                }`}
+            {shipsPlaced && (
+              <button
+                onClick={handleConfirmReady}
+                className="mt-2 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
+                disabled={isReady}
               >
-                {cell.hasShip ? "🚢" : ""}
-              </div>
+                {isReady ? "Esperando al otro jugador..." : "Estoy Listo"}
+              </button>
+            )}
+          </>
+        ) : (
+          <p className="text-white font-bold">¡El juego ha comenzado!</p>
+        )}
+
+        {gameStarted && (
+          <button
+            onClick={handlePassTurn}
+            className={`mt-4 px-4 py-2 rounded text-white transition ${
+              isMyTurn
+                ? "bg-blue-500 hover:bg-blue-600"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
+            disabled={!isMyTurn}
+          >
+            {isMyTurn ? "Pasar Turno" : "No es tu turno"}
+          </button>
+        )}
+
+        {gameStarted && (
+          <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+            {grid.map((row, y) => (
+              <React.Fragment key={y}>
+                <div className="w-10 h-10 flex items-center justify-center text-white font-bold">
+                  {y + 1}
+                </div>
+
+                {row.map((cell, x) => (
+                  <div
+                    key={`${x}-${y}`}
+                    className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                      cell.isHit
+                        ? "bg-red-500"
+                        : cell.hasShip
+                        ? "bg-gray-700"
+                        : "bg-blue-500 hover:bg-blue-400 transition"
+                    }`}
+                    onClick={() => handleAttack(x, y)}
+                  >
+                    {cell.isHit ? "💥" : ""}
+                    {cell.hasShip && !cell.isHit ? "🚢" : ""}
+                  </div>
+                ))}
+              </React.Fragment>
             ))}
-          </React.Fragment>
-        ))}
+          </div>
+        )}
       </div>
     </DndContext>
   );

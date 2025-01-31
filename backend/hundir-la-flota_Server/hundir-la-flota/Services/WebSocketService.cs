@@ -149,11 +149,17 @@ namespace hundir_la_flota.Services
                         await HandleJoinGame(userId, parts);
                         break;
 
-                    case "Matchmaking":
-                        
+                    case "passTurn":
+                        await HandlePassTurn(userId, parts);
+                        break;
+
+                    case "Matchmaking": 
                         await HandleMatchmakingAsync(userId, payload);
                         break;
 
+                    case "Attack":
+                        await HandleAttack(userId, parts); 
+                        break;
 
                     default:
                         _logger.LogWarning($"Unrecognized action: {action}");
@@ -169,6 +175,38 @@ namespace hundir_la_flota.Services
                 _logger.LogError($"Error processing message from {userId}: {ex.Message}");
             }
         }
+
+        private async Task HandlePassTurn(int userId, string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                _logger.LogWarning($"Invalid passTurn format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.PassTurnAsync(gameId, userId);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error passing turn: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} passed their turn in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing passTurn from {userId}: {ex.Message}");
+            }
+        }
+
 
         private async Task HandleJoinGame(int userId, string[] parts)
         {
@@ -255,6 +293,39 @@ namespace hundir_la_flota.Services
             catch (Exception ex)
             {
                 _logger.LogError($"Error processing placeShips from {userId}: {ex.Message}");
+            }
+        }
+
+        private async Task HandleAttack(int userId, string[] parts)
+        {
+            if (parts.Length < 3)
+            {
+                _logger.LogWarning($"Invalid attack format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var x = int.Parse(parts[2]);
+                var y = int.Parse(parts[3]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.AttackAsync(gameId, userId, x, y);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error processing attack: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} attacked at ({x}, {y}) in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing attack from {userId}: {ex.Message}");
             }
         }
 

@@ -49,30 +49,38 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const parts = event.data.split("|");
         const action = parts[0];
+        const payload = parts.slice(1).join("|");
+
+        let parsedPayload;
+        try {
+          parsedPayload = JSON.parse(payload);
+        } catch {
+          parsedPayload = payload;
+        }
 
         switch (action) {
           case "AttackResult":
-            handleAttackResult(JSON.parse(parts[1]));
+            handleAttackResult(parsedPayload);
             break;
 
           case "GameOver":
-            handleGameOver(parts[1]);
+            handleGameOver(parsedPayload);
             break;
 
           case "FriendRequest":
-            handleFriendRequest(parts[1]);
+            handleFriendRequest(parsedPayload);
             break;
 
           case "FriendRequestResponse":
-            handleFriendRequestResponse(parts[1]);
+            handleFriendRequestResponse(parsedPayload);
             break;
 
           case "FriendRemoved":
-            handleFriendRemoved(parts[1]);
+            handleFriendRemoved(parsedPayload);
             break;
 
           case "UserStatus":
-            handleUserStatus(parts[1]);
+            handleUserStatus(parsedPayload);
             break;
 
           case "GameInvitation":
@@ -80,14 +88,26 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             break;
 
           case "MatchFound":
-            handleMatchFound(parts[1]);
+            handleMatchFound(parsedPayload);
+            break;
+
+          case "ShipsPlaced":
+            console.log("Evento ShipsPlaced recibido:", parsedPayload);
+            break;
+
+          case "GameStarted":
+            console.log("Evento GameStarted recibido:", parsedPayload);
+            break;
+
+          case "YourTurn":
+            console.log("Evento YourTurn recibido:", parsedPayload);
             break;
 
           default:
             console.warn("Acción no reconocida:", action);
         }
       } catch (error) {
-        console.error("Error procesando el mensaje WebSocket:", error);
+        console.error("Error procesando el mensaje WebSocket:", event.data);
       }
     };
 

@@ -43,34 +43,38 @@ public class MyDbContext : DbContext
             .HasKey(g => g.GameId);
 
         modelBuilder.Entity<Game>()
-            .OwnsOne(g => g.Player1Board, board =>
+    .OwnsOne(g => g.Player1Board, board =>
+    {
+        board.Ignore(b => b.Grid);
+        board.Ignore(b => b.GridForSerialization);
+        board.OwnsMany(b => b.Ships, ship =>
+        {
+            ship.ToTable("Player1_Ships");
+            ship.HasKey(s => s.Id);
+            ship.Property(s => s.Id).ValueGeneratedOnAdd();
+            ship.OwnsMany(s => s.Coordinates, coord =>
             {
-                board.Ignore(b => b.Grid);
-                board.Ignore(b => b.GridForSerialization);
-                board.OwnsMany(b => b.Ships, ship =>
-                {
-                    ship.ToTable("Player1_Ships");
-                    ship.OwnsMany(s => s.Coordinates, coord =>
-                    {
-                        coord.HasKey(c => new { c.X, c.Y });
-                    });
-                });
+                coord.HasKey(c => new { c.X, c.Y });
             });
+        });
+    });
 
         modelBuilder.Entity<Game>()
-            .OwnsOne(g => g.Player2Board, board =>
-            {
-                board.Ignore(b => b.Grid);
-                board.Ignore(b => b.GridForSerialization); 
-                board.OwnsMany(b => b.Ships, ship =>
-                {
-                    ship.ToTable("Player2_Ships");
-                    ship.OwnsMany(s => s.Coordinates, coord =>
-                    {
-                        coord.HasKey(c => new { c.X, c.Y });
-                    });
-                });
-            });
+     .OwnsOne(g => g.Player2Board, board =>
+     {
+         board.Ignore(b => b.Grid);
+         board.Ignore(b => b.GridForSerialization);
+         board.OwnsMany(b => b.Ships, ship =>
+         {
+             ship.ToTable("Player2_Ships");
+             ship.HasKey(s => s.Id); 
+             ship.Property(s => s.Id).ValueGeneratedOnAdd(); 
+             ship.OwnsMany(s => s.Coordinates, coord =>
+             {
+                 coord.HasKey(c => new { c.X, c.Y });
+             });
+         });
+     });
 
         modelBuilder.Entity<Game>()
             .OwnsMany(g => g.Actions, action =>
