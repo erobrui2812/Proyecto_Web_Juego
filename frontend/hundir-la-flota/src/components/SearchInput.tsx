@@ -25,7 +25,7 @@ const SearchInput = ({ placeholder }: SearchInputProps) => {
     250
   );
 
-  return <input placeholder={placeholder} onChange={handleSearch} />;
+  return <input className="border-2 border-black p-1 rounded-md" placeholder={placeholder} onChange={handleSearch} />;
 };
 
 export { SearchInput };

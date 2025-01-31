@@ -2,7 +2,7 @@
 
 import "@fontsource/bebas-neue";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AvatarUsuario from "@/components/AvatarUsuario";
 import BuscadorUsuarios from "@/components/BuscadorUsuarios";
 import ListaAmigos from "@/components/ListaAmigos";
@@ -15,6 +15,22 @@ const MenuPage = () => {
   const { searchUsers, searchResults } = useFriendship();
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState("0");
+
+  useEffect(() => {
+    const fetchOnlineUsers = async () => {
+      try {
+        const response = await fetch("https://localhost:7162/api/stats/global");
+        const data = await response.json();
+        console.log(data);
+        setOnlineUsers(data.onlineUsers);
+      } catch (error) {
+        console.error("Error al obtener usuarios en línea:", error);
+      }
+    };
+
+    fetchOnlineUsers();
+  }, []);
 
   const handleSearch = async (query: string) => {
     if (query.trim()) {
@@ -51,7 +67,7 @@ const MenuPage = () => {
               className="w-full md:w-2/5 p-4 flex flex-col gap-6 border-2 border-gold rounded-md text-background">
               <div>
                 <h2 className="text-xl font-bold mb-2">Jugadores Online</h2>
-                <p>Aquí iría la lista de jugadores online...</p>
+                <p>{onlineUsers}</p>
               </div>
 
               <div>
