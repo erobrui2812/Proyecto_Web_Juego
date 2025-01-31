@@ -1,12 +1,11 @@
 import React from "react";
 
 const Home: React.FC = () => {
-
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-fondo-mar bg-cover bg-center text-white font-montserrat">
       <div className="absolute inset-0 bg-black bg-opacity-10"></div>
       <div className="relative z-10">
-        <section className="w-full max-w-3xl p-6 bg-opacity-80 bg-gray-800 text-gold shadow-lg rounded-md hover:scale-105 hover:shadow-2xl transition-all duration-200 border-2 border-gold">
+        <section className="w-full max-w-3xl p-6 bg-opacity-80 bg-gray-800 text-gold shadow-lg rounded-md :scale-105 transition-all duration-200 border-2 border-gold">
           <h1 className="text-5xl font-extrabold mb-6 text-center font-bebasneue text-gold">
             Hundir la Flota
           </h1>
