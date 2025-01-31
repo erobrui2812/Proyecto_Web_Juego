@@ -77,6 +77,9 @@ const GameGrid = ({ gameId, playerId }) => {
           case "ShipsPlaced":
             setShipsPlaced(true);
             break;
+          case "AttackResult":
+            handleAttackResult(payload);
+            break;
           default:
             console.warn("Evento WebSocket no reconocido:", type);
         }
@@ -114,6 +117,33 @@ const GameGrid = ({ gameId, playerId }) => {
       sendMessage("passTurn", `${gameId}|${playerId}`);
       setIsMyTurn(false);
     }
+  };
+
+  const handleAttack = (x, y) => {
+    if (isMyTurn) {
+      sendMessage("Attack", `${gameId}|${playerId}|${x}|${y}`);
+      setIsMyTurn(false); // Deshabilita el botón hasta que el oponente tenga su turno
+    }
+  };
+
+  const handleAttackResult = (result) => {
+    // Lógica para mostrar el resultado del ataque
+    const { x, y, result: attackResult } = JSON.parse(result);
+    const updatedGrid = [...grid];
+    updatedGrid[y][x].isHit = true;
+
+    setBoard({ grid: updatedGrid, ships });
+
+    if (attackResult === "hit") {
+      console.log(`¡Acierto! En la posición (${x}, ${y})`);
+    } else if (attackResult === "miss") {
+      console.log(`Fallaste el ataque en (${x}, ${y})`);
+    } else if (attackResult === "sunk") {
+      console.log(`¡Barco hundido! En la posición (${x}, ${y})`);
+    }
+
+    // Lógica para pasar el turno después del ataque
+    setIsMyTurn(false);
   };
 
   return (
@@ -158,39 +188,35 @@ const GameGrid = ({ gameId, playerId }) => {
             {isMyTurn ? "Pasar Turno" : "No es tu turno"}
           </button>
         )}
-      </div>
 
-      <div className="grid grid-cols-11 gap-1 border-2 border-primary p-2 bg-dark">
-        <div className="w-10 h-10"></div>
-        {Array.from({ length: 10 }, (_, i) => (
-          <div
-            key={`col-${i}`}
-            className="w-10 h-10 flex items-center justify-center text-white font-bold"
-          >
-            {String.fromCharCode(65 + i)}
-          </div>
-        ))}
+        {gameStarted && (
+          <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+            {grid.map((row, y) => (
+              <React.Fragment key={y}>
+                <div className="w-10 h-10 flex items-center justify-center text-white font-bold">
+                  {y + 1}
+                </div>
 
-        {grid.map((row, y) => (
-          <React.Fragment key={y}>
-            <div className="w-10 h-10 flex items-center justify-center text-white font-bold">
-              {y + 1}
-            </div>
-
-            {row.map((cell, x) => (
-              <div
-                key={`${x}-${y}`}
-                className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
-                  cell.hasShip
-                    ? "bg-gray-700 border border-gray-500"
-                    : "bg-blue-500 hover:bg-blue-400 transition"
-                }`}
-              >
-                {cell.hasShip ? "🚢" : ""}
-              </div>
+                {row.map((cell, x) => (
+                  <div
+                    key={`${x}-${y}`}
+                    className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                      cell.isHit
+                        ? "bg-red-500"
+                        : cell.hasShip
+                        ? "bg-gray-700"
+                        : "bg-blue-500 hover:bg-blue-400 transition"
+                    }`}
+                    onClick={() => handleAttack(x, y)}
+                  >
+                    {cell.isHit ? "💥" : ""}
+                    {cell.hasShip && !cell.isHit ? "🚢" : ""}
+                  </div>
+                ))}
+              </React.Fragment>
             ))}
-          </React.Fragment>
-        ))}
+          </div>
+        )}
       </div>
     </DndContext>
   );
