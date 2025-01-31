@@ -15,10 +15,6 @@ export default function Chat({ gameId }: { gameId: string }) {
   const [newMessage, setNewMessage] = useState<string>("");
   const { userDetail } = useAuth();
 
-  // useEffect(() => {
-  //   console.log(messages);
-  // }, [messages]);
-
   useEffect(() => {
     if (!socket) {
       console.warn("WebSocket no está inicializado.");

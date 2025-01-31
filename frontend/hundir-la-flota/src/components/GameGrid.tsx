@@ -122,12 +122,11 @@ const GameGrid = ({ gameId, playerId }) => {
   const handleAttack = (x, y) => {
     if (isMyTurn) {
       sendMessage("Attack", `${gameId}|${playerId}|${x}|${y}`);
-      setIsMyTurn(false); // Deshabilita el botón hasta que el oponente tenga su turno
+      setIsMyTurn(false);
     }
   };
 
   const handleAttackResult = (result) => {
-    // Lógica para mostrar el resultado del ataque
     const { x, y, result: attackResult } = JSON.parse(result);
     const updatedGrid = [...grid];
     updatedGrid[y][x].isHit = true;
@@ -142,7 +141,6 @@ const GameGrid = ({ gameId, playerId }) => {
       console.log(`¡Barco hundido! En la posición (${x}, ${y})`);
     }
 
-    // Lógica para pasar el turno después del ataque
     setIsMyTurn(false);
   };
 

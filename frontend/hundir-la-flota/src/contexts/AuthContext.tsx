@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const obtenerUserDetail = useCallback(async () => {
     if (!auth.token) {
-      //toast.warn("No hay token para obtener detalles del usuario.");
       return;
     }
     try {

@@ -42,7 +42,6 @@ namespace hundir_la_flota.Services
                 SentAt = DateTime.UtcNow
             };
 
-            // Añadir el mensaje al almacén en memoria
             _messagesByGame.AddOrUpdate(
             gameId,
                 new List<ChatMessageDTO> { chatMessage },
