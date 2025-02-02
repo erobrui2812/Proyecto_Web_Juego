@@ -14,7 +14,7 @@ namespace hundir_la_flota.Services
         Task<ServiceResponse<string>> RemoveFriendAsync(int userId, int friendId);
         Task<ServiceResponse<List<FriendRequestDto>>> GetPendingRequestsAsync(int userId);
         Task<ServiceResponse<List<FriendRequestDto>>> GetUnacceptedRequestsAsync(int userId);
-        Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname);
+        Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname, int? userId);
         Task<ServiceResponse<string>> GetNicknameAsync(int userId);
         Task<ServiceResponse<List<FriendDto>>> GetConnectedFriendsAsync(int userId);
     }
@@ -173,16 +173,16 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<List<FriendRequestDto>> { Success = true, Data = unacceptedRequests };
         }
 
-        public async Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname)
+        public async Task<ServiceResponse<List<UserDto>>> SearchUsersAsync(string nickname, int? userId)
         {
             if (string.IsNullOrEmpty(nickname))
                 return new ServiceResponse<List<UserDto>> { Success = false, Message = "El nickname no puede estar vacío." };
-
+            
             var normalizedSearch = NormalizeString(nickname).Trim();
 
             var users = _dbContext.Users
                 .AsEnumerable()
-                .Where(u => NormalizeString(u.Nickname).Contains(normalizedSearch))
+                 .Where(u => u.Id != userId && NormalizeString(u.Nickname).Contains(normalizedSearch))
                 .Select(u => new UserDto
                 {
                     Id = u.Id,
