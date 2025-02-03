@@ -2,6 +2,7 @@
 import { DndContext } from "@dnd-kit/core";
 import React, { useEffect, useState } from "react";
 import { useWebsocket } from "../contexts/WebsocketContext";
+import { useRouter } from "next/navigation";
 
 const shipSizes = [5, 4, 3, 3, 2];
 
@@ -54,6 +55,7 @@ const GameGrid = ({ gameId, playerId }) => {
   const [shipsPlaced, setShipsPlaced] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!socket) return;
@@ -79,6 +81,13 @@ const GameGrid = ({ gameId, playerId }) => {
             break;
           case "AttackResult":
             handleAttackResult(payload);
+            break;
+          case "GameOver":
+            const timeout = setTimeout(() => {
+              router.push(`/menu`);
+            }, 5000);
+
+            timeout;
             break;
           default:
             console.warn("Evento WebSocket no reconocido:", type);

@@ -351,30 +351,38 @@ public class GameService : IGameService
 
     public async Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId)
     {
-        var participant = await _gameParticipantRepository.GetParticipantsByUserIdAsync(playerId);
-        if (participant == null || !participant.Any())
+        var participants = await _gameParticipantRepository.GetParticipantsByUserIdAsync(playerId);
+        if (participants == null || !participants.Any())
             return new ServiceResponse<string> { Success = false, Message = "El jugador no está en ninguna partida activa." };
 
-        foreach (var p in participant)
+        foreach (var p in participants)
         {
             var game = await _gameRepository.GetByIdAsync(p.GameId);
-            if (game == null || game.State == GameState.Finished) continue;
+            if (game == null || game.State == GameState.Finished)
+                continue;
 
             await _gameParticipantRepository.RemoveAsync(p);
 
             var remainingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(p.GameId);
-            if (!remainingParticipants.Any())
+            if (remainingParticipants.Count == 1)
             {
-                game.State = GameState.WaitingForPlayers;
-            }
-            else
-            {
-                game.State = GameState.WaitingForPlayer1Ships;
-                var remainingPlayer = remainingParticipants.First();
-                game.CurrentPlayerId = remainingPlayer.UserId;
-            }
+                var winner = remainingParticipants.First();
+                game.State = GameState.Finished;
+                game.WinnerId = winner.UserId;
+                await _gameRepository.UpdateAsync(game);
 
-            await _gameRepository.UpdateAsync(game);
+                await _webSocketService.NotifyUserAsync(
+                    winner.UserId,
+                    "GameOver",
+                    $"Has ganado la partida por desconexión de tu oponente."
+                );
+            }
+            else if (!remainingParticipants.Any())
+            {
+               
+                game.State = GameState.WaitingForPlayers;
+                await _gameRepository.UpdateAsync(game);
+            }
         }
 
         return new ServiceResponse<string> { Success = true, Message = "Desconexión manejada correctamente." };

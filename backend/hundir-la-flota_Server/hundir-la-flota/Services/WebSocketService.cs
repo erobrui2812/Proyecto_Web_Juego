@@ -26,7 +26,7 @@ namespace hundir_la_flota.Services
 
         // esto es la cola
         private static readonly ConcurrentQueue<int> _matchmakingQueue = new();
-
+   
         private readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
         private readonly ConcurrentDictionary<int, UserState> _userStates = new();
 
@@ -81,6 +81,12 @@ namespace hundir_la_flota.Services
             finally
             {
                 await DisconnectUserAsync(userId);
+
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+                    await gameService.HandleDisconnectionAsync(userId);
+                }
             }
         }
 
