@@ -39,7 +39,6 @@ const generateRandomBoard = () => {
         for (let i = 0; i < size; i++) newGrid[y + i][x].hasShip = true;
         ships.push({ x, y, size, orientation });
       }
-
       placed = true;
     }
   }
@@ -57,6 +56,7 @@ const GameGrid = ({ gameId, playerId }) => {
 
   useEffect(() => {
     if (!socket) return;
+    // Unirse a la partida
     sendMessage("joinGame", `${gameId}|${playerId}`);
 
     const handleMessage = (event) => {
@@ -103,7 +103,6 @@ const GameGrid = ({ gameId, playerId }) => {
     const formattedShips = ships
       .map((ship) => `${ship.x},${ship.y},${ship.size},${ship.orientation}`)
       .join(";");
-
     sendMessage("placeShips", `${gameId}|${playerId}|${formattedShips}`);
   };
 
@@ -127,10 +126,14 @@ const GameGrid = ({ gameId, playerId }) => {
   };
 
   const handleAttackResult = (result) => {
-    const { x, y, result: attackResult } = JSON.parse(result);
-    const updatedGrid = [...grid];
-    updatedGrid[y][x].isHit = true;
-
+    // Asegurarse de trabajar con un objeto (si viene en string, se parsea)
+    const attackData = typeof result === "string" ? JSON.parse(result) : result;
+    const { x, y, result: attackResult } = attackData;
+    const updatedGrid = grid.map((row, rowIndex) =>
+      row.map((cell, colIndex) =>
+        rowIndex === y && colIndex === x ? { ...cell, isHit: true } : cell
+      )
+    );
     setBoard({ grid: updatedGrid, ships });
 
     if (attackResult === "hit") {
@@ -140,7 +143,6 @@ const GameGrid = ({ gameId, playerId }) => {
     } else if (attackResult === "sunk") {
       console.log(`¡Barco hundido! En la posición (${x}, ${y})`);
     }
-
     setIsMyTurn(false);
   };
 
@@ -158,7 +160,6 @@ const GameGrid = ({ gameId, playerId }) => {
                 ? "Barcos colocados"
                 : "Colocar Barcos Aleatoriamente"}
             </button>
-
             {shipsPlaced && (
               <button
                 onClick={handleConfirmReady}
@@ -191,10 +192,6 @@ const GameGrid = ({ gameId, playerId }) => {
           <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
             {grid.map((row, y) => (
               <React.Fragment key={y}>
-                <div className="w-10 h-10 flex items-center justify-center text-white font-bold">
-                  {y + 1}
-                </div>
-
                 {row.map((cell, x) => (
                   <div
                     key={`${x}-${y}`}
@@ -203,12 +200,15 @@ const GameGrid = ({ gameId, playerId }) => {
                         ? "bg-red-500"
                         : cell.hasShip
                         ? "bg-gray-700"
-                        : "bg-blue-500 hover:bg-blue-400 transition"
+                        : "bg-blue-500 hover:bg-blue-400"
                     }`}
                     onClick={() => handleAttack(x, y)}
                   >
-                    {cell.isHit ? "💥" : ""}
-                    {cell.hasShip && !cell.isHit ? "🚢" : ""}
+                    {cell.isHit
+                      ? "💥"
+                      : cell.hasShip && !cell.isHit
+                      ? "🚢"
+                      : ""}
                   </div>
                 ))}
               </React.Fragment>
