@@ -239,37 +239,88 @@ public class GameService : IGameService
     }
 
 
-
-
-
-
-
     private GameAction SimulateBotAttack(Board playerBoard)
     {
+        var random = new Random();
 
-        var availableCells = playerBoard.Grid
-            .Where(kvp => !kvp.Value.IsHit)
-            .Select(kvp => kvp.Value)
-            .ToList();
 
-        if (!availableCells.Any())
+        var potentialTargets = new List<Cell>();
+
+        foreach (var ship in playerBoard.Ships)
         {
-            throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
+
+            if (ship.IsSunk)
+                continue;
+
+
+            foreach (var coord in ship.Coordinates)
+            {
+
+                var cell = playerBoard.Grid[(coord.X, coord.Y)];
+                if (cell.IsHit)
+                {
+
+                    var adjacentCoords = new List<(int X, int Y)>
+                {
+                    (coord.X - 1, coord.Y),
+                    (coord.X + 1, coord.Y),
+                    (coord.X, coord.Y - 1),
+                    (coord.X, coord.Y + 1)
+                };
+
+                    foreach (var adjacent in adjacentCoords)
+                    {
+
+                        if (adjacent.X >= 0 && adjacent.X < Board.Size && adjacent.Y >= 0 && adjacent.Y < Board.Size)
+                        {
+                            var adjacentCell = playerBoard.Grid[(adjacent.X, adjacent.Y)];
+                            if (!adjacentCell.IsHit)
+                            {
+                                potentialTargets.Add(adjacentCell);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        var random = new Random();
-        var targetCell = availableCells[random.Next(availableCells.Count)];
+        Cell targetCell = null;
+
+        if (potentialTargets.Any())
+        {
+
+            targetCell = potentialTargets[random.Next(potentialTargets.Count)];
+        }
+        else
+        {
+
+            var availableCells = playerBoard.Grid
+                .Where(kvp => !kvp.Value.IsHit)
+                .Select(kvp => kvp.Value)
+                .ToList();
+
+            if (!availableCells.Any())
+            {
+                throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
+            }
+
+            targetCell = availableCells[random.Next(availableCells.Count)];
+        }
+
 
         targetCell.IsHit = true;
 
+
         var actionDetails = $"El bot dispara en ({targetCell.X}, {targetCell.Y})";
 
-        var ship = playerBoard.Ships
+
+        var hitShip = playerBoard.Ships
             .FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
 
-        if (ship != null)
+        if (hitShip != null)
         {
-            actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
+
+            actionDetails += hitShip.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
         }
         else
         {
@@ -284,6 +335,7 @@ public class GameService : IGameService
             Details = actionDetails
         };
     }
+
 
 
     public async Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId)
@@ -424,7 +476,9 @@ public class GameService : IGameService
             State = GameState.WaitingForPlayer1Ships,
             CreatedAt = DateTime.Now
         };
+
         await _gameRepository.AddAsync(newGame);
+
         var hostParticipant = new GameParticipant
         {
             GameId = newGame.GameId,
@@ -433,6 +487,7 @@ public class GameService : IGameService
             IsReady = false
         };
         await _gameParticipantRepository.AddAsync(hostParticipant);
+
         var botParticipant = new GameParticipant
         {
             GameId = newGame.GameId,
@@ -441,29 +496,27 @@ public class GameService : IGameService
             IsReady = false
         };
         await _gameParticipantRepository.AddAsync(botParticipant);
+
+
         if (newGame.Player2Board == null)
         {
             newGame.Player2Board = new Board();
-            newGame.Player2Board.Grid = new Dictionary<(int, int), Cell>();
-            for (int i = 0; i < 10; i++)
-            {
-                for (int j = 0; j < 10; j++)
-                {
-                    newGame.Player2Board.Grid[(i, j)] = new Cell { HasShip = false, IsHit = false };
-                }
-            }
-            newGame.Player2Board.Ships = new List<Ship>();
         }
+
+
         var botShips = GenerateRandomShips(newGame.Player2Board);
         foreach (var ship in botShips)
         {
             newGame.Player2Board.Ships.Add(ship);
         }
+
         botParticipant.IsReady = true;
         await _gameParticipantRepository.UpdateAsync(botParticipant);
         await _gameRepository.UpdateAsync(newGame);
+
         return new ServiceResponse<Game> { Success = true, Data = newGame };
     }
+
 
     private List<Ship> GenerateRandomShips(Board board)
     {
