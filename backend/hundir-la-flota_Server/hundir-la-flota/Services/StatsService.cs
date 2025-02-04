@@ -1,7 +1,6 @@
 ﻿using hundir_la_flota.Models;
 using hundir_la_flota.DTOs;
 using Microsoft.EntityFrameworkCore;
-
 namespace hundir_la_flota.Services
 {
     public interface IStatsService
@@ -9,16 +8,13 @@ namespace hundir_la_flota.Services
         Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId);
         Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync();
     }
-
     public class StatsService : IStatsService
     {
         private readonly MyDbContext _context;
-
         public StatsService(MyDbContext context)
         {
             _context = context;
         }
-
         public async Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId)
         {
             var playerStats = await _context.GameParticipants
@@ -32,7 +28,6 @@ namespace hundir_la_flota.Services
                     GamesWon = g.Count(gp => gp.Game.State == GameState.Finished && gp.Game.WinnerId == userId)
                 })
                 .FirstOrDefaultAsync();
-
             if (playerStats == null)
             {
                 return new ServiceResponse<PlayerStatsDTO>
@@ -41,11 +36,8 @@ namespace hundir_la_flota.Services
                     Message = "No se encontraron estadísticas para el jugador."
                 };
             }
-
             return new ServiceResponse<PlayerStatsDTO> { Success = true, Data = playerStats };
         }
-
-
         public async Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync()
         {
             var leaderboard = await _context.GameParticipants
@@ -61,9 +53,7 @@ namespace hundir_la_flota.Services
                 .OrderByDescending(l => l.GamesWon)
                 .Take(10)
                 .ToListAsync();
-
             return new ServiceResponse<List<LeaderboardDTO>> { Success = true, Data = leaderboard };
         }
-
     }
 }
