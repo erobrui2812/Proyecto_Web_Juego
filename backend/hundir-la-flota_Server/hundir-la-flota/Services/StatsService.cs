@@ -17,27 +17,29 @@ namespace hundir_la_flota.Services
         }
         public async Task<ServiceResponse<PlayerStatsDTO>> GetPlayerStatsAsync(int userId)
         {
-            var playerStats = await _context.GameParticipants
-                .Where(gp => gp.UserId == userId)
-                .GroupBy(gp => gp.UserId)
-                .Select(g => new PlayerStatsDTO
-                {
-                    UserId = g.Key,
-                    Nickname = _context.Users.Where(u => u.Id == g.Key).Select(u => u.Nickname).FirstOrDefault(),
-                    GamesPlayed = g.Count(),
-                    GamesWon = g.Count(gp => gp.Game.State == GameState.Finished && gp.Game.WinnerId == userId)
-                })
-                .FirstOrDefaultAsync();
+            var playerStats = await _context.PlayerStats
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+
             if (playerStats == null)
             {
-                return new ServiceResponse<PlayerStatsDTO>
-                {
-                    Success = false,
-                    Message = "No se encontraron estadísticas para el jugador."
-                };
+                playerStats = new PlayerStats { UserId = userId, GamesPlayed = 0, GamesWon = 0, GamesLost = 0 };
+                _context.PlayerStats.Add(playerStats);
+                await _context.SaveChangesAsync();
             }
-            return new ServiceResponse<PlayerStatsDTO> { Success = true, Data = playerStats };
+
+            return new ServiceResponse<PlayerStatsDTO>
+            {
+                Success = true,
+                Data = new PlayerStatsDTO
+                {
+                    UserId = playerStats.UserId,
+                    Nickname = _context.Users.Where(u => u.Id == playerStats.UserId).Select(u => u.Nickname).FirstOrDefault(),
+                    GamesPlayed = playerStats.GamesPlayed,
+                    GamesWon = playerStats.GamesWon
+                }
+            };
         }
+
         public async Task<ServiceResponse<List<LeaderboardDTO>>> GetLeaderboardAsync()
         {
             var leaderboard = await _context.GameParticipants
