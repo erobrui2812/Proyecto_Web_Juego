@@ -43,4 +43,10 @@ public class GameRepository : IGameRepository
             .Where(g => g.Participants.Any(p => p.UserId == userId))
             .ToListAsync();
     }
+    public async Task RemoveAsync(Game game)
+    {
+        _context.Games.Remove(game);
+        await _context.SaveChangesAsync();
+    }
+
 }
