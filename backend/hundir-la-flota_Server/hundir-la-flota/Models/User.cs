@@ -17,6 +17,10 @@ public class User
     public string AvatarUrl { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
     public DateTime? LastLogin { get; set; }
 
+    public string Role { get; set; } = "user";
+    
+    public bool IsBlocked { get; set; } = false; 
 }

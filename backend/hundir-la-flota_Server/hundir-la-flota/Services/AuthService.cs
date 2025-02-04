@@ -42,6 +42,12 @@ namespace hundir_la_flota.Services
 
         public string GenerateJwtToken(User user)
         {
+            if (user.IsBlocked)
+            {
+                _logger.LogWarning($"Intento de inicio de sesión bloqueado para usuario: {user.Nickname}");
+                return null;
+            }
+
             _logger.LogInformation($"Generando token para el usuario: {user.Nickname}");
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_jwtKey);
@@ -50,7 +56,8 @@ namespace hundir_la_flota.Services
             {
                 new Claim(ClaimId, user.Id.ToString()),
                 new Claim(ClaimNickname, user.Nickname),
-                new Claim(ClaimEmail, user.Email)
+                new Claim(ClaimEmail, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
             };
 
             _logger.LogDebug("Claims utilizados en el token: {@Claims}", claims);
@@ -66,7 +73,6 @@ namespace hundir_la_flota.Services
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
-            _logger.LogInformation("Token generado exitosamente.");
             return tokenHandler.WriteToken(token);
         }
 

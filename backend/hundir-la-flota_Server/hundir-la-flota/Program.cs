@@ -54,6 +54,7 @@ namespace hundir_la_flota
             builder.Services.AddScoped<IStatsService, StatsService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<AdminService>();
             builder.Services.AddScoped<IGameRepository, GameRepository>();
             builder.Services.AddScoped<IGameService, GameService>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();

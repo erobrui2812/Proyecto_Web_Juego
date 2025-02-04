@@ -130,7 +130,9 @@ namespace hundir_la_flota.Services
                     Id = u.Id,
                     Nickname = u.Nickname,
                     Email = u.Email,
-                    AvatarUrl = u.AvatarUrl
+                    AvatarUrl = u.AvatarUrl,
+                    IsBlocked = u.IsBlocked,
+                    Role = u.Role
                 })
                 .ToListAsync();
 
