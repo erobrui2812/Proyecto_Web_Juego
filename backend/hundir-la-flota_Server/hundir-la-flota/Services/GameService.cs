@@ -24,6 +24,7 @@ public interface IGameService
     Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId);
     Task<ServiceResponse<string>> PassTurnAsync(Guid gameId, int playerId);
     Task<ServiceResponse<Game>> RematchAsync(Guid gameId, int playerId);
+    Task<int?> GetHostIdAsync(Guid gameId);
 
 }
 
@@ -185,10 +186,6 @@ public class GameService : IGameService
         return new ServiceResponse<string> { Success = true, Message = "Barcos colocados correctamente." };
     }
 
-
-
-
-
     public async Task<ServiceResponse<string>> AttackAsync(Guid gameId, int playerId, int x, int y)
     {
         await _turnLock.WaitAsync();
@@ -214,6 +211,7 @@ public class GameService : IGameService
                 return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
             }
 
+
             var opponentBoard = currentPlayer.Role == ParticipantRole.Host
                 ? game.Player2Board
                 : game.Player1Board;
@@ -226,21 +224,29 @@ public class GameService : IGameService
             if (cell == null || cell.IsHit)
                 return new ServiceResponse<string> { Success = false, Message = "Celda inválida o ya atacada." };
 
+
             cell.IsHit = true;
-            var ship = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
             var actionDetails = $"Disparo en ({x}, {y})";
+            var ship = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
 
             if (ship != null)
             {
-                actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
+
+                if (ship.IsSunk)
+                    actionDetails += " ¡Barco hundido!";
+                else
+                    actionDetails += " ¡Acierto!";
+
                 if (opponentBoard.Ships.All(s => s.IsSunk))
                 {
                     game.State = GameState.Finished;
                     game.WinnerId = playerId;
                     actionDetails += " Fin del juego.";
-                    await _webSocketService.NotifyUsersAsync(new List<int> { playerId, opponent.UserId }, "GameOver", $"El jugador {playerId} ha ganado.");
-
-                    // Actualizar estadísticas de ambos jugadores
+                    await _webSocketService.NotifyUsersAsync(
+                        new List<int> { playerId, opponent.UserId },
+                        "GameOver",
+                        $"El jugador {playerId} ha ganado."
+                    );
                     await UpdatePlayerStats(playerId, opponent.UserId);
                 }
             }
@@ -248,6 +254,7 @@ public class GameService : IGameService
             {
                 actionDetails += " Fallo.";
             }
+
 
             game.State = game.State == GameState.WaitingForPlayer1Shot ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
             await _gameRepository.UpdateAsync(game);
@@ -258,6 +265,49 @@ public class GameService : IGameService
 
             await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
 
+
+            if (nextPlayerId == -1 && game.State != GameState.Finished)
+            {
+                await Task.Delay(1000);
+
+                var humanBoard = currentPlayer.Role == ParticipantRole.Host ? game.Player1Board : game.Player2Board;
+                var botAction = SimulateBotAttack(humanBoard);
+                if (botAction != null)
+                {
+
+                    var hitShip = humanBoard.Ships.FirstOrDefault(s =>
+                        s.Coordinates.Any(coord => coord.X == botAction.X && coord.Y == botAction.Y));
+                    if (hitShip != null)
+                    {
+                        if (hitShip.IsSunk)
+                            botAction.Details += " ¡Barco hundido!";
+                        else
+                            botAction.Details += " ¡Acierto!";
+                    }
+                    game.Actions.Add(botAction);
+
+                    if (humanBoard.Ships.All(s => s.IsSunk))
+                    {
+                        game.State = GameState.Finished;
+                        game.WinnerId = -1;
+                        await _webSocketService.NotifyUsersAsync(
+                            participants.Select(p => p.UserId).ToList(),
+                            "GameOver",
+                            "El bot ha ganado."
+                        );
+                        int humanId = participants.First(p => p.UserId != -1).UserId;
+                        await UpdatePlayerStats(-1, humanId);
+                    }
+                    else
+                    {
+                        game.State = GameState.WaitingForPlayer1Shot;
+                        int humanId = participants.First(p => p.UserId != -1).UserId;
+                        await _webSocketService.NotifyUserAsync(humanId, "YourTurn", "Es tu turno de atacar.");
+                    }
+                    await _gameRepository.UpdateAsync(game);
+                }
+            }
+
             return new ServiceResponse<string> { Success = true, Message = actionDetails };
         }
         finally
@@ -265,6 +315,92 @@ public class GameService : IGameService
             _turnLock.Release();
         }
     }
+
+    public GameAction SimulateBotAttack(Board playerBoard)
+    {
+        var random = new Random();
+        var potentialTargets = new List<Cell>();
+
+        foreach (var ship in playerBoard.Ships)
+        {
+            if (ship.IsSunk)
+                continue;
+
+            foreach (var coord in ship.Coordinates)
+            {
+                var cell = playerBoard.Grid[(coord.X, coord.Y)];
+                if (cell.IsHit)
+                {
+                    var adjacentCoords = new List<(int X, int Y)>
+                {
+                    (coord.X - 1, coord.Y),
+                    (coord.X + 1, coord.Y),
+                    (coord.X, coord.Y - 1),
+                    (coord.X, coord.Y + 1)
+                };
+
+                    foreach (var adjacent in adjacentCoords)
+                    {
+                        if (adjacent.X >= 0 && adjacent.X < Board.Size && adjacent.Y >= 0 && adjacent.Y < Board.Size)
+                        {
+                            var adjacentCell = playerBoard.Grid[(adjacent.X, adjacent.Y)];
+                            if (!adjacentCell.IsHit)
+                            {
+                                potentialTargets.Add(adjacentCell);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Cell targetCell = null;
+        if (potentialTargets.Any())
+        {
+            targetCell = potentialTargets[random.Next(potentialTargets.Count)];
+        }
+        else
+        {
+            var availableCells = playerBoard.Grid
+                .Where(kvp => !kvp.Value.IsHit)
+                .Select(kvp => kvp.Value)
+                .ToList();
+
+            if (!availableCells.Any())
+                throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
+
+            targetCell = availableCells[random.Next(availableCells.Count)];
+        }
+
+        targetCell.IsHit = true;
+        var actionDetails = $"El bot dispara en ({targetCell.X}, {targetCell.Y})";
+        var hitShip = playerBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
+        if (hitShip != null)
+        {
+            if (hitShip.IsSunk)
+                actionDetails += " ¡Barco hundido!";
+            else
+                actionDetails += " ¡Acierto!";
+        }
+        else
+        {
+            actionDetails += " ¡Fallo!";
+        }
+
+
+        return new GameAction
+        {
+            PlayerId = -1,
+            ActionType = "Shot",
+            Timestamp = DateTime.UtcNow,
+            Details = actionDetails,
+            X = targetCell.X,
+            Y = targetCell.Y
+        };
+    }
+
+
+
 
     private async Task UpdatePlayerStats(int winnerId, int loserId)
     {
@@ -298,103 +434,6 @@ public class GameService : IGameService
     }
 
 
-
-    private GameAction SimulateBotAttack(Board playerBoard)
-    {
-        var random = new Random();
-
-
-        var potentialTargets = new List<Cell>();
-
-        foreach (var ship in playerBoard.Ships)
-        {
-
-            if (ship.IsSunk)
-                continue;
-
-
-            foreach (var coord in ship.Coordinates)
-            {
-
-                var cell = playerBoard.Grid[(coord.X, coord.Y)];
-                if (cell.IsHit)
-                {
-
-                    var adjacentCoords = new List<(int X, int Y)>
-                {
-                    (coord.X - 1, coord.Y),
-                    (coord.X + 1, coord.Y),
-                    (coord.X, coord.Y - 1),
-                    (coord.X, coord.Y + 1)
-                };
-
-                    foreach (var adjacent in adjacentCoords)
-                    {
-
-                        if (adjacent.X >= 0 && adjacent.X < Board.Size && adjacent.Y >= 0 && adjacent.Y < Board.Size)
-                        {
-                            var adjacentCell = playerBoard.Grid[(adjacent.X, adjacent.Y)];
-                            if (!adjacentCell.IsHit)
-                            {
-                                potentialTargets.Add(adjacentCell);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Cell targetCell = null;
-
-        if (potentialTargets.Any())
-        {
-
-            targetCell = potentialTargets[random.Next(potentialTargets.Count)];
-        }
-        else
-        {
-
-            var availableCells = playerBoard.Grid
-                .Where(kvp => !kvp.Value.IsHit)
-                .Select(kvp => kvp.Value)
-                .ToList();
-
-            if (!availableCells.Any())
-            {
-                throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
-            }
-
-            targetCell = availableCells[random.Next(availableCells.Count)];
-        }
-
-
-        targetCell.IsHit = true;
-
-
-        var actionDetails = $"El bot dispara en ({targetCell.X}, {targetCell.Y})";
-
-
-        var hitShip = playerBoard.Ships
-            .FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
-
-        if (hitShip != null)
-        {
-
-            actionDetails += hitShip.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
-        }
-        else
-        {
-            actionDetails += " ¡Fallo!";
-        }
-
-        return new GameAction
-        {
-            PlayerId = -1,
-            ActionType = "Shot",
-            Timestamp = DateTime.UtcNow,
-            Details = actionDetails
-        };
-    }
 
 
 
@@ -469,7 +508,7 @@ public class GameService : IGameService
                     "GameOver",
                     "Has ganado la partida por desconexión de tu oponente."
                 );
-             
+
             }
             else if (!remainingParticipants.Any())
             {
@@ -524,6 +563,13 @@ public class GameService : IGameService
         await _gameRepository.UpdateAsync(game);
 
         return new ServiceResponse<Game> { Success = true, Data = game };
+    }
+
+    public async Task<int?> GetHostIdAsync(Guid gameId)
+    {
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        var host = participants.FirstOrDefault(p => p.Role == ParticipantRole.Host);
+        return host?.UserId;
     }
 
 

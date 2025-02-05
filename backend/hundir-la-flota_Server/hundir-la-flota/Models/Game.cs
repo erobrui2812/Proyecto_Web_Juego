@@ -30,6 +30,8 @@ namespace hundir_la_flota.Models
         public string ActionType { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Details { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
     }
 
     public enum GameState
