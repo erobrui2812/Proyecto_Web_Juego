@@ -27,7 +27,7 @@ const MatchmakingPage = () => {
   useEffect(() => {
     const fetchAmigos = async () => {
       if (!token) return;
-  
+
       try {
         const response = await fetch(
           "https://localhost:7162/api/Friendship/connected",
@@ -36,27 +36,27 @@ const MatchmakingPage = () => {
           }
         );
         if (!response.ok) throw new Error("Error al obtener amigos conectados");
-  
+
         const data = await response.json();
 
         const friendsMapped: Friend[] = data.map((friend: any) => ({
-          id: friend.friendId, 
+          id: friend.friendId,
           nickname: friend.friendNickname,
           email: friend.friendMail,
           urlAvatar: friend.avatarUrl,
           status: friend.status,
         }));
-  
+
         setAmigosConectados(friendsMapped);
       } catch (error) {
         toast.error("Error al obtener amigos conectados.");
         console.error("Error fetching connected friends:", error);
       }
     };
-  
+
     fetchAmigos();
   }, [token]);
-  
+
 
   const jugarContraBot = async () => {
     if (!token) {
@@ -100,6 +100,20 @@ const MatchmakingPage = () => {
     socket.send("Matchmaking|random");
     toast.info("Buscando oponente...");
   };
+  const cancelarMatchmaking = () => {
+    if (!token) {
+      toast.error("Debes iniciar sesión para unirte a una partida.");
+      return;
+    }
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      toast.error("No hay WebSocket activo o está cerrado.");
+      return;
+    }
+
+    setLoading(false);
+    socket.send("Matchmaking|cancel");
+    toast.info("Cancelando el emparejamiento...");
+  };
 
   const invitarAmigo = async (amigoId: string) => {
     if (!token) {
@@ -141,24 +155,33 @@ const MatchmakingPage = () => {
     <div className="flex flex-col items-center justify-center py-10">
       <h1 className="text-3xl font-bold text-gold mb-6">Emparejamiento</h1>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Button
-          onClick={jugarContraBot}
-          loading={loading}
-          className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
-        >
-          Jugar contra un bot
-        </Button>
-
-        <Button
-          onClick={unirsePartidaAleatoriaWS}
-          loading={loading}
-          className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
-        >
-          Jugar contra un oponente aleatorio
-        </Button>
-
-      </div>
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-1">
+          <Button
+            onClick={cancelarMatchmaking}
+            className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
+          >
+            Cancelar emparejamiento
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Button
+            onClick={jugarContraBot}
+            loading={loading}
+            className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
+          >
+            Jugar contra un bot
+          </Button>
+          <Button
+            onClick={unirsePartidaAleatoriaWS}
+            loading={loading}
+            className="px-4 py-2 bg-primary hover:bg-dark text-white border-gold rounded-lg shadow-md"
+          >
+            Jugar contra un oponente aleatorio
+          </Button>
+        </div>
+      )}     
 
       <div className="mt-6 w-full max-w-4xl">
         <h2 className="text-2xl font-semibold text-gold mb-4">
