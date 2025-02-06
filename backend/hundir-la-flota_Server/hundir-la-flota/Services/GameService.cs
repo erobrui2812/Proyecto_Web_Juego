@@ -3,11 +3,6 @@ using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
 using hundir_la_flota.Utils;
-using Newtonsoft.Json;
-using System.Collections.Concurrent;
-using System.Net.WebSockets;
-using System.Text;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 
 public interface IGameService
@@ -114,27 +109,41 @@ public class GameService : IGameService
 
     public async Task<ServiceResponse<string>> AbandonGameAsync(Guid gameId, int userId)
     {
-        var participant = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
-        if (participant == null)
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        if (participants == null || !participants.Any(p => p.UserId == userId))
             return new ServiceResponse<string> { Success = false, Message = "No estás participando en esta partida." };
 
-        await _gameParticipantRepository.RemoveAsync(participant.FirstOrDefault(p => p.UserId == userId));
+        var participant = participants.First(p => p.UserId == userId);
+        participant.Abandoned = true;
+        await _gameParticipantRepository.UpdateAsync(participant);
 
-        var remainingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        
+        var activeParticipants = participants.Where(p => !p.Abandoned).ToList();
         var game = await _gameRepository.GetByIdAsync(gameId);
 
-        if (!remainingParticipants.Any())
+        if (!activeParticipants.Any())
         {
+            
             game.State = GameState.WaitingForPlayers;
+        }
+        else if (activeParticipants.Count == 1)
+        {
+           
+            game.State = GameState.Finished;
+            game.WinnerId = activeParticipants.First().UserId;
+
+            await _webSocketService.NotifyUserAsync(activeParticipants.First().UserId, "GameOver", $"El jugador {activeParticipants.First().UserId} ha ganado por abandono del oponente.");
         }
         else
         {
+            
             game.State = GameState.WaitingForPlayer1Ships;
         }
 
         await _gameRepository.UpdateAsync(game);
         return new ServiceResponse<string> { Success = true, Message = "Has abandonado la partida." };
     }
+
 
     public async Task<ServiceResponse<string>> PlaceShipsAsync(Guid gameId, int userId, List<Ship> ships)
     {
@@ -435,8 +444,6 @@ public class GameService : IGameService
 
 
 
-
-
     public async Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId)
     {
         var game = await _gameRepository.GetByIdAsync(gameId);
@@ -454,19 +461,21 @@ public class GameService : IGameService
         var player1 = participants.FirstOrDefault(p => p.Role == ParticipantRole.Host);
         var player2 = participants.FirstOrDefault(p => p.Role == ParticipantRole.Guest);
 
-        var player1Data = player1 != null
-            ? await _userRepository.GetUserByIdAsync(player1.UserId)
-            : null;
+        var player1Data = player1 != null ? await _userRepository.GetUserByIdAsync(player1.UserId) : null;
+        var player2Data = player2 != null ? await _userRepository.GetUserByIdAsync(player2.UserId) : null;
 
-        var player2Data = player2 != null
-            ? await _userRepository.GetUserByIdAsync(player2.UserId)
-            : null;
+        var player1Nickname = player1 != null
+            ? (player1.Abandoned ? "Abandonado" : (player1Data?.Nickname ?? "Vacante"))
+            : "Vacante";
+        var player2Nickname = player2 != null
+            ? (player2.Abandoned ? "Abandonado" : (player2Data?.Nickname ?? "Vacante"))
+            : "Vacante";
 
         var response = new GameResponseDTO
         {
             GameId = game.GameId,
-            Player1Nickname = player1Data?.Nickname ?? "Vacante",
-            Player2Nickname = player2Data?.Nickname ?? "Vacante",
+            Player1Nickname = player1Nickname,
+            Player2Nickname = player2Nickname,
             Player1Role = player1?.Role.ToString() ?? "Vacante",
             Player2Role = player2?.Role.ToString() ?? "Vacante",
             StateDescription = GetStateDescription(game.State),
@@ -481,6 +490,7 @@ public class GameService : IGameService
     }
 
 
+
     public async Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId)
     {
         var participants = await _gameParticipantRepository.GetParticipantsByUserIdAsync(playerId);
@@ -493,12 +503,17 @@ public class GameService : IGameService
             if (game == null || game.State == GameState.Finished)
                 continue;
 
-            await _gameParticipantRepository.RemoveAsync(p);
 
+            p.Abandoned = true;
+            await _gameParticipantRepository.UpdateAsync(p);
+
+            
             var remainingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(p.GameId);
-            if (remainingParticipants.Count == 1)
+            var activeParticipants = remainingParticipants.Where(x => !x.Abandoned).ToList();
+
+            if (activeParticipants.Count == 1)
             {
-                var winner = remainingParticipants.First();
+                var winner = activeParticipants.First();
                 game.State = GameState.Finished;
                 game.WinnerId = winner.UserId;
                 await _gameRepository.UpdateAsync(game);
@@ -508,9 +523,8 @@ public class GameService : IGameService
                     "GameOver",
                     "Has ganado la partida por desconexión de tu oponente."
                 );
-
             }
-            else if (!remainingParticipants.Any())
+            else if (!activeParticipants.Any())
             {
                 game.State = GameState.WaitingForPlayers;
                 await _gameRepository.UpdateAsync(game);
@@ -519,8 +533,6 @@ public class GameService : IGameService
 
         return new ServiceResponse<string> { Success = true, Message = "Desconexión manejada correctamente." };
     }
-
-
 
     private string GetStateDescription(GameState state)
     {
@@ -783,17 +795,6 @@ public class GameService : IGameService
             await _gameParticipantRepository.AddAsync(newParticipant);
         }
         return new ServiceResponse<Game> { Success = true, Data = newGame };
-    }
-
-
-    private async Task DeleteFinishedGame(Game game)
-    {
-        if (game.State == GameState.Finished)
-        {
-
-            await _gameRepository.RemoveAsync(game);
-
-        }
     }
 
 }
