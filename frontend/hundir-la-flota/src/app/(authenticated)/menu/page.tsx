@@ -112,14 +112,7 @@ const MenuPage = () => {
               <div>
                 <h2 className="text-xl font-bold mb-2">Jugadores en Partida</h2>
                 {playersInGame.length > 0 ? (
-                  playersInGame.map((game) => (
-                    <div key={game.gameId} className="mb-1">
-                      <p>
-                        <strong>Partida {game.gameId}:</strong>{" "}
-                        {game.player1.nickname} vs {game.player2.nickname}
-                      </p>
-                    </div>
-                  ))
+                  playersInGame.length
                 ) : (
                   <p>No hay partidas activas</p>
                 )}
