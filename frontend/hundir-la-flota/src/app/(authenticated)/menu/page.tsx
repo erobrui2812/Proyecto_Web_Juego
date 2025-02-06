@@ -7,15 +7,18 @@ import ModalBusqueda from "@/components/ModalBusqueda";
 import ModalSolicitudes from "@/components/ModalSolicitudes";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import "@fontsource/bebas-neue";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+
 const MenuPage = () => {
   const { searchUsers, searchResults } = useFriendship();
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState("0");
+  // Ahora playersInGame será un array de partidas activas
+  const [playersInGame, setPlayersInGame] = useState<any[]>([]);
   const [activeGames, setActiveGames] = useState("0");
-  const [playersInGame, setPlayersInGame] = useState("0");
   const [leaderboard, setLeaderboard] = useState([]);
+
   useEffect(() => {
     const fetchOnlineUsers = async () => {
       try {
@@ -26,26 +29,31 @@ const MenuPage = () => {
         console.error("Error al obtener usuarios en línea:", error);
       }
     };
+
     const fetchActiveGames = async () => {
       try {
         const response = await fetch("https://localhost:7162/api/stats/games");
         const data = await response.json();
-        setActiveGames(data.activeGames);
+        // Si el endpoint de "games" sigue devolviendo un objeto con activeGames, se adapta aquí
+        setActiveGames(data.activeGames || data.length.toString());
       } catch (error) {
         console.error("Error al obtener partidas en curso:", error);
       }
     };
+
     const fetchPlayersInGame = async () => {
       try {
         const response = await fetch(
           "https://localhost:7162/api/stats/players"
         );
         const data = await response.json();
-        setPlayersInGame(data.playersInGame);
+        // data es ahora un array de ActiveGamePlayersDTO
+        setPlayersInGame(data);
       } catch (error) {
         console.error("Error al obtener jugadores en partida:", error);
       }
     };
+
     const fetchLeaderboard = async () => {
       try {
         const response = await fetch(
@@ -57,17 +65,20 @@ const MenuPage = () => {
         console.error("Error al obtener leaderboard:", error);
       }
     };
+
     fetchOnlineUsers();
     fetchActiveGames();
     fetchPlayersInGame();
     fetchLeaderboard();
   }, []);
+
   const handleSearch = async (query: string) => {
     if (query.trim()) {
       await searchUsers(query);
       setIsSearchModalOpen(true);
     }
   };
+
   return (
     <div className="w-full min-h-screen bg-white">
       <div className="bg-dark w-full">
@@ -100,7 +111,18 @@ const MenuPage = () => {
               </div>
               <div>
                 <h2 className="text-xl font-bold mb-2">Jugadores en Partida</h2>
-                <p>{playersInGame}</p>
+                {playersInGame.length > 0 ? (
+                  playersInGame.map((game) => (
+                    <div key={game.gameId} className="mb-1">
+                      <p>
+                        <strong>Partida {game.gameId}:</strong>{" "}
+                        {game.player1.nickname} vs {game.player2.nickname}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p>No hay partidas activas</p>
+                )}
               </div>
               <div>
                 <h2 className="text-xl font-bold mb-2">Top 3 del Servidor</h2>

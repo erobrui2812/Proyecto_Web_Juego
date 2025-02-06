@@ -15,6 +15,8 @@ public class GameParticipant
 
     public ParticipantRole Role { get; set; }
     public bool IsReady { get; set; } = false;
+
+    public bool Abandoned { get; set; } = false;
 }
 
 public enum ParticipantRole
