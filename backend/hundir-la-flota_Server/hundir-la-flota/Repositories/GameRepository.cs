@@ -14,6 +14,12 @@ public class GameRepository : IGameRepository
     {
         return await _context.Games
             .Include(g => g.Participants)
+            .Include(g => g.Player1Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
+            .Include(g => g.Player2Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
             .ToListAsync();
     }
 
@@ -21,6 +27,12 @@ public class GameRepository : IGameRepository
     {
         return await _context.Games
             .Include(g => g.Participants)
+            .Include(g => g.Player1Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
+            .Include(g => g.Player2Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
             .FirstOrDefaultAsync(g => g.GameId == gameId);
     }
 
@@ -40,13 +52,19 @@ public class GameRepository : IGameRepository
     {
         return await _context.Games
             .Include(g => g.Participants)
+            .Include(g => g.Player1Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
+            .Include(g => g.Player2Board)
+                .ThenInclude(b => b.Ships)
+                    .ThenInclude(s => s.Coordinates)
             .Where(g => g.Participants.Any(p => p.UserId == userId))
             .ToListAsync();
     }
+
     public async Task RemoveAsync(Game game)
     {
         _context.Games.Remove(game);
         await _context.SaveChangesAsync();
     }
-
 }
