@@ -15,7 +15,6 @@ export default function GamePage() {
   const [gameOver, setGameOver] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState("");
 
-
   const fetchGameState = async () => {
     if (!auth?.token || !userDetail?.id) return;
     try {
@@ -41,7 +40,6 @@ export default function GamePage() {
 
       if (data.stateDescription === "La partida ha terminado.") {
         setGameOver(true);
-
         setGameOverMessage("La partida ha terminado.");
       }
     } catch (error) {
@@ -62,7 +60,7 @@ export default function GamePage() {
   }, [auth, userDetail, gameId]);
 
   return (
-    <div className="p-6">
+    <div className="p-6 min-h-screen bg-[var(--background)]">
       {!auth?.token ? (
         <div className="p-6 text-red-500">
           Debes estar autenticado para jugar.
@@ -73,22 +71,28 @@ export default function GamePage() {
         </div>
       ) : (
         <>
-          <h1 className="text-2xl font-bold mb-4">Partida en curso</h1>
-          <p className="mb-4">ID de la partida: {gameId}</p>
+          <h1 className="text-2xl font-bold mb-4 text-[var(--foreground)]">
+            Partida en curso
+          </h1>
+          <p className="mb-4 text-[var(--foreground)]">
+            ID de la partida: {gameId}
+          </p>
           {!socket && (
-            <div className="text-red-500">Conectando a la partida...</div>
+            <div className="text-red-500 mb-4">Conectando a la partida...</div>
           )}
           {gameOver ? (
-            <div className="mt-4 p-4 bg-gray-800 text-white rounded">
+            <div className="mt-4 p-4 bg-gray-800 text-[var(--foreground)] rounded-lg shadow">
               <p>{gameOverMessage}</p>
             </div>
           ) : (
-            <>
-              <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
                 <GameGrid gameId={gameId} playerId={userDetail.id} />
               </div>
-              <Chat gameId={gameId} />
-            </>
+              <div className="w-full">
+                <Chat gameId={gameId} />
+              </div>
+            </div>
           )}
         </>
       )}

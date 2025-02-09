@@ -58,7 +58,7 @@ const generateEmptyBoard = () => {
   return Array.from({ length: 10 }, () =>
     Array.from({ length: 10 }, () => ({
       attacked: false,
-      result: null, 
+      result: null,
     }))
   );
 };
@@ -160,7 +160,12 @@ const GameGrid = ({ gameId, playerId }) => {
   const handleAttackResult = (result) => {
     const attackData = typeof result === "string" ? JSON.parse(result) : result;
     const { x, y, result: attackOutcome } = attackData;
-    console.log("Actualizando ataque result en coordenadas reales:", x, y, attackOutcome);
+    console.log(
+      "Actualizando ataque result en coordenadas reales:",
+      x,
+      y,
+      attackOutcome
+    );
     setOpponentBoard((prevBoard) => {
       const newBoard = prevBoard.map((row) => row.slice());
       newBoard[y][x] = { attacked: true, result: attackOutcome };
@@ -176,9 +181,15 @@ const GameGrid = ({ gameId, playerId }) => {
   };
 
   const handleEnemyAttack = (payload) => {
-    const attackData = typeof payload === "string" ? JSON.parse(payload) : payload;
+    const attackData =
+      typeof payload === "string" ? JSON.parse(payload) : payload;
     const { x, y, result: attackOutcome } = attackData;
-    console.log("Recibiendo ataque enemigo en coordenadas reales:", x, y, attackOutcome);
+    console.log(
+      "Recibiendo ataque enemigo en coordenadas reales:",
+      x,
+      y,
+      attackOutcome
+    );
     setMyBoard((prevBoard) => {
       const newGrid = prevBoard.grid.map((row) => row.slice());
       const cell = newGrid[y][x];
@@ -207,12 +218,12 @@ const GameGrid = ({ gameId, playerId }) => {
 
   return (
     <DndContext>
-      <div className="mb-4 flex flex-col items-center">
+      <div className="mb-4 flex flex-col items-center space-y-4">
         {!gameStarted ? (
           <>
             <button
               onClick={handlePlaceShips}
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
+              className="btn-primary px-4 py-2 rounded-lg shadow transition-colors disabled:opacity-50"
               disabled={shipsPlaced}
             >
               {shipsPlaced
@@ -222,16 +233,18 @@ const GameGrid = ({ gameId, playerId }) => {
             {shipsPlaced && (
               <button
                 onClick={handleConfirmReady}
-                className="mt-2 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
+                className="btn-secondary px-4 py-2 rounded-lg shadow transition-colors disabled:opacity-50"
                 disabled={isReady}
               >
                 {isReady ? "Esperando al otro jugador..." : "Estoy Listo"}
               </button>
             )}
             {shipsPlaced && (
-              <div className="mt-4">
-                <p className="text-white mb-2">Tus barcos:</p>
-                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+              <div className="w-full max-w-md">
+                <p className="text-[var(--foreground)] mb-2 text-center">
+                  Tus barcos:
+                </p>
+                <div className="grid grid-cols-10 gap-1 border-2 border-[var(--primary)] p-2 bg-dark rounded-lg shadow">
                   {invertBoard(myBoard.grid).map((row, displayedY) => {
                     const actualY = myBoard.grid.length - 1 - displayedY;
                     return (
@@ -239,7 +252,7 @@ const GameGrid = ({ gameId, playerId }) => {
                         {row.map((cell, x) => (
                           <div
                             key={`${x}-${actualY}`}
-                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                            className={`w-8 sm:w-10 h-8 sm:h-10 md:w-12 md:h-12 flex items-center justify-center border rounded-md transition-transform duration-300 ${
                               cell.attacked
                                 ? cell.hasShip
                                   ? "bg-red-500"
@@ -264,14 +277,16 @@ const GameGrid = ({ gameId, playerId }) => {
             )}
           </>
         ) : (
-          <p className="text-white font-bold">¡El juego ha comenzado!</p>
+          <p className="text-[var(--foreground)] font-bold">
+            ¡El juego ha comenzado!
+          </p>
         )}
 
         {gameStarted && !gameOver && (
           <>
             <button
               onClick={handlePassTurn}
-              className={`mt-4 px-4 py-2 rounded text-white transition ${
+              className={`px-4 py-2 rounded-lg text-[var(--foreground)] shadow transition-colors ${
                 isMyTurn
                   ? "bg-blue-500 hover:bg-blue-600"
                   : "bg-gray-400 cursor-not-allowed"
@@ -280,10 +295,12 @@ const GameGrid = ({ gameId, playerId }) => {
             >
               {isMyTurn ? "Pasar Turno" : "No es tu turno"}
             </button>
-            <div className="mt-4 flex space-x-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
               <div>
-                <p className="text-white font-bold mb-2">Tu Tablero</p>
-                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+                <p className="text-[var(--foreground)] font-bold mb-2 text-center">
+                  Tu Tablero
+                </p>
+                <div className="grid grid-cols-10 gap-1 border-2 border-[var(--primary)] p-2 bg-dark rounded-lg shadow">
                   {invertBoard(myBoard.grid).map((row, displayedY) => {
                     const actualY = myBoard.grid.length - 1 - displayedY;
                     return (
@@ -291,14 +308,14 @@ const GameGrid = ({ gameId, playerId }) => {
                         {row.map((cell, x) => (
                           <div
                             key={`${x}-${actualY}`}
-                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                            className={`w-8 sm:w-10 h-8 sm:h-10 md:w-12 md:h-12 flex items-center justify-center border rounded-md transition-transform duration-300 ${
                               cell.attacked
                                 ? cell.hasShip
                                   ? "bg-red-500"
                                   : "bg-gray-400"
                                 : cell.hasShip
                                 ? "bg-gray-700"
-                                : "bg-blue-500"
+                                : "bg-blue-500 hover:scale-105 cursor-pointer"
                             }`}
                           >
                             {cell.attacked && cell.hasShip
@@ -315,10 +332,10 @@ const GameGrid = ({ gameId, playerId }) => {
               </div>
 
               <div>
-                <p className="text-white font-bold mb-2">
+                <p className="text-[var(--foreground)] font-bold mb-2 text-center">
                   Tablero del Rival
                 </p>
-                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+                <div className="grid grid-cols-10 gap-1 border-2 border-[var(--primary)] p-2 bg-dark rounded-lg shadow">
                   {invertBoard(opponentBoard).map((row, displayedY) => {
                     const actualY = opponentBoard.length - 1 - displayedY;
                     return (
@@ -327,14 +344,15 @@ const GameGrid = ({ gameId, playerId }) => {
                           <div
                             key={`${x}-${actualY}`}
                             onClick={() => handleAttack(x, actualY)}
-                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 cursor-pointer ${
+                            className={`w-8 sm:w-10 h-8 sm:h-10 md:w-12 md:h-12 flex items-center justify-center border rounded-md transition-transform duration-300 cursor-pointer ${
                               !cell.attacked
-                                ? "bg-blue-500 hover:bg-blue-400"
+                                ? "bg-blue-500 hover:bg-blue-400 hover:scale-105"
                                 : cell.result === "pending"
                                 ? "bg-yellow-500"
                                 : cell.result === "miss"
                                 ? "bg-gray-400"
-                                : cell.result === "hit" || cell.result === "sunk"
+                                : cell.result === "hit" ||
+                                  cell.result === "sunk"
                                 ? "bg-red-500"
                                 : "bg-blue-500"
                             }`}
@@ -357,7 +375,7 @@ const GameGrid = ({ gameId, playerId }) => {
         )}
 
         {gameOver && (
-          <div className="mt-4 p-4 bg-gray-800 text-white rounded">
+          <div className="mt-4 p-4 bg-gray-800 text-[var(--foreground)] rounded-lg shadow w-full max-w-lg">
             {gameSummary ? (
               <GameSummary summary={gameSummary} />
             ) : (
@@ -365,7 +383,7 @@ const GameGrid = ({ gameId, playerId }) => {
                 <p>{gameOverMessage}</p>
                 <button
                   onClick={handleRematch}
-                  className="mt-2 bg-green-500 px-4 py-2 rounded hover:bg-green-600 transition"
+                  className="btn-primary px-4 py-2 rounded-lg shadow transition-colors"
                 >
                   Revancha
                 </button>

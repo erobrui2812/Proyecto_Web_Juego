@@ -53,33 +53,33 @@ export default function Chat({ gameId }: { gameId: string }) {
     const payload = `${gameId}:${newMessage}`;
     const idUsuario = userDetail?.id || "1";
 
-    setMessages((prev) => [...prev, { userId: idUsuario, message: newMessage }]);
+    setMessages((prev) => [
+      ...prev,
+      { userId: idUsuario, message: newMessage },
+    ]);
     socket.send(`ChatMessage|${payload}`);
     setNewMessage("");
   };
 
   return (
-    <div className="p-4 border rounded-lg">
-      <h2 className="text-xl font-bold mb-2">Chat de la partida</h2>
-      <div className="h-64 overflow-y-auto border mb-2 p-2">
+    <div className="chat-container">
+      <h2 className="chat-header">Chat de la partida</h2>
+      <div className="chat-messages">
         {messages.map((msg, index) => (
           <div key={index} className="mb-1">
             <strong>Usuario {msg.userId}:</strong> {msg.message}
           </div>
         ))}
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row items-stretch gap-2">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Escribe un mensaje"
-          className="flex-grow border p-2 rounded"
+          className="chat-input flex-grow"
         />
-        <button
-          onClick={sendMessage}
-          className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-        >
+        <button onClick={sendMessage} className="chat-send">
           Enviar
         </button>
       </div>
