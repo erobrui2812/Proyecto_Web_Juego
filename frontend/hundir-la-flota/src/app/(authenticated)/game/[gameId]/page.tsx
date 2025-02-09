@@ -15,7 +15,7 @@ export default function GamePage() {
   const [gameOver, setGameOver] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState("");
 
-  // Función para consultar el estado de la partida
+
   const fetchGameState = async () => {
     if (!auth?.token || !userDetail?.id) return;
     try {
@@ -38,10 +38,10 @@ export default function GamePage() {
         return;
       }
       const data = await res.json();
-      // Si el estado devuelto es final, marcamos gameOver
+
       if (data.stateDescription === "La partida ha terminado.") {
         setGameOver(true);
-        // Si el API enviara un resumen en el DTO, podrías usarlo aquí.
+
         setGameOverMessage("La partida ha terminado.");
       }
     } catch (error) {
@@ -54,7 +54,6 @@ export default function GamePage() {
   useEffect(() => {
     fetchGameState();
 
-    // Revalidación periódica cada 30 segundos (ajusta el intervalo según convenga)
     const intervalId = setInterval(() => {
       fetchGameState();
     }, 30000);
@@ -80,7 +79,6 @@ export default function GamePage() {
             <div className="text-red-500">Conectando a la partida...</div>
           )}
           {gameOver ? (
-            // Si la partida terminó, se muestra el mensaje obtenido (o el resumen si lo maneja GameGrid)
             <div className="mt-4 p-4 bg-gray-800 text-white rounded">
               <p>{gameOverMessage}</p>
             </div>

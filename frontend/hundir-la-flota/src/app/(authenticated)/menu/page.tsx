@@ -14,7 +14,6 @@ const MenuPage = () => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState("0");
-  // Ahora playersInGame será un array de partidas activas
   const [playersInGame, setPlayersInGame] = useState<any[]>([]);
   const [activeGames, setActiveGames] = useState("0");
   const [leaderboard, setLeaderboard] = useState([]);
@@ -34,7 +33,6 @@ const MenuPage = () => {
       try {
         const response = await fetch("https://localhost:7162/api/stats/games");
         const data = await response.json();
-        // Si el endpoint de "games" sigue devolviendo un objeto con activeGames, se adapta aquí
         setActiveGames(data.activeGames || data.length.toString());
       } catch (error) {
         console.error("Error al obtener partidas en curso:", error);
@@ -47,7 +45,6 @@ const MenuPage = () => {
           "https://localhost:7162/api/stats/players"
         );
         const data = await response.json();
-        // data es ahora un array de ActiveGamePlayersDTO
         setPlayersInGame(data);
       } catch (error) {
         console.error("Error al obtener jugadores en partida:", error);

@@ -13,12 +13,15 @@ const generateRandomBoard = () => {
       hasShip: false,
       isHit: false,
       isSunk: false,
+      attacked: false,
     }))
   );
   const ships = [];
   for (const size of shipSizes) {
     let placed = false;
-    while (!placed) {
+    let attempts = 0;
+    while (!placed && attempts < 1000) {
+      attempts++;
       const x = Math.floor(Math.random() * 10);
       const y = Math.floor(Math.random() * 10);
       const orientation = Math.random() > 0.5 ? "horizontal" : "vertical";
@@ -30,6 +33,7 @@ const generateRandomBoard = () => {
           continue;
         for (let i = 0; i < size; i++) newGrid[y][x + i].hasShip = true;
         ships.push({ x, y, size, orientation });
+        placed = true;
       } else {
         if (
           y + size > 10 ||
@@ -38,16 +42,31 @@ const generateRandomBoard = () => {
           continue;
         for (let i = 0; i < size; i++) newGrid[y + i][x].hasShip = true;
         ships.push({ x, y, size, orientation });
+        placed = true;
       }
-      placed = true;
+    }
+    if (!placed) {
+      console.error(
+        `No se pudo colocar el barco de tamaño ${size} después de muchos intentos.`
+      );
     }
   }
   return { grid: newGrid, ships };
 };
 
+const generateEmptyBoard = () => {
+  return Array.from({ length: 10 }, () =>
+    Array.from({ length: 10 }, () => ({
+      attacked: false,
+      result: null, 
+    }))
+  );
+};
+
 const GameGrid = ({ gameId, playerId }) => {
   const { socket, sendMessage } = useWebsocket();
-  const [{ grid, ships }, setBoard] = useState(generateRandomBoard);
+  const [myBoard, setMyBoard] = useState(generateRandomBoard());
+  const [opponentBoard, setOpponentBoard] = useState(generateEmptyBoard());
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [shipsPlaced, setShipsPlaced] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
@@ -79,10 +98,12 @@ const GameGrid = ({ gameId, playerId }) => {
           case "AttackResult":
             handleAttackResult(payload);
             break;
+          case "EnemyAttack":
+            handleEnemyAttack(payload);
+            break;
           case "GameOver":
             setGameOver(true);
             try {
-              // Se intenta parsear un resumen (JSON)
               const summary = JSON.parse(payload);
               setGameSummary(summary);
             } catch (error) {
@@ -103,13 +124,14 @@ const GameGrid = ({ gameId, playerId }) => {
   }, [socket, gameId, playerId, sendMessage]);
 
   const handlePlaceShips = () => {
-    const { grid: newGrid, ships } = generateRandomBoard();
-    setBoard({ grid: newGrid, ships });
-    if (!ships.length) return;
-    const formattedShips = ships
+    const newBoard = generateRandomBoard();
+    setMyBoard(newBoard);
+    if (!newBoard.ships.length) return;
+    const formattedShips = newBoard.ships
       .map((ship) => `${ship.x},${ship.y},${ship.size},${ship.orientation}`)
       .join(";");
     sendMessage("placeShips", `${gameId}|${playerId}|${formattedShips}`);
+    setShipsPlaced(true);
   };
 
   const handleConfirmReady = () => {
@@ -125,33 +147,48 @@ const GameGrid = ({ gameId, playerId }) => {
   };
 
   const handleAttack = (x, y) => {
-    if (isMyTurn) {
-      const backendY = 9 - y;
-      sendMessage("Attack", `${gameId}|${playerId}|${x}|${backendY}`);
-      setIsMyTurn(false);
-    }
+    if (!isMyTurn) return;
+    if (opponentBoard[y][x].attacked) return;
+    setOpponentBoard((prevBoard) => {
+      const newBoard = prevBoard.map((row) => row.slice());
+      newBoard[y][x] = { attacked: true, result: "pending" };
+      return newBoard;
+    });
+    sendMessage("Attack", `${gameId}|${x}|${y}`);
   };
 
   const handleAttackResult = (result) => {
     const attackData = typeof result === "string" ? JSON.parse(result) : result;
-    const { x, y, result: attackResult } = attackData;
-    const displayY = 9 - y;
-    const updatedGrid = grid.map((row, rowIndex) =>
-      row.map((cell, colIndex) =>
-        rowIndex === displayY && colIndex === x
-          ? { ...cell, isHit: true }
-          : cell
-      )
-    );
-    setBoard({ grid: updatedGrid, ships });
-    if (attackResult === "hit") {
-      console.log(`¡Acierto! En la posición (${x}, ${displayY})`);
-    } else if (attackResult === "miss") {
-      console.log(`Fallaste el ataque en (${x}, ${displayY})`);
-    } else if (attackResult === "sunk") {
-      console.log(`¡Barco hundido! En la posición (${x}, ${displayY})`);
+    const { x, y, result: attackOutcome } = attackData;
+    console.log("Actualizando ataque result en coordenadas reales:", x, y, attackOutcome);
+    setOpponentBoard((prevBoard) => {
+      const newBoard = prevBoard.map((row) => row.slice());
+      newBoard[y][x] = { attacked: true, result: attackOutcome };
+      return newBoard;
+    });
+    if (attackOutcome === "hit" || attackOutcome === "sunk") {
+      console.log("Ataque exitoso. Continúa tu turno.");
+      setIsMyTurn(true);
+    } else {
+      console.log("Ataque fallido. Fin del turno.");
+      setIsMyTurn(false);
     }
-    setIsMyTurn(false);
+  };
+
+  const handleEnemyAttack = (payload) => {
+    const attackData = typeof payload === "string" ? JSON.parse(payload) : payload;
+    const { x, y, result: attackOutcome } = attackData;
+    console.log("Recibiendo ataque enemigo en coordenadas reales:", x, y, attackOutcome);
+    setMyBoard((prevBoard) => {
+      const newGrid = prevBoard.grid.map((row) => row.slice());
+      const cell = newGrid[y][x];
+      if (cell.hasShip) {
+        newGrid[y][x] = { ...cell, attacked: true, isHit: true };
+      } else {
+        newGrid[y][x] = { ...cell, attacked: true };
+      }
+      return { ...prevBoard, grid: newGrid };
+    });
   };
 
   const handleRematch = async () => {
@@ -165,6 +202,8 @@ const GameGrid = ({ gameId, playerId }) => {
       router.push(`/game/${data.gameId}`);
     }
   };
+
+  const invertBoard = (boardArray) => boardArray.slice().reverse();
 
   return (
     <DndContext>
@@ -189,6 +228,40 @@ const GameGrid = ({ gameId, playerId }) => {
                 {isReady ? "Esperando al otro jugador..." : "Estoy Listo"}
               </button>
             )}
+            {shipsPlaced && (
+              <div className="mt-4">
+                <p className="text-white mb-2">Tus barcos:</p>
+                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+                  {invertBoard(myBoard.grid).map((row, displayedY) => {
+                    const actualY = myBoard.grid.length - 1 - displayedY;
+                    return (
+                      <React.Fragment key={actualY}>
+                        {row.map((cell, x) => (
+                          <div
+                            key={`${x}-${actualY}`}
+                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                              cell.attacked
+                                ? cell.hasShip
+                                  ? "bg-red-500"
+                                  : "bg-gray-400"
+                                : cell.hasShip
+                                ? "bg-gray-700"
+                                : "bg-blue-500"
+                            }`}
+                          >
+                            {cell.attacked && cell.hasShip
+                              ? "💥"
+                              : cell.hasShip
+                              ? "🚢"
+                              : ""}
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <p className="text-white font-bold">¡El juego ha comenzado!</p>
@@ -207,30 +280,78 @@ const GameGrid = ({ gameId, playerId }) => {
             >
               {isMyTurn ? "Pasar Turno" : "No es tu turno"}
             </button>
-            <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
-              {grid.map((row, y) => (
-                <React.Fragment key={y}>
-                  {row.map((cell, x) => (
-                    <div
-                      key={`${x}-${y}`}
-                      className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
-                        cell.isHit
-                          ? "bg-red-500"
-                          : cell.hasShip
-                          ? "bg-gray-700"
-                          : "bg-blue-500 hover:bg-blue-400"
-                      }`}
-                      onClick={() => handleAttack(x, y)}
-                    >
-                      {cell.isHit
-                        ? "💥"
-                        : cell.hasShip && !cell.isHit
-                        ? "🚢"
-                        : ""}
-                    </div>
-                  ))}
-                </React.Fragment>
-              ))}
+            <div className="mt-4 flex space-x-4">
+              <div>
+                <p className="text-white font-bold mb-2">Tu Tablero</p>
+                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+                  {invertBoard(myBoard.grid).map((row, displayedY) => {
+                    const actualY = myBoard.grid.length - 1 - displayedY;
+                    return (
+                      <React.Fragment key={actualY}>
+                        {row.map((cell, x) => (
+                          <div
+                            key={`${x}-${actualY}`}
+                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 ${
+                              cell.attacked
+                                ? cell.hasShip
+                                  ? "bg-red-500"
+                                  : "bg-gray-400"
+                                : cell.hasShip
+                                ? "bg-gray-700"
+                                : "bg-blue-500"
+                            }`}
+                          >
+                            {cell.attacked && cell.hasShip
+                              ? "💥"
+                              : cell.hasShip
+                              ? "🚢"
+                              : ""}
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-white font-bold mb-2">
+                  Tablero del Rival
+                </p>
+                <div className="grid grid-cols-10 gap-1 border-2 border-primary p-2 bg-dark">
+                  {invertBoard(opponentBoard).map((row, displayedY) => {
+                    const actualY = opponentBoard.length - 1 - displayedY;
+                    return (
+                      <React.Fragment key={actualY}>
+                        {row.map((cell, x) => (
+                          <div
+                            key={`${x}-${actualY}`}
+                            onClick={() => handleAttack(x, actualY)}
+                            className={`w-10 h-10 flex items-center justify-center border transition-all duration-300 cursor-pointer ${
+                              !cell.attacked
+                                ? "bg-blue-500 hover:bg-blue-400"
+                                : cell.result === "pending"
+                                ? "bg-yellow-500"
+                                : cell.result === "miss"
+                                ? "bg-gray-400"
+                                : cell.result === "hit" || cell.result === "sunk"
+                                ? "bg-red-500"
+                                : "bg-blue-500"
+                            }`}
+                          >
+                            {cell.attacked &&
+                            (cell.result === "hit" || cell.result === "sunk")
+                              ? "💥"
+                              : cell.attacked && cell.result === "miss"
+                              ? "⭕"
+                              : ""}
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </>
         )}

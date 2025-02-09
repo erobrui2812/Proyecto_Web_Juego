@@ -139,34 +139,31 @@ namespace hundir_la_flota.Services
                 }
 
                 var action = parts[0];
-                var payload = parts[1];
+                var payload = parts.Length > 1 ? parts[1] : string.Empty;
 
                 switch (action)
                 {
                     case "ChatMessage":
                         await HandleChatMessageAsync(userId, payload);
                         break;
-
                     case "placeShips":
                         await HandlePlaceShips(userId, parts);
                         break;
-
                     case "joinGame":
                         await HandleJoinGame(userId, parts);
                         break;
-
                     case "passTurn":
                         await HandlePassTurn(userId, parts);
                         break;
-
-                    case "Matchmaking": 
+                    case "Matchmaking":
                         await HandleMatchmakingAsync(userId, payload);
                         break;
-
                     case "Attack":
-                        await HandleAttack(userId, parts); 
+                        await HandleAttack(userId, parts);
                         break;
-
+                    case "confirmReady":
+                        await HandleConfirmReady(userId, parts);
+                        break;
                     default:
                         _logger.LogWarning($"Unrecognized action: {action}");
                         if (_connectedUsers.TryGetValue(userId, out var webSocket))
@@ -181,6 +178,38 @@ namespace hundir_la_flota.Services
                 _logger.LogError($"Error processing message from {userId}: {ex.Message}");
             }
         }
+
+
+        private async Task HandleConfirmReady(int userId, string[] parts)
+        {
+            if (parts.Length < 3)
+            {
+                _logger.LogWarning($"Invalid confirmReady format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = int.Parse(parts[2]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.ConfirmReadyAsync(gameId, playerId);
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error confirming ready: {response.Message}");
+                    return;
+                }
+                _logger.LogInformation($"User {userId} confirmed ready in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing confirmReady from {userId}: {ex.Message}");
+            }
+        }
+
 
         private async Task HandlePassTurn(int userId, string[] parts)
         {
@@ -250,7 +279,7 @@ namespace hundir_la_flota.Services
 
         private async Task HandlePlaceShips(int userId, string[] parts)
         {
-            if (parts.Length < 3)
+            if (parts.Length < 4)
             {
                 _logger.LogWarning($"Invalid placeShips format from {userId}: {string.Join("|", parts)}");
                 return;
@@ -264,18 +293,29 @@ namespace hundir_la_flota.Services
 
                 var ships = shipsData.Split(";")
                     .Select(ship => ship.Split(","))
-                    .Select(shipParts => new Ship
+                    .Select(shipParts =>
                     {
-                        Name = $"Barco-{shipParts[0]}",
-                        Size = int.Parse(shipParts[2]),
-                        Coordinates = new List<Coordinate>
+                        int startX = int.Parse(shipParts[0]);
+                        int startY = int.Parse(shipParts[1]);
+                        int size = int.Parse(shipParts[2]);
+
+                        string orientation = shipParts.Length > 3 ? shipParts[3].ToLower() : "horizontal";
+
+                        var coordinates = new List<Coordinate>();
+                        for (int i = 0; i < size; i++)
                         {
-                    new Coordinate
-                    {
-                        X = int.Parse(shipParts[0]),
-                        Y = int.Parse(shipParts[1])
-                    }
+                            if (orientation == "horizontal")
+                                coordinates.Add(new Coordinate { X = startX + i, Y = startY, IsHit = false });
+                            else 
+                                coordinates.Add(new Coordinate { X = startX, Y = startY + i, IsHit = false });
                         }
+
+                        return new Ship
+                        {
+                            Name = $"Barco-{startX}-{startY}",
+                            Size = size,
+                            Coordinates = coordinates
+                        };
                     })
                     .ToList();
 
@@ -294,7 +334,6 @@ namespace hundir_la_flota.Services
 
                 var responseMessage = new { message = "Ships have been placed" };
                 await NotifyUserAsync(userId, "ShipsPlaced", JsonConvert.SerializeObject(responseMessage));
-
             }
             catch (Exception ex)
             {

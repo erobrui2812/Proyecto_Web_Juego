@@ -3,12 +3,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-// Definición de la estructura del resumen de partida
+
 interface GameSummaryData {
   winner: string;
   totalTurns: number;
   shipsRemaining: string;
-  // Puedes agregar otros campos según lo que necesites
 }
 
 interface PlayerStats {
@@ -38,7 +37,6 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
   useEffect(() => {
     if (!auth?.token || !userDetail?.id) return;
 
-    // Consulta las estadísticas del jugador
     const fetchPlayerStats = async () => {
       try {
         const res = await fetch(`/api/stats/player/${userDetail.id}`, {
@@ -55,7 +53,6 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
       }
     };
 
-    // Consulta el leaderboard global
     const fetchLeaderboard = async () => {
       try {
         const res = await fetch(`/api/stats/leaderboard`, {
@@ -77,7 +74,6 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
   }, [auth, userDetail]);
 
   const handleRematch = () => {
-    // Redirige a la ruta de revancha (modifica la ruta según corresponda)
     router.push("/game/rematch");
   };
 
@@ -94,10 +90,8 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
         <p>
           <strong>Barcos restantes:</strong> {summary.shipsRemaining}
         </p>
-        {/* Agrega más detalles si es necesario */}
       </div>
 
-      {/* Estadísticas del jugador */}
       {playerStats && (
         <div className="bg-gray-800 text-white rounded p-4 mb-4">
           <h3 className="text-lg font-bold">Tus estadísticas</h3>
@@ -107,11 +101,9 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
           <p>
             <strong>Partidas ganadas:</strong> {playerStats.gamesWon}
           </p>
-          {/* Puedes calcular y mostrar la tasa de victorias, etc. */}
         </div>
       )}
 
-      {/* Leaderboard global */}
       {leaderboard.length > 0 && (
         <div className="bg-gray-800 text-white rounded p-4 mb-4">
           <h3 className="text-lg font-bold">Leaderboard</h3>
@@ -126,7 +118,6 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
         </div>
       )}
 
-      {/* Botón de revancha */}
       <button
         onClick={handleRematch}
         className="mt-4 bg-green-500 px-4 py-2 rounded hover:bg-green-600 transition"

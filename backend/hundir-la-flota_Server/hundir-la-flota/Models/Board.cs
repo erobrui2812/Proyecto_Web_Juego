@@ -82,8 +82,9 @@ public class Board
 
     public bool AreAllShipsSunk()
     {
-        return Ships.All(ship => ship.IsSunk);
+        return Ships.Any() && Ships.All(ship => ship.IsSunk);
     }
+
 
     private bool IsWithinBounds(int x, int y)
     {

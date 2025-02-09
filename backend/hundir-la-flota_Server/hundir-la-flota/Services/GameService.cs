@@ -4,6 +4,7 @@ using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
 using hundir_la_flota.Utils;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 public interface IGameService
 {
@@ -19,6 +20,8 @@ public interface IGameService
     Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId);
     Task<ServiceResponse<string>> PassTurnAsync(Guid gameId, int playerId);
     Task<ServiceResponse<Game>> RematchAsync(Guid gameId, int playerId);
+    Task<ServiceResponse<string>> ConfirmReadyAsync(Guid gameId, int playerId);
+
     Task<int?> GetHostIdAsync(Guid gameId);
 
 }
@@ -47,6 +50,40 @@ public class GameService : IGameService
         _webSocketService = webSocketService;
         _context = context;
     }
+
+    public async Task<ServiceResponse<string>> ConfirmReadyAsync(Guid gameId, int playerId)
+    {
+        var game = await _gameRepository.GetByIdAsync(gameId);
+        if (game == null)
+            return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        var participant = participants.FirstOrDefault(p => p.UserId == playerId);
+        if (participant == null)
+            return new ServiceResponse<string> { Success = false, Message = "Participante no válido." };
+
+        participant.IsReady = true;
+        await _gameParticipantRepository.UpdateAsync(participant);
+
+        participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+
+        if (participants.All(p => p.IsReady))
+        {
+            game.State = GameState.WaitingForPlayer1Shot; 
+            await _gameRepository.UpdateAsync(game);
+
+            await _webSocketService.NotifyUsersAsync(
+                participants.Select(p => p.UserId),
+                "GameStarted",
+                "El juego ha comenzado. Es el turno del anfitrión."
+            );
+            var host = participants.First(p => p.Role == ParticipantRole.Host);
+            await _webSocketService.NotifyUserAsync(host.UserId, "YourTurn", "Es tu turno de atacar.");
+        }
+
+        return new ServiceResponse<string> { Success = true, Message = "Confirm ready successfully." };
+    }
+
 
     public async Task<ServiceResponse<Game>> CreateGameAsync(string userId)
     {
@@ -220,100 +257,90 @@ public class GameService : IGameService
                 return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
             }
 
-
             var opponentBoard = currentPlayer.Role == ParticipantRole.Host
                 ? game.Player2Board
                 : game.Player1Board;
 
-            var cell = opponentBoard.Grid
-                .Where(kvp => kvp.Key.Item1 == x && kvp.Key.Item2 == y)
-                .Select(kvp => kvp.Value)
-                .FirstOrDefault();
+            if (!opponentBoard.Grid.ContainsKey((x, y)))
+                return new ServiceResponse<string> { Success = false, Message = "Coordenada fuera de los límites." };
 
-            if (cell == null || cell.IsHit)
-                return new ServiceResponse<string> { Success = false, Message = "Celda inválida o ya atacada." };
+            var cell = opponentBoard.Grid[(x, y)];
+            if (cell.IsHit)
+                return new ServiceResponse<string> { Success = false, Message = "Celda ya atacada." };
 
-
+            bool wasHit = cell.HasShip;  
             cell.IsHit = true;
-            var actionDetails = $"Disparo en ({x}, {y})";
-            var ship = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
+            cell.Status = wasHit ? CellStatus.Hit : CellStatus.Miss;
 
-            if (ship != null)
+            string attackResult = "miss"; 
+            string actionDetails = $"Disparo en ({x}, {y})";
+
+            var hitShip = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
+            if (hitShip != null)
             {
-
-                if (ship.IsSunk)
-                    actionDetails += " ¡Barco hundido!";
-                else
-                    actionDetails += " ¡Acierto!";
-
-                if (opponentBoard.Ships.All(s => s.IsSunk))
+                foreach (var coord in hitShip.Coordinates)
                 {
-                    game.State = GameState.Finished;
-                    game.WinnerId = playerId;
-                    actionDetails += " Fin del juego.";
-                    await _webSocketService.NotifyUsersAsync(
-                        new List<int> { playerId, opponent.UserId },
-                        "GameOver",
-                        $"El jugador {playerId} ha ganado."
-                    );
-                    await UpdatePlayerStats(playerId, opponent.UserId);
+                    if (coord.X == x && coord.Y == y)
+                    {
+                        coord.IsHit = true;
+                        break;
+                    }
+                }
+
+                if (hitShip.IsSunk)
+                {
+                    attackResult = "sunk";
+                    actionDetails += " ¡Barco hundido!";
+                }
+                else
+                {
+                    attackResult = "hit";
+                    actionDetails += " ¡Acierto!";
                 }
             }
             else
             {
+                attackResult = "miss";
                 actionDetails += " Fallo.";
+                game.State = (game.State == GameState.WaitingForPlayer1Shot)
+                    ? GameState.WaitingForPlayer2Shot
+                    : GameState.WaitingForPlayer1Shot;
             }
 
+            if (opponentBoard.AreAllShipsSunk())
+            {
+                game.State = GameState.Finished;
+                game.WinnerId = playerId;
+                actionDetails += " Fin del juego.";
+                await _webSocketService.NotifyUsersAsync(
+                    new List<int> { playerId, opponent.UserId },
+                    "GameOver",
+                    $"El jugador {playerId} ha ganado."
+                );
+                await UpdatePlayerStats(playerId, opponent.UserId);
+            }
 
-            game.State = game.State == GameState.WaitingForPlayer1Shot ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
             await _gameRepository.UpdateAsync(game);
 
-            int nextPlayerId = game.State == GameState.WaitingForPlayer1Shot
-                ? participants.First(p => p.Role == ParticipantRole.Host).UserId
-                : participants.First(p => p.Role == ParticipantRole.Guest).UserId;
+            var payload = JsonConvert.SerializeObject(new { x, y, result = attackResult });
 
-            await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
+            await _webSocketService.NotifyUserAsync(playerId, "AttackResult", payload);
 
+            await _webSocketService.NotifyUserAsync(opponent.UserId, "EnemyAttack", payload);
 
-            if (nextPlayerId == -1 && game.State != GameState.Finished)
+            if (game.State != GameState.Finished)
             {
-                await Task.Delay(1000);
-
-                var humanBoard = currentPlayer.Role == ParticipantRole.Host ? game.Player1Board : game.Player2Board;
-                var botAction = SimulateBotAttack(humanBoard);
-                if (botAction != null)
+                if (attackResult == "miss")
                 {
-
-                    var hitShip = humanBoard.Ships.FirstOrDefault(s =>
-                        s.Coordinates.Any(coord => coord.X == botAction.X && coord.Y == botAction.Y));
-                    if (hitShip != null)
-                    {
-                        if (hitShip.IsSunk)
-                            botAction.Details += " ¡Barco hundido!";
-                        else
-                            botAction.Details += " ¡Acierto!";
-                    }
-                    game.Actions.Add(botAction);
-
-                    if (humanBoard.Ships.All(s => s.IsSunk))
-                    {
-                        game.State = GameState.Finished;
-                        game.WinnerId = -1;
-                        await _webSocketService.NotifyUsersAsync(
-                            participants.Select(p => p.UserId).ToList(),
-                            "GameOver",
-                            "El bot ha ganado."
-                        );
-                        int humanId = participants.First(p => p.UserId != -1).UserId;
-                        await UpdatePlayerStats(-1, humanId);
-                    }
-                    else
-                    {
-                        game.State = GameState.WaitingForPlayer1Shot;
-                        int humanId = participants.First(p => p.UserId != -1).UserId;
-                        await _webSocketService.NotifyUserAsync(humanId, "YourTurn", "Es tu turno de atacar.");
-                    }
-                    await _gameRepository.UpdateAsync(game);
+                    int nextPlayerId = game.State == GameState.WaitingForPlayer1Shot
+                        ? participants.First(p => p.Role == ParticipantRole.Host).UserId
+                        : participants.First(p => p.Role == ParticipantRole.Guest).UserId;
+                    await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
+                }
+                else
+                {
+                    // Si acierta (hit o sunk), el atacante continúa.
+                    await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Continúa atacando.");
                 }
             }
 
@@ -324,6 +351,7 @@ public class GameService : IGameService
             _turnLock.Release();
         }
     }
+
 
     public GameAction SimulateBotAttack(Board playerBoard)
     {
