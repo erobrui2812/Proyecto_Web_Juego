@@ -21,10 +21,23 @@ public class Board
             if (_grid == null)
             {
                 InitializeGrid();
+                
+                foreach (var ship in Ships)
+                {
+                    foreach (var coord in ship.Coordinates)
+                    {
+                        
+                        if (_grid.ContainsKey((coord.X, coord.Y)))
+                        {
+                            _grid[(coord.X, coord.Y)].HasShip = true;
+                        }
+                    }
+                }
             }
             return _grid;
         }
     }
+
 
     // Propiedad para la serialización (EF Core la ignora)
     [JsonPropertyName("Grid")]
