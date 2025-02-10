@@ -9,9 +9,11 @@ public class MyDbContext : DbContext
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<Game> Games { get; set; }
     public DbSet<GameParticipant> GameParticipants { get; set; }
+    public DbSet<PlayerStats> PlayerStats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        
         modelBuilder.Entity<GameParticipant>()
             .HasOne(gp => gp.Game)
             .WithMany(g => g.Participants)
@@ -28,6 +30,8 @@ public class MyDbContext : DbContext
             .HasIndex(gp => new { gp.GameId, gp.UserId })
             .IsUnique();
 
+        modelBuilder.Entity<PlayerStats>()
+            .HasKey(ps => ps.UserId);
 
         modelBuilder.Entity<User>().HasData(new User
         {
@@ -42,34 +46,53 @@ public class MyDbContext : DbContext
         modelBuilder.Entity<Game>()
             .HasKey(g => g.GameId);
 
+      
         modelBuilder.Entity<Game>()
             .OwnsOne(g => g.Player1Board, board =>
             {
                 board.Ignore(b => b.Grid);
+                board.Ignore(b => b.GridForSerialization);
                 board.OwnsMany(b => b.Ships, ship =>
                 {
                     ship.ToTable("Player1_Ships");
+                    ship.HasKey(s => s.Id);
+                    ship.Property(s => s.Id).ValueGeneratedOnAdd();
                     ship.OwnsMany(s => s.Coordinates, coord =>
                     {
-                        coord.HasKey(c => new { c.X, c.Y });
+                       
+                        coord.ToTable("Player1_Ships_Coordinates");
+                      
+                        coord.WithOwner().HasForeignKey("ShipId");
+                       
+                        coord.HasKey("ShipId", "X", "Y");
                     });
                 });
             });
 
+        // Configuración del Player2Board
         modelBuilder.Entity<Game>()
             .OwnsOne(g => g.Player2Board, board =>
             {
                 board.Ignore(b => b.Grid);
+                board.Ignore(b => b.GridForSerialization);
                 board.OwnsMany(b => b.Ships, ship =>
                 {
                     ship.ToTable("Player2_Ships");
+                    ship.HasKey(s => s.Id);
+                    ship.Property(s => s.Id).ValueGeneratedOnAdd();
                     ship.OwnsMany(s => s.Coordinates, coord =>
                     {
-                        coord.HasKey(c => new { c.X, c.Y });
+                        
+                        coord.ToTable("Player2_Ships_Coordinates");
+                      
+                        coord.WithOwner().HasForeignKey("ShipId");
+                       
+                        coord.HasKey("ShipId", "X", "Y");
                     });
                 });
             });
 
+        
         modelBuilder.Entity<Game>()
             .OwnsMany(g => g.Actions, action =>
             {

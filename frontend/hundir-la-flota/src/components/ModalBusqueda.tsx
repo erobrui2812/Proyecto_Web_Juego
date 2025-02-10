@@ -2,6 +2,8 @@
 
 import Modal from "@/components/Modal";
 import { useFriendship } from "@/contexts/FriendshipContext";
+import { useState } from "react";
+import ModalPerfil from "@/components/ModalPerfil";
 
 interface ModalBusquedaProps {
   isOpen: boolean;
@@ -15,14 +17,33 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
   searchResults,
 }) => {
   const { sendFriendRequest } = useFriendship();
-
-  const handleSendRequest = async (nickname: string) => {
+  const [id, setId] = useState("");
+  const handleSendRequest = async (nickname: string, e: React.MouseEvent) => {
+    e.stopPropagation(); 
     try {
       await sendFriendRequest(nickname);
     } catch (error) {
       console.error("Error al enviar solicitud de amistad:", error);
     }
   };
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const openProfileModal = () => {
+    console.log("Abriendo modal de perfil...");
+    setIsProfileModalOpen(true);
+  };
+
+  const handleIdPerson = (id: string) => {
+    setId(id);
+    openProfileModal();
+  };
+
+  const closeProfileModal = () => {
+    console.log("Cerrando modal de perfil...");
+    setIsProfileModalOpen(false);
+  };
+
   return (
     <Modal title="Buscar Usuarios" isOpen={isOpen} onClose={onClose}>
       <div className="flex flex-col gap-4">
@@ -41,7 +62,13 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
                 <p className="font-semibold text-gold">{user.nickname}</p>
               </div>
               <button
-                onClick={() => handleSendRequest(user.nickname)}
+                  onClick={() => handleIdPerson(user.id)}
+                  className="text-blueLink font-bold hover:underline"
+                >
+                  Ver perfil
+                </button>
+              <button
+                onClick={(e) => handleSendRequest(user.nickname, e)}
                 className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
               >
                 Enviar Solicitud
@@ -53,6 +80,11 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
             No hay resultados de búsqueda.
           </p>
         )}
+        <ModalPerfil
+            isOpen={isProfileModalOpen}
+            onClose={closeProfileModal}
+            userId={id}
+        />
       </div>
     </Modal>
   );

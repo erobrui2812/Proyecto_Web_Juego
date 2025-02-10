@@ -35,14 +35,14 @@ const BuscadorUsuarios: React.FC<BuscadorUsuariosProps> = ({
       <div className="flex justify-center items-center space-x-4 mt-4">
         <button
           onClick={handleSearchClick}
-          className="border-2 border-gold p-2 bg-primary text-white rounded-md flex items-center space-x-2 hover:bg-blue-600"
+          className="border-2 border-gold p-2 bg-primary hover:bg-dark text-white rounded-md flex items-center space-x-2"
         >
           <Search size={20} />
           <span>Buscar Usuarios</span>
         </button>
         <button
           onClick={onOpenRequestsModal}
-          className="border-2 border-gold p-2 bg-secondary text-white rounded-md hover:bg-green-600"
+          className="border-2 border-gold p-2 bg-primary hover:bg-dark text-white rounded-md"
         >
           Solicitudes de Amistad
         </button>

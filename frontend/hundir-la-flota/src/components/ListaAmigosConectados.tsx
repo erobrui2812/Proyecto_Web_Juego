@@ -1,8 +1,11 @@
-"use client";
-
-import { useFriendship } from "@/contexts/FriendshipContext";
-import { useEffect, useState } from "react";
+import { Friend } from "@/types/friendship";
+import { useState } from "react";
 import ReactPaginate from "react-paginate";
+
+type ListaAmigosConectadosProps = {
+  friends: Friend[];
+  onSelect: (friend: Friend) => void;
+};
 
 const translateStatus = (status: string) => {
   switch (status) {
@@ -17,13 +20,16 @@ const translateStatus = (status: string) => {
   }
 };
 
-const ListaAmigosConectados = () => {
-  const { friends, fetchFriends } = useFriendship();
-
+const ListaAmigosConectados: React.FC<ListaAmigosConectadosProps> = ({
+  friends,
+  onSelect,
+}) => {
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
 
-  const connectedFriends = friends.filter((friend) => friend.status === "Connected");
+  const connectedFriends = friends.filter(
+    (friend) => friend.status === "Connected"
+  );
 
   const pagesVisited = pageNumber * friendsPerPage;
   const currentFriends = connectedFriends.slice(
@@ -35,10 +41,6 @@ const ListaAmigosConectados = () => {
   const changePage = (selectedItem: { selected: number }) => {
     setPageNumber(selectedItem.selected);
   };
-
-  useEffect(() => {
-    fetchFriends();
-  }, []);
 
   return (
     <div>
@@ -60,17 +62,22 @@ const ListaAmigosConectados = () => {
           <option value={8}>8</option>
         </select>
       </div>
+      <p>Haz click sobre una tarjeta para invitar a tu amigo</p>
+      <hr />
+      <br />
 
       {connectedFriends.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
           {currentFriends.map((friend) => (
             <div
-              key={`${friend.id}`}
-              className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md"
+              key={friend.id}
+              className="flex flex-col p-4 bg-gray-800 rounded-md shadow-md cursor-pointer"
+              onClick={() => onSelect(friend)}
             >
               <div className="flex items-center mb-2">
                 <img
-                  src={friend.urlAvatar || "https://via.placeholder.com/150"}
+                  src={friend.urlAvatar}
                   alt={`${friend.nickname}'s Avatar`}
                   className="w-10 h-10 rounded-full border-2 border-secondary mr-3"
                 />
@@ -83,7 +90,6 @@ const ListaAmigosConectados = () => {
                   </span>
                 </div>
               </div>
-
               <p className="text-sm text-gray-200 mb-2">
                 {friend.email || "Correo no disponible"}
               </p>
@@ -91,7 +97,9 @@ const ListaAmigosConectados = () => {
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">No hay amigos conectados disponibles.</p>
+        <p className="text-gray-500">
+          No hay amigos conectados disponibles para invitar.
+        </p>
       )}
 
       <div className="mt-4">
@@ -112,7 +120,7 @@ const ListaAmigosConectados = () => {
             "px-2 py-1 border rounded hover:bg-gray-300 transition"
           }
           disabledClassName={"opacity-50 cursor-not-allowed"}
-          activeClassName={"bg-blue-500 text-white"}
+          activeClassName={"bg-blueLink text-white"}
         />
       </div>
     </div>

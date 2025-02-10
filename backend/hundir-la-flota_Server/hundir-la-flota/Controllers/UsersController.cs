@@ -8,10 +8,12 @@ namespace hundir_la_flota.Controllers
     public class UsersController : ControllerBase
     {
         private readonly UserService _userService;
+        private readonly IAuthService _authService;
 
-        public UsersController(UserService userService)
+        public UsersController(UserService userService, IAuthService authService)
         {
             _userService = userService;
+            _authService = authService;
         }
 
         [HttpPost("register")]
@@ -89,5 +91,26 @@ namespace hundir_la_flota.Controllers
 
             return Ok(new { success = true, data = result.Data });
         }
+
+        [HttpPut("update")]
+        public async Task<IActionResult> UpdateProfile([FromForm] UserUpdateDTO dto, IFormFile avatar)
+        {
+            var authorizationHeader = Request.Headers["Authorization"].ToString();
+            if (string.IsNullOrWhiteSpace(authorizationHeader))
+                return Unauthorized(new { success = false, message = "El token de autorización es obligatorio." });
+
+            var userId = _authService.GetUserIdFromToken(authorizationHeader);
+            if (!userId.HasValue)
+                return Unauthorized(new { success = false, message = "Token inválido o caducado." });
+
+            dto.Id = userId.Value;
+
+            var result = await _userService.UpdateUserProfileAsync(dto, avatar);
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
     }
 }

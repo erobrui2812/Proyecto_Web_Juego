@@ -32,14 +32,14 @@ const AvatarUsuario = () => {
             <div>
               <h1 className="text-xl font-bold text-gold">{userDetail.nickname}</h1>
               <button
-                className="text-blue-400 hover:underline"
+                className="text-blueLink hover:underline"
                 onClick={openProfileModal}
               >
                 Ver Perfil
               </button>
             </div>
             <button
-              className="text-red-500 hover:text-red-700 flex items-center space-x-2"
+              className="text-redError hover:underline flex items-center space-x-2"
               onClick={cerrarSesion}
             >
               <LogOut size={20} />

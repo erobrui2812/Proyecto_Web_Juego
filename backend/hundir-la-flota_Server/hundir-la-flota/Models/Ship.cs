@@ -1,7 +1,13 @@
-﻿namespace hundir_la_flota.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace hundir_la_flota.Models
 {
     public class Ship
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; } = 0;
         public string Name { get; set; }
         public int Size { get; set; }
         public List<Coordinate> Coordinates { get; set; } = new List<Coordinate>();

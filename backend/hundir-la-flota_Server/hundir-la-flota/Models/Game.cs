@@ -1,4 +1,7 @@
-﻿namespace hundir_la_flota.Models
+﻿using System.Text.Json.Serialization;
+
+
+namespace hundir_la_flota.Models
 {
     public class Game
     {
@@ -9,11 +12,15 @@
 
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();
-
         public int? CurrentPlayerId { get; set; }
 
-        public List<GameAction> Actions { get; set; } = new List<GameAction>();
+        [JsonIgnore]
         public List<GameParticipant> Participants { get; set; } = new List<GameParticipant>();
+
+        [JsonIgnore]
+        public List<GameAction> Actions { get; set; } = new List<GameAction>();
+
+
     }
 
     public class GameAction
@@ -23,6 +30,8 @@
         public string ActionType { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Details { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
     }
 
     public enum GameState

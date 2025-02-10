@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using hundir_la_flota.Models;
+using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 
@@ -15,14 +17,19 @@ namespace hundir_la_flota.Services
         bool IsUserConnected(int userId);
         WebSocketService.UserState GetUserState(int userId);
         List<int> GetConnectedUserIds();
+        int GetOnlineUsersCount();
     }
 
     public class WebSocketService : IWebSocketService
     {
         public enum UserState { Disconnected, Connected, Playing }
 
+        // esto es la cola
+        private static readonly ConcurrentQueue<int> _matchmakingQueue = new();
+   
         private readonly ConcurrentDictionary<int, WebSocket> _connectedUsers = new();
         private readonly ConcurrentDictionary<int, UserState> _userStates = new();
+
         private readonly ILogger<WebSocketService> _logger;
         private readonly IServiceProvider _serviceProvider;
 
@@ -32,10 +39,7 @@ namespace hundir_la_flota.Services
             _serviceProvider = serviceProvider;
         }
 
-        private IGameService GetGameService()
-        {
-            return _serviceProvider.GetRequiredService<IGameService>();
-        }
+        
 
         public List<int> GetConnectedUserIds()
         {
@@ -48,10 +52,10 @@ namespace hundir_la_flota.Services
 
             if (!_connectedUsers.TryAdd(userId, webSocket))
             {
-                _logger.LogWarning($"Usuario {userId} ya está conectado. Rechazando conexión.");
+                _logger.LogWarning($"User {userId} is already connected. Connection rejected.");
                 await socketWrapper.CloseAsync(
                     WebSocketCloseStatus.PolicyViolation,
-                    "Usuario ya conectado"
+                    "User already connected"
                 );
                 return;
             }
@@ -72,46 +76,36 @@ namespace hundir_la_flota.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error en la conexión WebSocket para el usuario {userId}: {ex.Message}");
+                _logger.LogError($"WebSocket error for user {userId}: {ex.Message}");
             }
             finally
             {
                 await DisconnectUserAsync(userId);
+
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+                    await gameService.HandleDisconnectionAsync(userId);
+                }
             }
         }
-
-
-
 
         public async Task DisconnectUserAsync(int userId)
         {
             if (_connectedUsers.TryRemove(userId, out var webSocket))
             {
                 UpdateUserState(userId, UserState.Disconnected);
+                await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
 
-                try
-                {
-                    await NotifyUserStatusChangeAsync(userId, UserState.Disconnected);
 
-                    if (webSocket.State == WebSocketState.Open)
-                    {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Desconexión", CancellationToken.None);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error al cerrar la conexión WebSocket para el usuario {userId}: {ex.Message}");
-                }
-                finally
-                {
-                    webSocket.Dispose();
-                }
+                RemoveFromMatchmakingQueue(userId);
 
-                _logger.LogInformation($"Usuario {userId} desconectado.");
+                if (webSocket.State == WebSocketState.Open)
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnected", CancellationToken.None);
+                }
             }
         }
-
-
 
         public async Task NotifyUserAsync(int userId, string action, string payload)
         {
@@ -121,7 +115,7 @@ namespace hundir_la_flota.Services
             }
             else
             {
-                _logger.LogWarning($"Intento de notificar al usuario {userId}, pero no está conectado.");
+                _logger.LogWarning($"Attempt to notify user {userId}, but they are not connected.");
             }
         }
 
@@ -140,90 +134,363 @@ namespace hundir_la_flota.Services
                 var parts = message.Split('|');
                 if (parts.Length < 2)
                 {
-                    _logger.LogWarning($"Formato de mensaje inválido de {userId}: {message}");
+                    _logger.LogWarning($"Invalid message format from {userId}: {message}");
                     return;
                 }
 
                 var action = parts[0];
-                var payload = parts[1];
+                var payload = parts.Length > 1 ? parts[1] : string.Empty;
 
                 switch (action)
                 {
                     case "ChatMessage":
-                        var payloadParts = payload.Split(':');
-                        if (payloadParts.Length < 2)
-                        {
-                            _logger.LogWarning($"Formato de payload inválido para ChatMessage: {payload}");
-                            return;
-                        }
-
-                        var gameId = Guid.Parse(payloadParts[0]);
-                        var chatMessage = payloadParts[1];
-                        await HandleChatMessageAsync(gameId, userId, chatMessage);
+                        await HandleChatMessageAsync(userId, payload);
                         break;
-
+                    case "placeShips":
+                        await HandlePlaceShips(userId, parts);
+                        break;
+                    case "joinGame":
+                        await HandleJoinGame(userId, parts);
+                        break;
+                    case "passTurn":
+                        await HandlePassTurn(userId, parts);
+                        break;
+                    case "Matchmaking":
+                        await HandleMatchmakingAsync(userId, payload);
+                        break;
+                    case "Attack":
+                        await HandleAttack(userId, parts);
+                        break;
+                    case "confirmReady":
+                        await HandleConfirmReady(userId, parts);
+                        break;
                     default:
-                        _logger.LogWarning($"Acción no reconocida: {action}");
+                        _logger.LogWarning($"Unrecognized action: {action}");
                         if (_connectedUsers.TryGetValue(userId, out var webSocket))
                         {
-                            await SendMessageAsync(webSocket, "UnknownAction", "Acción no reconocida.");
+                            await SendMessageAsync(webSocket, "UnknownAction", "Unrecognized action.");
                         }
                         break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error procesando mensaje de {userId}: {ex.Message}");
+                _logger.LogError($"Error processing message from {userId}: {ex.Message}");
             }
         }
 
-        private async Task HandleChatMessageAsync(Guid gameId, int senderId, string message)
+
+        private async Task HandleConfirmReady(int userId, string[] parts)
         {
-            if (string.IsNullOrWhiteSpace(message))
+            if (parts.Length < 3)
             {
-                _logger.LogWarning($"Mensaje vacío recibido en el juego {gameId} de usuario {senderId}.");
+                _logger.LogWarning($"Invalid confirmReady format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = int.Parse(parts[2]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.ConfirmReadyAsync(gameId, playerId);
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error confirming ready: {response.Message}");
+                    return;
+                }
+                _logger.LogInformation($"User {userId} confirmed ready in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing confirmReady from {userId}: {ex.Message}");
+            }
+        }
+
+
+        private async Task HandlePassTurn(int userId, string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                _logger.LogWarning($"Invalid passTurn format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.PassTurnAsync(gameId, userId);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error passing turn: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} passed their turn in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing passTurn from {userId}: {ex.Message}");
+            }
+        }
+
+
+        private async Task HandleJoinGame(int userId, string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                _logger.LogWarning($"Invalid joinGame format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = userId;
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.JoinGameAsync(gameId, playerId);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error joining game: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} joined game {gameId} successfully");
+                await NotifyUserAsync(userId, "GameJoined", "Successfully joined game.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing joinGame from {userId}: {ex.Message}");
+            }
+        }
+
+
+        private async Task HandlePlaceShips(int userId, string[] parts)
+        {
+            if (parts.Length < 4)
+            {
+                _logger.LogWarning($"Invalid placeShips format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var playerId = int.Parse(parts[2]);
+                var shipsData = parts[3];
+
+                var ships = shipsData.Split(";")
+                    .Select(ship => ship.Split(","))
+                    .Select(shipParts =>
+                    {
+                        int startX = int.Parse(shipParts[0]);
+                        int startY = int.Parse(shipParts[1]);
+                        int size = int.Parse(shipParts[2]);
+
+                        string orientation = shipParts.Length > 3 ? shipParts[3].ToLower() : "horizontal";
+
+                        var coordinates = new List<Coordinate>();
+                        for (int i = 0; i < size; i++)
+                        {
+                            if (orientation == "horizontal")
+                                coordinates.Add(new Coordinate { X = startX + i, Y = startY, IsHit = false });
+                            else 
+                                coordinates.Add(new Coordinate { X = startX, Y = startY + i, IsHit = false });
+                        }
+
+                        return new Ship
+                        {
+                            Name = $"Barco-{startX}-{startY}",
+                            Size = size,
+                            Coordinates = coordinates
+                        };
+                    })
+                    .ToList();
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.PlaceShipsAsync(gameId, playerId, ships);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error placing ships: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} placed ships successfully in game {gameId}");
+
+                var responseMessage = new { message = "Ships have been placed" };
+                await NotifyUserAsync(userId, "ShipsPlaced", JsonConvert.SerializeObject(responseMessage));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing placeShips from {userId}: {ex.Message}");
+            }
+        }
+
+        private async Task HandleAttack(int userId, string[] parts)
+        {
+            if (parts.Length < 3)
+            {
+                _logger.LogWarning($"Invalid attack format from {userId}: {string.Join("|", parts)}");
+                return;
+            }
+
+            try
+            {
+                var gameId = Guid.Parse(parts[1]);
+                var x = int.Parse(parts[2]);
+                var y = int.Parse(parts[3]);
+
+                using var scope = _serviceProvider.CreateScope();
+                var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var response = await gameService.AttackAsync(gameId, userId, x, y);
+
+                if (!response.Success)
+                {
+                    _logger.LogWarning($"Error processing attack: {response.Message}");
+                    return;
+                }
+
+                _logger.LogInformation($"User {userId} attacked at ({x}, {y}) in game {gameId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error processing attack from {userId}: {ex.Message}");
+            }
+        }
+
+
+
+
+        private async Task HandleChatMessageAsync(int senderId, string payload)
+        {
+
+            var payloadParts = payload.Split(':');
+            if (payloadParts.Length < 2)
+            {
+                _logger.LogWarning($"Invalid payload for ChatMessage: {payload}");
+                return;
+            }
+
+            var gameId = Guid.Parse(payloadParts[0]);
+            var chatMessage = payloadParts[1];
+
+            if (string.IsNullOrWhiteSpace(chatMessage))
+            {
+                _logger.LogWarning($"Empty chat message received in game {gameId} from user {senderId}.");
                 return;
             }
 
             var chatService = _serviceProvider.GetRequiredService<IChatService>();
+            var response = await chatService.SendMessageAsync(gameId, senderId, chatMessage);
 
-            var response = await chatService.SendMessageAsync(gameId, senderId, message);
             if (!response.Success)
             {
-                _logger.LogWarning($"Error al enviar mensaje: {response.Message}");
+                _logger.LogWarning($"Error sending chat message: {response.Message}");
                 return;
             }
 
 
-            if (_connectedUsers.TryGetValue(senderId, out var senderWebSocket))
-            {
-                var notificationPayload = $"{senderId}:{message}";
-                var gameUsers = _connectedUsers.Keys.Where(userId =>
-                    userId != senderId);
+            var notificationPayload = $"{senderId}:{chatMessage}";
+            var recipients = _connectedUsers.Keys.Where(uid => uid != senderId);
 
-                foreach (var userId in gameUsers)
+            foreach (var userId in recipients)
+            {
+                if (_connectedUsers.TryGetValue(userId, out var webSocket))
                 {
-                    if (_connectedUsers.TryGetValue(userId, out var webSocket))
-                    {
-                        await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
-                    }
+                    await SendMessageAsync(webSocket, "ChatMessage", notificationPayload);
                 }
             }
         }
 
-
-
-        private async Task HandleSendFriendRequestAsync(int senderId, int recipientId)
+        private async Task HandleMatchmakingAsync(int userId, string payload)
         {
-            if (_connectedUsers.TryGetValue(recipientId, out var recipientWebSocket))
+            if (payload == "random")
             {
-                _logger.LogInformation($"Enviando solicitud de amistad de {senderId} a {recipientId}");
-                await SendMessageAsync(recipientWebSocket, "FriendRequest", senderId.ToString());
+              
+                if (!_matchmakingQueue.Contains(userId))
+                {
+                    _matchmakingQueue.Enqueue(userId);
+                    _logger.LogInformation($"User {userId} added to matchmaking queue.");
+                }
+
+          
+                await MatchUsersInQueue();
             }
-            else
+            else if (payload == "cancel")
             {
-                _logger.LogWarning($"El usuario {recipientId} no está conectado. No se pudo enviar la solicitud de amistad.");
+              
+                RemoveFromMatchmakingQueue(userId);
             }
+        }
+
+        private async Task MatchUsersInQueue()
+        {
+          
+            while (_matchmakingQueue.Count >= 2)
+            {
+                if (_matchmakingQueue.TryDequeue(out int user1) &&
+                    _matchmakingQueue.TryDequeue(out int user2))
+                {
+                    _logger.LogInformation($"Matchmaking pair found: {user1} and {user2}");
+
+                 
+                    using var scope = _serviceProvider.CreateScope();
+                    var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                 
+                    var createGameResponse = await gameService.CreateGameAsync(user1.ToString());
+                    if (!createGameResponse.Success)
+                    {
+                        _logger.LogError($"Error creating game: {createGameResponse.Message}");
+                     
+                        continue;
+                    }
+
+                    var newGame = createGameResponse.Data;
+
+                
+                    var joinResponse = await gameService.JoinGameAsync(newGame.GameId, user2);
+                    if (!joinResponse.Success)
+                    {
+                        _logger.LogError($"Error joining user {user2} to game {newGame.GameId}: {joinResponse.Message}");
+                       
+                        continue;
+                    }
+
+                  
+                    await NotifyUserAsync(user1, "MatchFound", newGame.GameId.ToString());
+                    await NotifyUserAsync(user2, "MatchFound", newGame.GameId.ToString());
+                }
+            }
+        }
+
+        private void RemoveFromMatchmakingQueue(int userId)
+        {
+
+            var allUsers = _matchmakingQueue.ToList();
+            var newQueue = new ConcurrentQueue<int>(allUsers.Where(u => u != userId));
+
+
+            while (_matchmakingQueue.TryDequeue(out _))
+                foreach (var u in newQueue) _matchmakingQueue.Enqueue(u);
+
+            _logger.LogInformation($"User {userId} removed from matchmaking queue (if was present).");
         }
 
         public async Task NotifyUserStatusChangeAsync(int userId, UserState newState)
@@ -244,21 +511,19 @@ namespace hundir_la_flota.Services
             try
             {
                 await Task.WhenAll(tasks);
-                _logger.LogInformation($"Estado del usuario {userId} actualizado a {newState}");
+                _logger.LogInformation($"User {userId} state changed to {newState}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error notificando cambios de estado para el usuario {userId}: {ex.Message}");
+                _logger.LogError($"Error notifying user status change for {userId}: {ex.Message}");
             }
         }
-
 
         public async Task SendMessageAsync(WebSocket webSocket, string action, string payload)
         {
             var socketWrapper = new WebSocketWrapper(webSocket);
             await socketWrapper.SendMessageAsync(action, payload);
         }
-
 
         public bool IsUserConnected(int userId)
         {
@@ -278,5 +543,7 @@ namespace hundir_la_flota.Services
         {
             _userStates[userId] = newState;
         }
+
+        public int GetOnlineUsersCount() => _connectedUsers.Count;
     }
 }

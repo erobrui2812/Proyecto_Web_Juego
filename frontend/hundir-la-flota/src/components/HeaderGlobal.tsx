@@ -13,41 +13,47 @@ const Header = () => {
   const { auth } = useGlobalContext();
 
   return (
-    <header className="flex items-center justify-between p-4 bg-primary text-white font-bebasneue">
-      <div className="flex-shrink-0 w-1/3 flex justify-center">
-        <Image src="/BattleshipsColle.webp" alt="Logo" width={300} height={1} />
+    <header className="flex flex-wrap items-center justify-between p-4 bg-primary text-white font-bebasneue">
+      <div className="w-full sm:w-1/3 flex justify-center sm:justify-start mb-4 sm:mb-0">
+        <Image
+          src="/BattleshipsColle.webp"
+          alt="Logo"
+          width={200}
+          height={50}
+          priority={true}
+          className="max-w-full h-auto"
+        />
       </div>
 
-      <nav className="w-1/3 flex justify-center space-x-6 text-lg tracking-[.2em]">
-        <Link href="/" className="hover:text-secondary hover:tracking-[.15em]">
+      <nav className="w-full sm:w-1/3 flex justify-center space-x-6 text-lg tracking-[.2em] mb-4 sm:mb-0">
+        <Link
+          href="/"
+          className="hover:text-secondary hover:tracking-[.15em] transition-all"
+        >
           Inicio
         </Link>
         <Link
-          href="/juego"
-          className="hover:text-secondary hover:tracking-[.15em]"
-        >
-          Juego
-        </Link>
-        <Link
           href="/menu"
-          className="hover:text-secondary hover:tracking-[.15em]"
+          className="hover:text-secondary hover:tracking-[.15em] transition-all"
         >
           Menú
         </Link>
       </nav>
 
-      <div className="w-1/3 flex justify-center items-center space-x-4">
-        {auth.isAuthenticated ? (
+      <div className="w-full sm:w-1/3 flex justify-center sm:justify-end items-center space-x-4">
+        {auth.isAuthenticated && auth.userDetail ? (
           <div className="flex items-center space-x-2">
-            <Image
-              src={auth.userDetail?.avatarUrl || "/user-no-photo.svg"}
+            <img
+              src={auth.userDetail.avatarUrl}
               alt="Perfil"
               width={30}
               height={30}
               className="rounded-full"
             />
 
-            <span className="text-lg">{auth.userDetail?.nickname}</span>
+            <span className="text-lg truncate max-w-[150px] sm:max-w-none">
+              {auth.userDetail.nickname}
+            </span>
           </div>
         ) : (
           <a href="/login">

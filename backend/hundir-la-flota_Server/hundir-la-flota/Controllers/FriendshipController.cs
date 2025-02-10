@@ -84,11 +84,24 @@ public class FriendshipController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchUsers([FromQuery] string nickname)
     {
-        if (string.IsNullOrEmpty(nickname)) return BadRequest("El nickname no puede estar vacío.");
-        var result = await _friendshipService.SearchUsersAsync(nickname);
-        if (!result.Success) return NotFound(result.Message);
+        if (string.IsNullOrEmpty(nickname))
+            return BadRequest("El nickname no puede estar vacío.");
+
+        int currentUserId = 0;
+
+        if (HttpContext.User.Identity.IsAuthenticated)
+        {
+            currentUserId = GetUserId();
+        }
+
+        var result = await _friendshipService.SearchUsersAsync(nickname, currentUserId);
+
+        if (!result.Success)
+            return NotFound(result.Message);
+
         return Ok(result.Data);
     }
+
 
     [HttpGet("get-nickname/{userId}")]
     public async Task<IActionResult> GetNickname(int userId)

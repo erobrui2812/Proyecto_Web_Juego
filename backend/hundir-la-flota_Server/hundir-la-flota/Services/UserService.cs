@@ -1,4 +1,5 @@
-﻿using hundir_la_flota.DTOs;
+﻿using System.IdentityModel.Tokens.Jwt;
+using hundir_la_flota.DTOs;
 using hundir_la_flota.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,7 @@ namespace hundir_la_flota.Services
         Task<ServiceResponse<object>> GetUserDetailAsync(string authorizationHeader);
         Task<ServiceResponse<UserListDTO>> GetProfileByIdAsync(int userId);
         Task<ServiceResponse<List<UserListDTO>>> GetAllConnectedUsersAsync();
+        Task<ServiceResponse<string>> UpdateUserProfileAsync(UserUpdateDTO dto, IFormFile avatar);
     }
 
     public class UserService : IUserService
@@ -128,7 +130,9 @@ namespace hundir_la_flota.Services
                     Id = u.Id,
                     Nickname = u.Nickname,
                     Email = u.Email,
-                    AvatarUrl = u.AvatarUrl
+                    AvatarUrl = u.AvatarUrl,
+                    IsBlocked = u.IsBlocked,
+                    Role = u.Role
                 })
                 .ToListAsync();
 
@@ -211,8 +215,63 @@ namespace hundir_la_flota.Services
             return new ServiceResponse<List<GameHistoryDTO>> { Success = true, Data = gameHistory };
         }
 
+        public async Task<ServiceResponse<string>> UpdateUserProfileAsync(UserUpdateDTO dto, IFormFile avatar)
+        {
+            var response = new ServiceResponse<string>();
+            try
+            {
+                var user = await _context.Users.FindAsync(dto.Id);
+                if (user == null)
+                {
+                    response.Success = false;
+                    response.Message = "Usuario no encontrado.";
+                    return response;
+                }
 
+                if (!string.IsNullOrEmpty(dto.CurrentPassword) && !string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    if (!_authService.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                    {
+                        response.Success = false;
+                        response.Message = "La contraseña actual no es válida.";
+                        return response;
+                    }
 
+                    user.PasswordHash = _authService.HashPassword(dto.NewPassword);
+                }
+
+                user.Nickname = dto.Nickname;
+                user.Email = dto.Email;
+
+                if (avatar != null)
+                {
+                    string uploadsFolder = Path.Combine("wwwroot", "images", user.Id.ToString());
+                    if (!Directory.Exists(uploadsFolder))
+                        Directory.CreateDirectory(uploadsFolder);
+
+                    string filePath = Path.Combine(uploadsFolder, "avatar.jpg");
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await avatar.CopyToAsync(stream);
+                    }
+
+                    user.AvatarUrl = $"https://localhost:7162/images/{user.Id}/avatar.jpg";
+                }
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                response.Success = true;
+                response.Message = "Perfil actualizado correctamente.";
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = $"Error al actualizar el perfil: {ex.Message}";
+            }
+
+            return response;
+        }
 
         private async Task<string> GetNicknameByIdAsync(int userId)
         {

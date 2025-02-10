@@ -2,10 +2,9 @@
 using hundir_la_flota.Models;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using hundir_la_flota.Utils;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 public interface IGameService
 {
@@ -19,27 +18,72 @@ public interface IGameService
     Task<ServiceResponse<Game>> FindRandomOpponentAsync(string userId);
     Task<ServiceResponse<Game>> CreateBotGameAsync(string userId);
     Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId);
+    Task<ServiceResponse<string>> PassTurnAsync(Guid gameId, int playerId);
+    Task<ServiceResponse<Game>> RematchAsync(Guid gameId, int playerId);
+    Task<ServiceResponse<string>> ConfirmReadyAsync(Guid gameId, int playerId);
+
+    Task<int?> GetHostIdAsync(Guid gameId);
+
 }
 
 public class GameService : IGameService
 {
+    private static readonly SemaphoreSlim _turnLock = new(1, 1);
     private readonly IGameRepository _gameRepository;
     private readonly IUserRepository _userRepository;
     private readonly IWebSocketService _webSocketService;
     private readonly IGameParticipantRepository _gameParticipantRepository;
+    private readonly MyDbContext _context;
 
 
     public GameService(
      IGameRepository gameRepository,
      IUserRepository userRepository,
      IGameParticipantRepository gameParticipantRepository,
-     IWebSocketService webSocketService)
+     IWebSocketService webSocketService,
+     MyDbContext context)
+
     {
         _gameRepository = gameRepository;
         _userRepository = userRepository;
         _gameParticipantRepository = gameParticipantRepository;
         _webSocketService = webSocketService;
+        _context = context;
     }
+
+    public async Task<ServiceResponse<string>> ConfirmReadyAsync(Guid gameId, int playerId)
+    {
+        var game = await _gameRepository.GetByIdAsync(gameId);
+        if (game == null)
+            return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        var participant = participants.FirstOrDefault(p => p.UserId == playerId);
+        if (participant == null)
+            return new ServiceResponse<string> { Success = false, Message = "Participante no válido." };
+
+        participant.IsReady = true;
+        await _gameParticipantRepository.UpdateAsync(participant);
+
+        participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+
+        if (participants.All(p => p.IsReady))
+        {
+            game.State = GameState.WaitingForPlayer1Shot; 
+            await _gameRepository.UpdateAsync(game);
+
+            await _webSocketService.NotifyUsersAsync(
+                participants.Select(p => p.UserId),
+                "GameStarted",
+                "El juego ha comenzado. Es el turno del anfitrión."
+            );
+            var host = participants.First(p => p.Role == ParticipantRole.Host);
+            await _webSocketService.NotifyUserAsync(host.UserId, "YourTurn", "Es tu turno de atacar.");
+        }
+
+        return new ServiceResponse<string> { Success = true, Message = "Confirm ready successfully." };
+    }
+
 
     public async Task<ServiceResponse<Game>> CreateGameAsync(string userId)
     {
@@ -48,7 +92,10 @@ public class GameService : IGameService
         var newGame = new Game
         {
             State = GameState.WaitingForPlayers,
-            CreatedAt = DateTime.Now
+            CreatedAt = DateTime.Now,
+            
+            Player1Board = new Board(), 
+            Player2Board = new Board()  
         };
 
         await _gameRepository.AddAsync(newGame);
@@ -67,15 +114,19 @@ public class GameService : IGameService
     }
 
 
+
     public async Task<ServiceResponse<string>> JoinGameAsync(Guid gameId, int userId)
     {
         var game = await _gameRepository.GetByIdAsync(gameId);
-        if (game == null || game.State != GameState.WaitingForPlayers)
+        if (game == null)
             return new ServiceResponse<string> { Success = false, Message = "La partida no está disponible." };
 
-        var existingParticipant = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
-        if (existingParticipant.Any(p => p.UserId == userId))
+        var existingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        if (existingParticipants.Any(p => p.UserId == userId))
             return new ServiceResponse<string> { Success = false, Message = "Ya estás en esta partida." };
+
+        if (existingParticipants.Count >= 2)
+            return new ServiceResponse<string> { Success = false, Message = "La partida ya está llena." };
 
         var participant = new GameParticipant
         {
@@ -87,7 +138,8 @@ public class GameService : IGameService
 
         await _gameParticipantRepository.AddAsync(participant);
 
-        if (existingParticipant.Count + 1 >= 2)
+
+        if (existingParticipants.Count + 1 >= 2)
         {
             game.State = GameState.WaitingForPlayer1Ships;
             await _gameRepository.UpdateAsync(game);
@@ -98,27 +150,41 @@ public class GameService : IGameService
 
     public async Task<ServiceResponse<string>> AbandonGameAsync(Guid gameId, int userId)
     {
-        var participant = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
-        if (participant == null)
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        if (participants == null || !participants.Any(p => p.UserId == userId))
             return new ServiceResponse<string> { Success = false, Message = "No estás participando en esta partida." };
 
-        await _gameParticipantRepository.RemoveAsync(participant.FirstOrDefault(p => p.UserId == userId));
+        var participant = participants.First(p => p.UserId == userId);
+        participant.Abandoned = true;
+        await _gameParticipantRepository.UpdateAsync(participant);
 
-        var remainingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        
+        var activeParticipants = participants.Where(p => !p.Abandoned).ToList();
         var game = await _gameRepository.GetByIdAsync(gameId);
 
-        if (!remainingParticipants.Any())
+        if (!activeParticipants.Any())
         {
+            
             game.State = GameState.WaitingForPlayers;
+        }
+        else if (activeParticipants.Count == 1)
+        {
+           
+            game.State = GameState.Finished;
+            game.WinnerId = activeParticipants.First().UserId;
+
+            await _webSocketService.NotifyUserAsync(activeParticipants.First().UserId, "GameOver", $"El jugador {activeParticipants.First().UserId} ha ganado por abandono del oponente.");
         }
         else
         {
+            
             game.State = GameState.WaitingForPlayer1Ships;
         }
 
         await _gameRepository.UpdateAsync(game);
         return new ServiceResponse<string> { Success = true, Message = "Has abandonado la partida." };
     }
+
 
     public async Task<ServiceResponse<string>> PlaceShipsAsync(Guid gameId, int userId, List<Ship> ships)
     {
@@ -140,133 +206,279 @@ public class GameService : IGameService
 
         foreach (var ship in ships)
         {
-            if (!playerBoard.IsShipPlacementValid(ship))
+            ship.Id = 0;
+            if (!playerBoard.PlaceShip(ship))
                 return new ServiceResponse<string> { Success = false, Message = $"Posición inválida para el barco {ship.Name}." };
-
-            playerBoard.Ships.Add(ship);
         }
 
-        if (game.Player1Board.Ships.Count > 0 && game.Player2Board.Ships.Count > 0)
+        participant.IsReady = true;
+        await _gameParticipantRepository.UpdateAsync(participant);
+
+
+        if (participants.All(p => p.IsReady))
+        {
             game.State = GameState.WaitingForPlayer1Shot;
+            await _gameRepository.UpdateAsync(game);
+
+
+            await _webSocketService.NotifyUsersAsync(
+                participants.Select(p => p.UserId),
+                "GameStarted",
+                "El juego ha comenzado. Es el turno del anfitrión."
+            );
+
+
+            var host = participants.First(p => p.Role == ParticipantRole.Host);
+            await _webSocketService.NotifyUserAsync(host.UserId, "YourTurn", "Es tu turno de atacar.");
+        }
 
         await _gameRepository.UpdateAsync(game);
         return new ServiceResponse<string> { Success = true, Message = "Barcos colocados correctamente." };
     }
 
-
-
     public async Task<ServiceResponse<string>> AttackAsync(Guid gameId, int playerId, int x, int y)
     {
-        var game = await _gameRepository.GetByIdAsync(gameId);
-        if (game == null)
-            return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
-
-        if (game.State != GameState.WaitingForPlayer1Shot && game.State != GameState.WaitingForPlayer2Shot)
-            return new ServiceResponse<string> { Success = false, Message = "No se puede atacar en esta etapa." };
-
-        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
-        var currentPlayer = participants.FirstOrDefault(p => p.UserId == playerId);
-        var opponent = participants.FirstOrDefault(p => p.UserId != playerId);
-
-        if (currentPlayer == null || opponent == null)
-            return new ServiceResponse<string> { Success = false, Message = "No se encontraron los participantes." };
-
-        var opponentBoard = currentPlayer.Role == ParticipantRole.Host
-            ? game.Player2Board
-            : game.Player1Board;
-
-        var cell = opponentBoard.Grid
-            .Where(kvp => kvp.Key.X == x && kvp.Key.Y == y)
-            .Select(kvp => kvp.Value)
-            .FirstOrDefault();
-
-        if (cell == null)
-            return new ServiceResponse<string> { Success = false, Message = "Celda fuera de los límites del tablero." };
-
-        if (cell.IsHit)
-            return new ServiceResponse<string> { Success = false, Message = "La celda ya ha sido atacada." };
-
-        cell.IsHit = true;
-        var ship = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
-        var actionDetails = $"Disparo en ({x}, {y})";
-
-        if (ship != null)
+        await _turnLock.WaitAsync();
+        try
         {
-            actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
-            if (opponentBoard.Ships.All(s => s.IsSunk))
+            var game = await _gameRepository.GetByIdAsync(gameId);
+            if (game == null)
+                return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+            if (game.State != GameState.WaitingForPlayer1Shot && game.State != GameState.WaitingForPlayer2Shot)
+                return new ServiceResponse<string> { Success = false, Message = "No se puede atacar en esta etapa." };
+
+            var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+            var currentPlayer = participants.FirstOrDefault(p => p.UserId == playerId);
+            var opponent = participants.FirstOrDefault(p => p.UserId != playerId);
+
+            if (currentPlayer == null || opponent == null)
+                return new ServiceResponse<string> { Success = false, Message = "No se encontraron los participantes." };
+
+            if ((game.State == GameState.WaitingForPlayer1Shot && currentPlayer.Role != ParticipantRole.Host) ||
+                (game.State == GameState.WaitingForPlayer2Shot && currentPlayer.Role != ParticipantRole.Guest))
+            {
+                return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
+            }
+
+            var opponentBoard = currentPlayer.Role == ParticipantRole.Host
+                ? game.Player2Board
+                : game.Player1Board;
+
+            if (!opponentBoard.Grid.ContainsKey((x, y)))
+                return new ServiceResponse<string> { Success = false, Message = "Coordenada fuera de los límites." };
+
+            var cell = opponentBoard.Grid[(x, y)];
+            if (cell.IsHit)
+                return new ServiceResponse<string> { Success = false, Message = "Celda ya atacada." };
+
+      
+            bool wasHit = cell.HasShip;
+            cell.IsHit = true;
+            cell.Status = wasHit ? CellStatus.Hit : CellStatus.Miss;
+            Console.WriteLine($"[AttackAsync] Disparo en ({x},{y}). ¿Hay barco?: {wasHit}");
+
+            string attackResult = "miss";
+            string actionDetails = $"Disparo en ({x}, {y})";
+
+          
+            var hitShip = opponentBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == x && coord.Y == y));
+            if (hitShip != null)
+            {
+                Console.WriteLine($"[AttackAsync] Se encontró el barco {hitShip.Name} en la posición ({x},{y}).");
+                foreach (var coord in hitShip.Coordinates)
+                {
+                    if (coord.X == x && coord.Y == y)
+                    {
+                        coord.IsHit = true;
+                        break;
+                    }
+                }
+
+                if (hitShip.IsSunk)
+                {
+                    attackResult = "sunk";
+                    actionDetails += " ¡Barco hundido!";
+                }
+                else
+                {
+                    attackResult = "hit";
+                    actionDetails += " ¡Acierto!";
+                }
+            }
+            else
+            {
+                attackResult = "miss";
+                actionDetails += " Fallo.";
+            
+                game.State = (game.State == GameState.WaitingForPlayer1Shot)
+                    ? GameState.WaitingForPlayer2Shot
+                    : GameState.WaitingForPlayer1Shot;
+            }
+
+            if (opponentBoard.AreAllShipsSunk())
             {
                 game.State = GameState.Finished;
                 game.WinnerId = playerId;
                 actionDetails += " Fin del juego.";
+                await _webSocketService.NotifyUsersAsync(
+                    new List<int> { playerId, opponent.UserId },
+                    "GameOver",
+                    $"El jugador {playerId} ha ganado."
+                );
+                await UpdatePlayerStats(playerId, opponent.UserId);
             }
-        }
-        else
-        {
-            actionDetails += " ¡Fallo!";
-        }
 
-        game.Actions.Add(new GameAction
-        {
-            PlayerId = playerId,
-            ActionType = "Shot",
-            Timestamp = DateTime.UtcNow,
-            Details = actionDetails
-        });
+            await _gameRepository.UpdateAsync(game);
 
-        if (game.State != GameState.Finished)
-        {
-            game.CurrentPlayerId = opponent.UserId;
-            game.State = currentPlayer.Role == ParticipantRole.Host
-                ? GameState.WaitingForPlayer2Shot
-                : GameState.WaitingForPlayer1Shot;
+            var payload = JsonConvert.SerializeObject(new { x, y, result = attackResult });
+
+            await _webSocketService.NotifyUserAsync(playerId, "AttackResult", payload);
+            await _webSocketService.NotifyUserAsync(opponent.UserId, "EnemyAttack", payload);
+
+            if (game.State != GameState.Finished)
+            {
+                if (attackResult == "miss")
+                {
+                    int nextPlayerId = game.State == GameState.WaitingForPlayer1Shot
+                        ? participants.First(p => p.Role == ParticipantRole.Host).UserId
+                        : participants.First(p => p.Role == ParticipantRole.Guest).UserId;
+                    await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
+                }
+                else
+                {
+                    
+                    await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Continúa atacando.");
+                }
+            }
+
+            return new ServiceResponse<string> { Success = true, Message = actionDetails };
         }
-
-        await _gameRepository.UpdateAsync(game);
-        return new ServiceResponse<string> { Success = true, Message = actionDetails };
+        finally
+        {
+            _turnLock.Release();
+        }
     }
 
 
 
-    private GameAction SimulateBotAttack(Board playerBoard)
+    public GameAction SimulateBotAttack(Board playerBoard)
     {
+        var random = new Random();
+        var potentialTargets = new List<Cell>();
 
-        var availableCells = playerBoard.Grid
-            .Where(kvp => !kvp.Value.IsHit)
-            .Select(kvp => kvp.Value)
-            .ToList();
-
-        if (!availableCells.Any())
+        foreach (var ship in playerBoard.Ships)
         {
-            throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
+            if (ship.IsSunk)
+                continue;
+
+            foreach (var coord in ship.Coordinates)
+            {
+                var cell = playerBoard.Grid[(coord.X, coord.Y)];
+                if (cell.IsHit)
+                {
+                    var adjacentCoords = new List<(int X, int Y)>
+                {
+                    (coord.X - 1, coord.Y),
+                    (coord.X + 1, coord.Y),
+                    (coord.X, coord.Y - 1),
+                    (coord.X, coord.Y + 1)
+                };
+
+                    foreach (var adjacent in adjacentCoords)
+                    {
+                        if (adjacent.X >= 0 && adjacent.X < Board.Size && adjacent.Y >= 0 && adjacent.Y < Board.Size)
+                        {
+                            var adjacentCell = playerBoard.Grid[(adjacent.X, adjacent.Y)];
+                            if (!adjacentCell.IsHit)
+                            {
+                                potentialTargets.Add(adjacentCell);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        var random = new Random();
-        var targetCell = availableCells[random.Next(availableCells.Count)];
+        Cell targetCell = null;
+        if (potentialTargets.Any())
+        {
+            targetCell = potentialTargets[random.Next(potentialTargets.Count)];
+        }
+        else
+        {
+            var availableCells = playerBoard.Grid
+                .Where(kvp => !kvp.Value.IsHit)
+                .Select(kvp => kvp.Value)
+                .ToList();
+
+            if (!availableCells.Any())
+                throw new InvalidOperationException("No hay celdas disponibles para el ataque.");
+
+            targetCell = availableCells[random.Next(availableCells.Count)];
+        }
 
         targetCell.IsHit = true;
-
         var actionDetails = $"El bot dispara en ({targetCell.X}, {targetCell.Y})";
-
-        var ship = playerBoard.Ships
-            .FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
-
-        if (ship != null)
+        var hitShip = playerBoard.Ships.FirstOrDefault(s => s.Coordinates.Any(coord => coord.X == targetCell.X && coord.Y == targetCell.Y));
+        if (hitShip != null)
         {
-            actionDetails += ship.IsSunk ? " ¡Barco hundido!" : " ¡Acierto!";
+            if (hitShip.IsSunk)
+                actionDetails += " ¡Barco hundido!";
+            else
+                actionDetails += " ¡Acierto!";
         }
         else
         {
             actionDetails += " ¡Fallo!";
         }
+
 
         return new GameAction
         {
             PlayerId = -1,
             ActionType = "Shot",
             Timestamp = DateTime.UtcNow,
-            Details = actionDetails
+            Details = actionDetails,
+            X = targetCell.X,
+            Y = targetCell.Y
         };
     }
+
+
+
+
+    private async Task UpdatePlayerStats(int winnerId, int loserId)
+    {
+
+        var winnerStats = await _context.PlayerStats.FirstOrDefaultAsync(s => s.UserId == winnerId);
+        if (winnerStats != null)
+        {
+            winnerStats.GamesWon++;
+            winnerStats.GamesPlayed++;
+        }
+        else
+        {
+            winnerStats = new PlayerStats { UserId = winnerId, GamesWon = 1, GamesPlayed = 1 };
+            _context.PlayerStats.Add(winnerStats);
+        }
+
+
+        var loserStats = await _context.PlayerStats.FirstOrDefaultAsync(s => s.UserId == loserId);
+        if (loserStats != null)
+        {
+            loserStats.GamesLost++;
+            loserStats.GamesPlayed++;
+        }
+        else
+        {
+            loserStats = new PlayerStats { UserId = loserId, GamesLost = 1, GamesPlayed = 1 };
+            _context.PlayerStats.Add(loserStats);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
 
 
     public async Task<ServiceResponse<GameResponseDTO>> GetGameStateAsync(string userId, Guid gameId)
@@ -286,27 +498,27 @@ public class GameService : IGameService
         var player1 = participants.FirstOrDefault(p => p.Role == ParticipantRole.Host);
         var player2 = participants.FirstOrDefault(p => p.Role == ParticipantRole.Guest);
 
-        var player1Data = player1 != null
-            ? await _userRepository.GetUserByIdAsync(player1.UserId)
-            : null;
+        var player1Data = player1 != null ? await _userRepository.GetUserByIdAsync(player1.UserId) : null;
+        var player2Data = player2 != null ? await _userRepository.GetUserByIdAsync(player2.UserId) : null;
 
-        var player2Data = player2 != null
-            ? await _userRepository.GetUserByIdAsync(player2.UserId)
-            : null;
+        var player1Nickname = player1 != null
+            ? (player1.Abandoned ? "Abandonado" : (player1Data?.Nickname ?? "Vacante"))
+            : "Vacante";
+        var player2Nickname = player2 != null
+            ? (player2.Abandoned ? "Abandonado" : (player2Data?.Nickname ?? "Vacante"))
+            : "Vacante";
 
         var response = new GameResponseDTO
         {
             GameId = game.GameId,
-            Player1Nickname = player1Data?.Nickname ?? "Vacante",
-            Player2Nickname = player2Data?.Nickname ?? "Vacante",
-            Player1Display = $"{player1Data?.Nickname ?? "Vacante"} - {player1?.Role.ToString() ?? "Vacante"}",
-            Player2Display = $"{player2Data?.Nickname ?? "Vacante"} - {player2?.Role.ToString() ?? "Vacante"}",
-            Player1Role = player1?.Role.ToString(),
-            Player2Role = player2?.Role.ToString(),
+            Player1Nickname = player1Nickname,
+            Player2Nickname = player2Nickname,
+            Player1Role = player1?.Role.ToString() ?? "Vacante",
+            Player2Role = player2?.Role.ToString() ?? "Vacante",
             StateDescription = GetStateDescription(game.State),
-            Player1Board = game.Player1Board,
-            Player2Board = game.Player2Board,
-            Actions = game.Actions.ToList(),
+            Player1Board = DTOMapper.ToBoardDTO(game.Player1Board),
+            Player2Board = DTOMapper.ToBoardDTO(game.Player2Board),
+            Actions = game.Actions.Select(DTOMapper.ToGameActionDTO).ToList(),
             CurrentPlayerId = game.CurrentPlayerId ?? 0,
             CreatedAt = game.CreatedAt
         };
@@ -316,33 +528,44 @@ public class GameService : IGameService
 
 
 
-
     public async Task<ServiceResponse<string>> HandleDisconnectionAsync(int playerId)
     {
-        var participant = await _gameParticipantRepository.GetParticipantsByUserIdAsync(playerId);
-        if (participant == null || !participant.Any())
+        var participants = await _gameParticipantRepository.GetParticipantsByUserIdAsync(playerId);
+        if (participants == null || !participants.Any())
             return new ServiceResponse<string> { Success = false, Message = "El jugador no está en ninguna partida activa." };
 
-        foreach (var p in participant)
+        foreach (var p in participants)
         {
             var game = await _gameRepository.GetByIdAsync(p.GameId);
-            if (game == null || game.State == GameState.Finished) continue;
+            if (game == null || game.State == GameState.Finished)
+                continue;
 
-            await _gameParticipantRepository.RemoveAsync(p);
 
+            p.Abandoned = true;
+            await _gameParticipantRepository.UpdateAsync(p);
+
+            
             var remainingParticipants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(p.GameId);
-            if (!remainingParticipants.Any())
+            var activeParticipants = remainingParticipants.Where(x => !x.Abandoned).ToList();
+
+            if (activeParticipants.Count == 1)
+            {
+                var winner = activeParticipants.First();
+                game.State = GameState.Finished;
+                game.WinnerId = winner.UserId;
+                await _gameRepository.UpdateAsync(game);
+
+                await _webSocketService.NotifyUserAsync(
+                    winner.UserId,
+                    "GameOver",
+                    "Has ganado la partida por desconexión de tu oponente."
+                );
+            }
+            else if (!activeParticipants.Any())
             {
                 game.State = GameState.WaitingForPlayers;
+                await _gameRepository.UpdateAsync(game);
             }
-            else
-            {
-                game.State = GameState.WaitingForPlayer1Ships;
-                var remainingPlayer = remainingParticipants.First();
-                game.CurrentPlayerId = remainingPlayer.UserId;
-            }
-
-            await _gameRepository.UpdateAsync(game);
         }
 
         return new ServiceResponse<string> { Success = true, Message = "Desconexión manejada correctamente." };
@@ -368,12 +591,23 @@ public class GameService : IGameService
         int userIdInt = Convert.ToInt32(userId);
 
         var availableGames = await _gameRepository.GetAllAsync();
-        var game = availableGames
-            .FirstOrDefault(g => g.State == GameState.WaitingForPlayers
-                                 && !g.Participants.Any(p => p.UserId == userIdInt));
+        var game = availableGames.FirstOrDefault(g =>
+            g.State == GameState.WaitingForPlayers &&
+            !g.Participants.Any(p => p.UserId == userIdInt)
+        );
 
         if (game == null)
             return new ServiceResponse<Game> { Success = false, Message = "No hay partidas disponibles." };
+
+        
+        if (game.Player1Board == null)
+        {
+            game.Player1Board = new Board();
+        }
+        if (game.Player2Board == null)
+        {
+            game.Player2Board = new Board();
+        }
 
         var participant = new GameParticipant
         {
@@ -392,11 +626,17 @@ public class GameService : IGameService
     }
 
 
+    public async Task<int?> GetHostIdAsync(Guid gameId)
+    {
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        var host = participants.FirstOrDefault(p => p.Role == ParticipantRole.Host);
+        return host?.UserId;
+    }
+
+
     public async Task<ServiceResponse<Game>> CreateBotGameAsync(string userId)
     {
         int userIdInt = Convert.ToInt32(userId);
-
-
         var newGame = new Game
         {
             State = GameState.WaitingForPlayer1Ships,
@@ -405,29 +645,164 @@ public class GameService : IGameService
 
         await _gameRepository.AddAsync(newGame);
 
-
-        var participant = new GameParticipant
+        var hostParticipant = new GameParticipant
         {
             GameId = newGame.GameId,
             UserId = userIdInt,
             Role = ParticipantRole.Host,
             IsReady = false
         };
-
-        await _gameParticipantRepository.AddAsync(participant);
-
+        await _gameParticipantRepository.AddAsync(hostParticipant);
 
         var botParticipant = new GameParticipant
         {
             GameId = newGame.GameId,
             UserId = -1,
             Role = ParticipantRole.Guest,
-            IsReady = true
+            IsReady = false
         };
-
         await _gameParticipantRepository.AddAsync(botParticipant);
 
+
+        if (newGame.Player2Board == null)
+        {
+            newGame.Player2Board = new Board();
+        }
+
+
+        var botShips = GenerateRandomShips(newGame.Player2Board);
+        foreach (var ship in botShips)
+        {
+            newGame.Player2Board.Ships.Add(ship);
+        }
+
+        botParticipant.IsReady = true;
+        await _gameParticipantRepository.UpdateAsync(botParticipant);
+        await _gameRepository.UpdateAsync(newGame);
+
         return new ServiceResponse<Game> { Success = true, Data = newGame };
+    }
+
+
+    private List<Ship> GenerateRandomShips(Board board)
+    {
+        var shipSizes = new int[] { 5, 4, 3, 3, 2 };
+        var ships = new List<Ship>();
+        var random = new Random();
+        foreach (var size in shipSizes)
+        {
+            bool placed = false;
+            while (!placed)
+            {
+                int x = random.Next(0, 10);
+                int y = random.Next(0, 10);
+                bool horizontal = random.NextDouble() > 0.5;
+                if (horizontal)
+                {
+                    if (x + size > 10)
+                        continue;
+                    bool conflict = false;
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (board.Grid[(x + i, y)].HasShip)
+                        {
+                            conflict = true;
+                            break;
+                        }
+                    }
+                    if (conflict)
+                        continue;
+                    var ship = new Ship
+                    {
+                        Name = $"Barco-{size}",
+                        Size = size,
+                        Coordinates = new List<Coordinate>()
+                    };
+                    for (int i = 0; i < size; i++)
+                    {
+                        ship.Coordinates.Add(new Coordinate { X = x + i, Y = y, IsHit = false });
+                        board.Grid[(x + i, y)].HasShip = true;
+                    }
+                    ships.Add(ship);
+                    placed = true;
+                }
+                else
+                {
+                    if (y + size > 10)
+                        continue;
+                    bool conflict = false;
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (board.Grid[(x, y + i)].HasShip)
+                        {
+                            conflict = true;
+                            break;
+                        }
+                    }
+                    if (conflict)
+                        continue;
+                    var ship = new Ship
+                    {
+                        Name = $"Barco-{size}",
+                        Size = size,
+                        Coordinates = new List<Coordinate>()
+                    };
+                    for (int i = 0; i < size; i++)
+                    {
+                        ship.Coordinates.Add(new Coordinate { X = x, Y = y + i, IsHit = false });
+                        board.Grid[(x, y + i)].HasShip = true;
+                    }
+                    ships.Add(ship);
+                    placed = true;
+                }
+            }
+        }
+        return ships;
+    }
+
+
+
+    public async Task<ServiceResponse<string>> PassTurnAsync(Guid gameId, int playerId)
+    {
+        await _turnLock.WaitAsync();
+        try
+        {
+            var game = await _gameRepository.GetByIdAsync(gameId);
+            if (game == null)
+                return new ServiceResponse<string> { Success = false, Message = "La partida no existe." };
+
+            if (game.State != GameState.WaitingForPlayer1Shot && game.State != GameState.WaitingForPlayer2Shot)
+                return new ServiceResponse<string> { Success = false, Message = "No se puede pasar el turno en esta etapa." };
+
+            var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+            var currentPlayer = participants.FirstOrDefault(p => p.UserId == playerId);
+            var opponent = participants.FirstOrDefault(p => p.UserId != playerId);
+
+            if (currentPlayer == null || opponent == null)
+                return new ServiceResponse<string> { Success = false, Message = "No se encontraron los participantes." };
+
+            if ((game.State == GameState.WaitingForPlayer1Shot && currentPlayer.Role != ParticipantRole.Host) ||
+                (game.State == GameState.WaitingForPlayer2Shot && currentPlayer.Role != ParticipantRole.Guest))
+            {
+                return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
+            }
+
+
+            game.State = game.State == GameState.WaitingForPlayer1Shot ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
+            await _gameRepository.UpdateAsync(game);
+
+            int nextPlayerId = game.State == GameState.WaitingForPlayer1Shot
+                ? participants.First(p => p.Role == ParticipantRole.Host).UserId
+                : participants.First(p => p.Role == ParticipantRole.Guest).UserId;
+
+            await _webSocketService.NotifyUserAsync(nextPlayerId, "YourTurn", "Es tu turno de atacar.");
+
+            return new ServiceResponse<string> { Success = true, Message = "Turno pasado correctamente." };
+        }
+        finally
+        {
+            _turnLock.Release();
+        }
     }
 
 
@@ -452,6 +827,56 @@ public class GameService : IGameService
 
         return new ServiceResponse<string> { Success = true, Message = "Roles reasignados correctamente." };
     }
+
+    public async Task<ServiceResponse<Game>> RematchAsync(Guid gameId, int playerId)
+    {
+        var oldGame = await _gameRepository.GetByIdAsync(gameId);
+        if (oldGame == null)
+            return new ServiceResponse<Game> { Success = false, Message = "Juego no encontrado." };
+
+        var participants = await _gameParticipantRepository.GetParticipantsByGameIdAsync(gameId);
+        if (participants.Count < 2)
+            return new ServiceResponse<Game> { Success = false, Message = "No hay suficientes jugadores para revancha." };
+
+        var newGame = new Game
+        {
+            State = GameState.WaitingForPlayer1Ships,
+            CreatedAt = DateTime.Now,
+            Player1Board = new Board(),
+            Player2Board = new Board()
+        };
+
+        await _gameRepository.AddAsync(newGame);
+
+   
+        foreach (var participant in participants)
+        {
+            var newParticipant = new GameParticipant
+            {
+                GameId = newGame.GameId,
+                UserId = participant.UserId,
+                Role = participant.Role,
+                IsReady = false
+            };
+            await _gameParticipantRepository.AddAsync(newParticipant);
+        }
+
+        
+        foreach (var participant in participants)
+        {
+            if (participant.UserId != playerId)
+            {
+                await _webSocketService.NotifyUserAsync(
+                    participant.UserId,
+                    "RematchRequested",
+                    $"El jugador {playerId} ha solicitado revancha."
+                );
+            }
+        }
+
+        return new ServiceResponse<Game> { Success = true, Data = newGame };
+    }
+
 
 
 }

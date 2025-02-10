@@ -8,4 +8,5 @@ public interface IGameRepository
     Task AddAsync(Game game);
     Task UpdateAsync(Game game);
     Task<List<Game>> GetGamesByUserIdAsync(int userId);
+    Task RemoveAsync(Game game);
 }
