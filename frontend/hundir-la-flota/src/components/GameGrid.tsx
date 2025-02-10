@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/contexts/AuthContext";
 import { DndContext } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -74,6 +75,7 @@ const GameGrid = ({ gameId, playerId }) => {
   const [gameOver, setGameOver] = useState(false);
   const [gameOverMessage, setGameOverMessage] = useState("");
   const [gameSummary, setGameSummary] = useState(null);
+  const { auth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -203,14 +205,20 @@ const GameGrid = ({ gameId, playerId }) => {
   };
 
   const handleRematch = async () => {
+    if (!auth?.token) return;
     const res = await fetch("https://localhost:7162/api/game/rematch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.token}`,
+      },
       body: JSON.stringify({ GameId: gameId, PlayerId: playerId }),
     });
     if (res.ok) {
       const data = await res.json();
       router.push(`/game/${data.gameId}`);
+    } else {
+      console.error("Error en rematch", res.status);
     }
   };
 

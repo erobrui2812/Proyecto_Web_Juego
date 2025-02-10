@@ -842,13 +842,13 @@ public class GameService : IGameService
         {
             State = GameState.WaitingForPlayer1Ships,
             CreatedAt = DateTime.Now,
-          
             Player1Board = new Board(),
             Player2Board = new Board()
         };
 
         await _gameRepository.AddAsync(newGame);
 
+   
         foreach (var participant in participants)
         {
             var newParticipant = new GameParticipant
@@ -861,8 +861,22 @@ public class GameService : IGameService
             await _gameParticipantRepository.AddAsync(newParticipant);
         }
 
+        
+        foreach (var participant in participants)
+        {
+            if (participant.UserId != playerId)
+            {
+                await _webSocketService.NotifyUserAsync(
+                    participant.UserId,
+                    "RematchRequested",
+                    $"El jugador {playerId} ha solicitado revancha."
+                );
+            }
+        }
+
         return new ServiceResponse<Game> { Success = true, Data = newGame };
     }
+
 
 
 }
