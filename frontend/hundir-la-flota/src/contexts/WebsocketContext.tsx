@@ -103,6 +103,18 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             console.log("Evento YourTurn recibido:", parsedPayload);
             break;
 
+          case "RematchRequested":
+            handleRematchRequested();
+            break;
+    
+          case "RematchCreated":
+            handleRematchCreated(parsedPayload);
+            break;
+    
+          case "RematchExpired":
+            handleRematchExpired();
+            break;
+
           default:
             console.warn("Acción no reconocida:", action);
         }
@@ -183,6 +195,19 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     toast.success("¡Emparejado con un oponente!");
     router.push(`/game/${gameId}`);
   };
+
+  function handleRematchRequested() {
+    toast.info("El oponente ha solicitado revancha. Tienes 30 segundos para aceptar.");
+  }
+  
+  function handleRematchCreated(payload) {
+    router.push(`/game/${payload}`);
+  }
+  
+  function handleRematchExpired() {
+    toast.info("La solicitud de revancha ha expirado.");
+  }
+  
 
   const handleFriendRequestResponse = (response: string) => {
     const accepted = response === "Accepted";

@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-
 interface GameSummaryData {
   winner: string;
   totalTurns: number;
@@ -28,11 +27,11 @@ interface GameSummaryProps {
   summary: GameSummaryData;
 }
 
-const GameSummary = ({ summary }: GameSummaryProps) => {
+const GameSummary = ({ summary, onRematch }) => {
   const { auth, userDetail } = useAuth();
   const router = useRouter();
-  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [playerStats, setPlayerStats] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
 
   useEffect(() => {
     if (!auth?.token || !userDetail?.id) return;
@@ -40,9 +39,7 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
     const fetchPlayerStats = async () => {
       try {
         const res = await fetch(`/api/stats/player/${userDetail.id}`, {
-          headers: {
-            Authorization: `Bearer ${auth.token}`,
-          },
+          headers: { Authorization: `Bearer ${auth.token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -56,9 +53,7 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
     const fetchLeaderboard = async () => {
       try {
         const res = await fetch(`/api/stats/leaderboard`, {
-          headers: {
-            Authorization: `Bearer ${auth.token}`,
-          },
+          headers: { Authorization: `Bearer ${auth.token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -72,10 +67,6 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
     fetchPlayerStats();
     fetchLeaderboard();
   }, [auth, userDetail]);
-
-  const handleRematch = () => {
-    router.push("/game/rematch");
-  };
 
   return (
     <div className="p-6">
@@ -119,7 +110,7 @@ const GameSummary = ({ summary }: GameSummaryProps) => {
       )}
 
       <button
-        onClick={handleRematch}
+        onClick={onRematch || (() => router.push("/game/rematch"))}
         className="mt-4 bg-green-500 px-4 py-2 rounded hover:bg-green-600 transition"
       >
         Revancha

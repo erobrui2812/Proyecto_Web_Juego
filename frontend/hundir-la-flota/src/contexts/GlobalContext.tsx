@@ -24,7 +24,6 @@ export const useGlobalContext = () => {
   const auth = useAuth();
   const game = useGame();
   const friendship = useFriendship();
-  // const websocket = useWebsocket();
 
   return { auth, game, friendship };
 };

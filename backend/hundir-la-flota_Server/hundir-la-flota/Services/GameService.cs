@@ -830,6 +830,7 @@ public class GameService : IGameService
 
     public async Task<ServiceResponse<Game>> RematchAsync(Guid gameId, int playerId)
     {
+
         var oldGame = await _gameRepository.GetByIdAsync(gameId);
         if (oldGame == null)
             return new ServiceResponse<Game> { Success = false, Message = "Juego no encontrado." };
@@ -838,45 +839,80 @@ public class GameService : IGameService
         if (participants.Count < 2)
             return new ServiceResponse<Game> { Success = false, Message = "No hay suficientes jugadores para revancha." };
 
-        var newGame = new Game
+        if (oldGame.RematchRequestedAt.HasValue)
         {
-            State = GameState.WaitingForPlayer1Ships,
-            CreatedAt = DateTime.Now,
-            Player1Board = new Board(),
-            Player2Board = new Board()
-        };
-
-        await _gameRepository.AddAsync(newGame);
-
-   
-        foreach (var participant in participants)
-        {
-            var newParticipant = new GameParticipant
+            var elapsed = DateTime.UtcNow - oldGame.RematchRequestedAt.Value;
+            if (elapsed > TimeSpan.FromSeconds(30))
             {
-                GameId = newGame.GameId,
-                UserId = participant.UserId,
-                Role = participant.Role,
-                IsReady = false
-            };
-            await _gameParticipantRepository.AddAsync(newParticipant);
-        }
-
-        
-        foreach (var participant in participants)
-        {
-            if (participant.UserId != playerId)
-            {
-                await _webSocketService.NotifyUserAsync(
-                    participant.UserId,
-                    "RematchRequested",
-                    $"El jugador {playerId} ha solicitado revancha."
-                );
+                oldGame.RematchRequests = new List<int>();
+                oldGame.RematchRequestedAt = null;
+                await _gameRepository.UpdateAsync(oldGame);
+                return new ServiceResponse<Game> { Success = false, Message = "La solicitud de revancha expiró." };
             }
         }
 
-        return new ServiceResponse<Game> { Success = true, Data = newGame };
+        if (oldGame.RematchRequests == null || oldGame.RematchRequests.Count == 0)
+        {
+            oldGame.RematchRequests = new List<int> { playerId };
+            oldGame.RematchRequestedAt = DateTime.UtcNow;
+            await _gameRepository.UpdateAsync(oldGame);
+
+            foreach (var participant in participants)
+            {
+                if (participant.UserId != playerId)
+                {
+                    await _webSocketService.NotifyUserAsync(
+                        participant.UserId,
+                        "RematchRequested",
+                        "El oponente ha solicitado revancha. Tienes 30 segundos para aceptarla."
+                    );
+                }
+            }
+            return new ServiceResponse<Game> { Success = true, Message = "Revancha solicitada. Esperando al oponente." };
+        }
+
+        if (!oldGame.RematchRequests.Contains(playerId))
+        {
+            oldGame.RematchRequests.Add(playerId);
+            await _gameRepository.UpdateAsync(oldGame);
+        }
+
+        if (oldGame.RematchRequests.Count == 2)
+        {
+            var newGame = new Game
+            {
+                State = GameState.WaitingForPlayer1Ships,
+                CreatedAt = DateTime.Now,
+                Player1Board = new Board(),
+                Player2Board = new Board()
+            };
+
+            await _gameRepository.AddAsync(newGame);
+
+            foreach (var participant in participants)
+            {
+                var newParticipant = new GameParticipant
+                {
+                    GameId = newGame.GameId,
+                    UserId = participant.UserId,
+                    Role = participant.Role,
+                    IsReady = false
+                };
+                await _gameParticipantRepository.AddAsync(newParticipant);
+            }
+
+            foreach (var participant in participants)
+            {
+                await _webSocketService.NotifyUserAsync(
+                    participant.UserId,
+                    "RematchCreated",
+                    newGame.GameId.ToString()
+                );
+            }
+            return new ServiceResponse<Game> { Success = true, Data = newGame };
+        }
+
+        return new ServiceResponse<Game> { Success = true, Message = "Revancha solicitada. Esperando al oponente." };
     }
-
-
 
 }

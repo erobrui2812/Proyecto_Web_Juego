@@ -20,7 +20,11 @@ namespace hundir_la_flota.Models
         [JsonIgnore]
         public List<GameAction> Actions { get; set; } = new List<GameAction>();
 
+        [JsonIgnore]
+        public List<int> RematchRequests { get; set; } = new List<int>();
 
+        [JsonIgnore]
+        public DateTime? RematchRequestedAt { get; set; }
     }
 
     public class GameAction

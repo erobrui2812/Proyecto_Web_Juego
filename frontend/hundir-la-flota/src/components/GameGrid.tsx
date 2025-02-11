@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useWebsocket } from "../contexts/WebsocketContext";
 import GameSummary from "./GameSummary";
+import FinalStatsModal from "@/components/FinalStatsModal";
 
 const shipSizes = [5, 4, 3, 3, 2];
 
@@ -77,7 +78,16 @@ const GameGrid = ({ gameId, playerId }) => {
   const [gameSummary, setGameSummary] = useState(null);
   const { auth } = useAuth();
   const router = useRouter();
+  const [showFinalStatsModal, setShowFinalStatsModal] = useState(false);
+  
+  const handleCloseModal = () => setShowFinalStatsModal(false);
 
+  useEffect(() => {
+    if (gameOver) {
+      setShowFinalStatsModal(true);
+    }
+  }, [gameOver]);
+  
   useEffect(() => {
     if (!socket) return;
     sendMessage("joinGame", `${gameId}|${playerId}`);
@@ -220,7 +230,7 @@ const GameGrid = ({ gameId, playerId }) => {
     } else {
       console.error("Error en rematch", res.status);
     }
-  };
+  };  
 
   const invertBoard = (boardArray) => boardArray.slice().reverse();
 
@@ -399,6 +409,15 @@ const GameGrid = ({ gameId, playerId }) => {
             )}
           </div>
         )}
+
+        {showFinalStatsModal && (
+            <FinalStatsModal
+              isOpen={showFinalStatsModal}
+              onClose={handleCloseModal}
+              summary={gameSummary || { winner: gameOverMessage, totalTurns: 0, shipsRemaining: "N/A" }}
+              onRematch={handleRematch}
+            />
+          )}  
       </div>
     </DndContext>
   );
