@@ -149,7 +149,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     y: number;
     result: string;
   }) => {
-    toast.info(`Ataque en (${data.x}, ${data.y}): ${data.result}`);
+    //toast.info(`Ataque en (${data.x}, ${data.y}): ${data.result}`);
   };
 
   const handleGameOver = (message: string) => {

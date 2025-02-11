@@ -117,6 +117,7 @@ const GameGrid = ({ gameId, playerId }) => {
             setGameOver(true);
             try {
               const summary = JSON.parse(payload);
+              console.log(summary)
               setGameSummary(summary);
             } catch (error) {
               setGameOverMessage(payload);

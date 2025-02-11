@@ -3,111 +3,38 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface GameSummaryData {
-  winner: string;
-  totalTurns: number;
-  shipsRemaining: string;
-}
-
-interface PlayerStats {
-  userId: number;
-  nickname: string;
-  gamesPlayed: number;
-  gamesWon: number;
-}
-
-interface LeaderboardEntry {
-  userId: number;
-  nickname: string;
-  gamesWon: number;
-  totalGames: number;
-}
-
-interface GameSummaryProps {
-  summary: GameSummaryData;
-}
-
 const GameSummary = ({ summary, onRematch }) => {
-  const { auth, userDetail } = useAuth();
+  const { userDetail } = useAuth();
   const router = useRouter();
-  const [playerStats, setPlayerStats] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [mensajeIndividual, setMensajeIndividual] = useState("");
+  const [mensajeIndividual2, setMensajeIndividual2] = useState("");
 
   useEffect(() => {
-    if (!auth?.token || !userDetail?.id) return;
-
-    const fetchPlayerStats = async () => {
-      try {
-        const res = await fetch(`/api/stats/player/${userDetail.id}`, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPlayerStats(data);
-        }
-      } catch (error) {
-        console.error("Error fetching player stats:", error);
-      }
-    };
-
-    const fetchLeaderboard = async () => {
-      try {
-        const res = await fetch(`/api/stats/leaderboard`, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setLeaderboard(data);
-        }
-      } catch (error) {
-        console.error("Error fetching leaderboard:", error);
-      }
-    };
-
-    fetchPlayerStats();
-    fetchLeaderboard();
-  }, [auth, userDetail]);
+    if (summary && userDetail) {
+      const mensaje =
+        userDetail.id === summary
+          ? "¡Has ganado!"
+          : "¡Has perdido!";
+      setMensajeIndividual(mensaje);
+      const mensaje2 =
+        userDetail.id === summary
+          ? "Eres el vencedor, bien jugado."
+          : "Sigue jugando, suerte en las siguientes partidas.";
+      setMensajeIndividual2(mensaje2);
+    }
+  }, [summary, userDetail]);
 
   return (
     <div className="p-6">
       <div className="bg-gray-800 text-white rounded p-4 mb-4">
         <h2 className="text-xl font-bold">Resumen de la partida</h2>
-        <p>
-          <strong>Ganador:</strong> {summary.winner}
+        <p className="text-xl font-bold">
+          {mensajeIndividual}
         </p>
         <p>
-          <strong>Total de turnos:</strong> {summary.totalTurns}
-        </p>
-        <p>
-          <strong>Barcos restantes:</strong> {summary.shipsRemaining}
+          {mensajeIndividual2}
         </p>
       </div>
-
-      {playerStats && (
-        <div className="bg-gray-800 text-white rounded p-4 mb-4">
-          <h3 className="text-lg font-bold">Tus estadísticas</h3>
-          <p>
-            <strong>Partidas jugadas:</strong> {playerStats.gamesPlayed}
-          </p>
-          <p>
-            <strong>Partidas ganadas:</strong> {playerStats.gamesWon}
-          </p>
-        </div>
-      )}
-
-      {leaderboard.length > 0 && (
-        <div className="bg-gray-800 text-white rounded p-4 mb-4">
-          <h3 className="text-lg font-bold">Leaderboard</h3>
-          <ul>
-            {leaderboard.map((entry, index) => (
-              <li key={entry.userId}>
-                {index + 1}. {entry.nickname} - Ganadas: {entry.gamesWon} /
-                Total: {entry.totalGames}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <button
         onClick={onRematch || (() => router.push("/game/rematch"))}

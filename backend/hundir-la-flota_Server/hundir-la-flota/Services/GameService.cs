@@ -324,7 +324,7 @@ public class GameService : IGameService
                 await _webSocketService.NotifyUsersAsync(
                     new List<int> { playerId, opponent.UserId },
                     "GameOver",
-                    $"El jugador {playerId} ha ganado."
+                    $"{playerId}"
                 );
                 await UpdatePlayerStats(playerId, opponent.UserId);
             }
@@ -804,7 +804,6 @@ public class GameService : IGameService
             _turnLock.Release();
         }
     }
-
 
     public async Task<ServiceResponse<string>> ReassignRolesAsync(Guid gameId)
     {
