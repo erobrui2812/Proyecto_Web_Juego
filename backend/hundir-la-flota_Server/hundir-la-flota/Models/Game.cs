@@ -9,6 +9,7 @@ namespace hundir_la_flota.Models
         public GameState State { get; set; } = GameState.WaitingForPlayers;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int? WinnerId { get; set; }
+        public bool IsBotGame { get; set; }
 
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();

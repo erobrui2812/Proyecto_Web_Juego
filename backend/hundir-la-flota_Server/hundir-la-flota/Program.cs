@@ -61,9 +61,7 @@ namespace hundir_la_flota
             builder.Services.AddScoped<IGameParticipantRepository, GameParticipantRepository>();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddSingleton<IChatService, ChatService>();
-
-
-
+            builder.Services.AddScoped<IBotService, BotService>();
 
 
 

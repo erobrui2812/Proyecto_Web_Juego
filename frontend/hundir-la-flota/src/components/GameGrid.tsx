@@ -1,13 +1,12 @@
 "use client";
+import FinalStatsModal from "@/components/FinalStatsModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { DndContext } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useWebsocket } from "../contexts/WebsocketContext";
-import FinalStatsModal from "@/components/FinalStatsModal";
 
 const shipSizes = [5, 4, 3, 3, 2];
-
 
 const generateEmptyGrid = () => {
   return Array.from({ length: 10 }, () =>
@@ -19,7 +18,6 @@ const generateEmptyGrid = () => {
     }))
   );
 };
-
 
 const generateRandomBoard = () => {
   const newGrid = generateEmptyGrid();
@@ -70,7 +68,6 @@ const generateRandomBoard = () => {
   return { grid: newGrid, ships };
 };
 
-
 const generateEmptyOpponentBoard = () => {
   return Array.from({ length: 10 }, () =>
     Array.from({ length: 10 }, () => ({
@@ -87,12 +84,14 @@ const GameGrid = ({ gameId, playerId }) => {
 
   const [manualPlacementMode, setManualPlacementMode] = useState(false);
   const [manualGrid, setManualGrid] = useState(generateEmptyGrid());
-  const [shipsToPlace, setShipsToPlace] = useState([...shipSizes]); 
-  const [orientation, setOrientation] = useState("horizontal"); 
-  const [shipPositions, setShipPositions] = useState([]); 
+  const [shipsToPlace, setShipsToPlace] = useState([...shipSizes]);
+  const [orientation, setOrientation] = useState("horizontal");
+  const [shipPositions, setShipPositions] = useState([]);
 
-  const [myBoard, setMyBoard] = useState(generateRandomBoard()); 
-  const [opponentBoard, setOpponentBoard] = useState(generateEmptyOpponentBoard());
+  const [myBoard, setMyBoard] = useState(generateRandomBoard());
+  const [opponentBoard, setOpponentBoard] = useState(
+    generateEmptyOpponentBoard()
+  );
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [shipsPlaced, setShipsPlaced] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
@@ -193,7 +192,6 @@ const GameGrid = ({ gameId, playerId }) => {
         if (grid[y][x + i].hasShip) return false;
       }
     } else {
-
       if (y + size > 10) return false;
       for (let i = 0; i < size; i++) {
         if (grid[y + i][x].hasShip) return false;
@@ -219,21 +217,20 @@ const GameGrid = ({ gameId, playerId }) => {
   const handleManualCellClick = (x, y) => {
     if (!shipsToPlace.length) return;
 
-    const size = shipsToPlace[0]; 
+    const size = shipsToPlace[0];
     if (canPlaceShip(manualGrid, x, y, size, orientation)) {
       const updatedGrid = placeShipOnGrid(manualGrid, x, y, size, orientation);
       setManualGrid(updatedGrid);
 
-      const newShipPositions = [
-        ...shipPositions,
-        { x, y, size, orientation },
-      ];
+      const newShipPositions = [...shipPositions, { x, y, size, orientation }];
       setShipPositions(newShipPositions);
 
       const newShipsToPlace = shipsToPlace.slice(1);
       setShipsToPlace(newShipsToPlace);
     } else {
-      alert("No se puede colocar el barco aquí. Intenta otra posición u orientación.");
+      alert(
+        "No se puede colocar el barco aquí. Intenta otra posición u orientación."
+      );
     }
   };
 
@@ -345,7 +342,6 @@ const GameGrid = ({ gameId, playerId }) => {
     }
   };
 
-
   const invertBoard = (boardArray) => boardArray.slice().reverse();
 
   return (
@@ -381,7 +377,9 @@ const GameGrid = ({ gameId, playerId }) => {
             {manualPlacementMode && (
               <div className="w-full max-w-md p-4 bg-gray-800 rounded-lg shadow mt-4">
                 <div className="flex justify-between mb-2">
-                  <span className="text-[var(--foreground)]">Barcos restantes:</span>
+                  <span className="text-[var(--foreground)]">
+                    Barcos restantes:
+                  </span>
                   <span className="text-[var(--foreground)] font-bold">
                     {shipsToPlace.join(", ")}
                   </span>
@@ -503,7 +501,6 @@ const GameGrid = ({ gameId, playerId }) => {
             ¡El juego ha comenzado!
           </p>
         )}
-
         {gameStarted && !gameOver && (
           <>
             <button
@@ -574,7 +571,8 @@ const GameGrid = ({ gameId, playerId }) => {
                                 ? "bg-yellow-500"
                                 : cell.result === "miss"
                                 ? "bg-gray-400"
-                                : cell.result === "hit" || cell.result === "sunk"
+                                : cell.result === "hit" ||
+                                  cell.result === "sunk"
                                 ? "bg-red-500"
                                 : "bg-blue-500"
                             }`}
@@ -595,7 +593,6 @@ const GameGrid = ({ gameId, playerId }) => {
             </div>
           </>
         )}
-
         Fin de la partida
         {gameOver && (
           <div className="mt-4 p-4 bg-gray-800 text-[var(--foreground)] rounded-lg shadow w-full max-w-lg">
@@ -629,7 +626,6 @@ const GameGrid = ({ gameId, playerId }) => {
             )}
           </div>
         )}
-        
       </div>
     </DndContext>
   );
