@@ -256,28 +256,23 @@ public class GameService : IGameService
             if (currentPlayer == null)
                 return new ServiceResponse<string> { Success = false, Message = "Participante no válido." };
 
-            // Validación de turno para partidas normales
             if (!game.IsBotGame)
             {
                 if ((game.State == GameState.WaitingForPlayer1Shot && currentPlayer.Role != ParticipantRole.Host) ||
                     (game.State == GameState.WaitingForPlayer2Shot && currentPlayer.Role != ParticipantRole.Guest))
-                {
                     return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
-                }
             }
             else
             {
-                // En partidas contra bot, el jugador (siempre host) puede atacar solo en su turno
                 if (currentPlayer.Role != ParticipantRole.Host)
                     return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
             }
 
-            // Determinar el tablero del oponente:
-            // En partidas normales, si eres host atacas la board del invitado, y viceversa.
-            // En partidas contra bot, el bot tiene sus barcos en Player2Board.
             Board opponentBoard = !game.IsBotGame
                 ? (currentPlayer.Role == ParticipantRole.Host ? game.Player2Board : game.Player1Board)
                 : game.Player2Board;
+
+            Console.WriteLine($"[AttackAsync] Opponent board ships count: {opponentBoard.Ships.Count}");
 
             if (!opponentBoard.Grid.ContainsKey((x, y)))
                 return new ServiceResponse<string> { Success = false, Message = "Coordenada fuera de los límites." };
@@ -312,18 +307,15 @@ public class GameService : IGameService
                 {
                     actionDetails += " ¡Acierto!";
                 }
+                Console.WriteLine($"[AttackAsync] Se detectó barco: {hitShip.Name} (resultado: {attackResult})");
             }
             else
             {
                 actionDetails += " Fallo.";
-                // En partidas normales, se alterna turno en fallo
                 if (!game.IsBotGame)
-                    game.State = (game.State == GameState.WaitingForPlayer1Shot)
-                        ? GameState.WaitingForPlayer2Shot
-                        : GameState.WaitingForPlayer1Shot;
+                    game.State = (game.State == GameState.WaitingForPlayer1Shot) ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
             }
 
-            // Si todas las celdas con barcos fueron golpeadas, el juego finaliza
             if (opponentBoard.AreAllShipsSunk())
             {
                 game.State = GameState.Finished;
@@ -351,6 +343,7 @@ public class GameService : IGameService
                 X = x,
                 Y = y
             };
+
             game.Actions.Add(gameAction);
             await _gameRepository.UpdateAsync(game);
 
@@ -362,20 +355,13 @@ public class GameService : IGameService
                 await _webSocketService.NotifyUserAsync(opponent.UserId, "EnemyAttack", payload);
             }
 
-            // Para partidas contra bot, forzamos el turno del bot tras el ataque del jugador,
-            // independientemente del resultado, para alternar turnos.
             if (game.IsBotGame && game.State != GameState.Finished)
             {
-                // Forzamos el cambio de turno: si el jugador acaba de atacar, se pasa al bot
                 game.State = GameState.WaitingForPlayer2Shot;
                 await _gameRepository.UpdateAsync(game);
-
-                await Task.Delay(1000); // Pequeño retardo para simular "pensar" al bot
-
+                await Task.Delay(1000);
                 var botAction = await _botService.ExecuteBotMove(game);
                 game.Actions.Add(botAction);
-
-                // El bot ataca el tablero del jugador (Player1Board)
                 var humanBoard = game.Player1Board;
                 if (humanBoard.Grid.ContainsKey((botAction.X, botAction.Y)))
                 {
@@ -383,18 +369,16 @@ public class GameService : IGameService
                     humanCell.IsHit = true;
                     humanCell.Status = humanCell.HasShip ? CellStatus.Hit : CellStatus.Miss;
                 }
-
                 if (humanBoard.AreAllShipsSunk())
                 {
                     game.State = GameState.Finished;
-                    game.WinnerId = 0; // El bot gana
+                    game.WinnerId = 0;
                     botAction.Details += " Fin del juego. Has perdido contra el bot.";
                     await _webSocketService.NotifyUserAsync(playerId, "GameOver", "Has perdido contra el bot.");
                     await UpdatePlayerStats(0, playerId);
                 }
                 else
                 {
-                    // Una vez que el bot ataca, se pasa de nuevo al jugador
                     game.State = GameState.WaitingForPlayer1Shot;
                     await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Es tu turno de atacar.");
                 }
@@ -423,7 +407,35 @@ public class GameService : IGameService
         }
     }
 
-
+    public async Task<ServiceResponse<Game>> CreateBotGameAsync(string userId)
+    {
+        int userIdInt = Convert.ToInt32(userId);
+        var newGame = new Game
+        {
+            State = GameState.WaitingForPlayer1Ships,
+            CreatedAt = DateTime.Now,
+            IsBotGame = true,
+            Player1Board = new Board(),
+            Player2Board = new Board()
+        };
+        await _gameRepository.AddAsync(newGame);
+        var hostParticipant = new GameParticipant
+        {
+            GameId = newGame.GameId,
+            UserId = userIdInt,
+            Role = ParticipantRole.Host,
+            IsReady = false
+        };
+        await _gameParticipantRepository.AddAsync(hostParticipant);
+        var botShips = GenerateRandomShips(newGame.Player2Board);
+        foreach (var ship in botShips)
+        {
+            newGame.Player2Board.Ships.Add(ship);
+            Console.WriteLine($"Bot coloca {ship.Name} en: {string.Join(", ", ship.Coordinates.Select(c => $"({c.X},{c.Y})"))}");
+        }
+        await _gameRepository.UpdateAsync(newGame);
+        return new ServiceResponse<Game> { Success = true, Data = newGame };
+    }
 
 
 
@@ -699,39 +711,7 @@ public class GameService : IGameService
     }
 
 
-    public async Task<ServiceResponse<Game>> CreateBotGameAsync(string userId)
-    {
-        int userIdInt = Convert.ToInt32(userId);
-        var newGame = new Game
-        {
-            State = GameState.WaitingForPlayer1Ships,
-            CreatedAt = DateTime.Now,
-            IsBotGame = true,
-            Player1Board = new Board(),
-            Player2Board = new Board()
-        };
 
-        await _gameRepository.AddAsync(newGame);
-
-        var hostParticipant = new GameParticipant
-        {
-            GameId = newGame.GameId,
-            UserId = userIdInt,
-            Role = ParticipantRole.Host,
-            IsReady = false
-        };
-        await _gameParticipantRepository.AddAsync(hostParticipant);
-
-        var botShips = GenerateRandomShips(newGame.Player2Board);
-        foreach (var ship in botShips)
-        {
-            newGame.Player2Board.Ships.Add(ship);
-            Console.WriteLine($"Bot coloca {ship.Name} en: {string.Join(", ", ship.Coordinates.Select(c => $"({c.X},{c.Y})"))}");
-        }
-        await _gameRepository.UpdateAsync(newGame);
-
-        return new ServiceResponse<Game> { Success = true, Data = newGame };
-    }
 
     private List<Ship> GenerateRandomShips(Board board)
     {
