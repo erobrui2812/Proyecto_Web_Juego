@@ -84,7 +84,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             break;
 
           case "GameInvitation":
-            handleGameInvitation(parts[1], parts[2]);
+            handleGameInvitation(parts[1]);
             break;
 
           case "MatchFound":
@@ -240,19 +240,16 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       )
     );
   };
-
-  const handleGameInvitation = async (hostId: string, gameId: string) => {
+  const handleGameInvitation = async (invitationId: string) => {
     if (!auth?.token) return;
     try {
-      const nickname = await userIdANickname(hostId);
       toast(
         <div className="text-center">
-          <p>¡Has recibido una invitación de {nickname} para jugar!</p>
+          <p>¡Has recibido una invitación para jugar!</p>
           <div className="flex justify-center gap-6 mt-4">
             <button
               onClick={() => {
-                handleGameInvitation(hostId, gameId);
-                router.push(`/game/${gameId}`);
+                acceptInvitation(invitationId);
                 toast.dismiss();
               }}
               className="bg-green-500 text-white px-6 py-2 w-32 rounded hover:bg-green-600 transition"
@@ -261,7 +258,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
             </button>
             <button
               onClick={() => toast.dismiss()}
-              className="!bg-red-500 dark:bg-red-600 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
+              className="bg-red-500 text-white px-6 py-2 w-32 rounded hover:bg-red-600 transition"
             >
               Rechazar
             </button>
@@ -273,6 +270,34 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Error mostrando la invitación de juego:", error);
     }
   };
+  
+  async function acceptInvitation(invitationId: string) {
+    if (!auth?.token) return;
+  
+    try {
+      const res = await fetch("https://localhost:7162/api/game/accept-invitation", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invitationId }),
+      });
+  
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Error aceptando invitación:", errorText);
+        toast.error(errorText);
+        return;
+      }
+  
+      const data = await res.json();
+      router.push(`/game/${data.gameId}`);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+  
 
   async function userIdANickname(userId: string): Promise<string> {
     try {

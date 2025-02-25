@@ -2,6 +2,7 @@
 using hundir_la_flota.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System.ComponentModel.DataAnnotations;
 [ApiController]
 [Route("api/game")]
@@ -99,14 +100,17 @@ public class GameController : ControllerBase
         try
         {
             var currentUserId = GetUserIdFromClaim();
-            var createGameResponse = await _gameService.CreateGameAsync(currentUserId.ToString());
-            if (!createGameResponse.Success)
+            var invitationId = Guid.NewGuid().ToString();
+
+            InvitationStorage.PendingInvitations[invitationId] = new Invitation
             {
-                return BadRequest(createGameResponse.Message);
-            }
-            var newGame = createGameResponse.Data;
-            string payload = $"{currentUserId}|{newGame.GameId}";
-            await _webSocketService.NotifyUserAsync(friendId, "GameInvitation", payload);
+                HostId = currentUserId,
+                GuestId = friendId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _webSocketService.NotifyUserAsync(friendId, "GameInvitation", invitationId);
+
             return Ok("Invitación enviada.");
         }
         catch (UnauthorizedAccessException ex)
@@ -119,14 +123,47 @@ public class GameController : ControllerBase
         }
     }
     [HttpPost("accept-invitation")]
-    public async Task<IActionResult> AcceptInvitation([FromBody] Guid gameId)
+    public async Task<IActionResult> AcceptInvitation([FromBody] AcceptInvitationRequest request)
     {
         var userId = GetUserIdFromClaim();
-        var response = await _gameService.JoinGameAsync(gameId, userId);
-        if (!response.Success)
-            return BadRequest(response.Message);
-        return Ok(response.Message);
+
+        if (!InvitationStorage.PendingInvitations.TryGetValue(request.InvitationId, out var invitation))
+        {
+            return BadRequest("La invitación no existe o expiró.");
+        }
+
+        if (invitation.GuestId != userId)
+        {
+            return BadRequest("No tienes permiso para aceptar esta invitación.");
+        }
+
+        var createGameResponse = await _gameService.CreateGameAsync(invitation.HostId.ToString());
+        if (!createGameResponse.Success)
+            return BadRequest(createGameResponse.Message);
+
+        var newGame = createGameResponse.Data;
+
+        var joinResponse = await _gameService.JoinGameAsync(newGame.GameId, userId);
+        if (!joinResponse.Success)
+            return BadRequest(joinResponse.Message);
+
+        await _webSocketService.NotifyUserAsync(
+           invitation.HostId,
+           "MatchFound",
+           newGame.GameId.ToString()
+        );
+
+        InvitationStorage.PendingInvitations.Remove(request.InvitationId);
+
+        return Ok(new { GameId = newGame.GameId });
     }
+
+    public class AcceptInvitationRequest
+    {
+        public string InvitationId { get; set; }
+    }
+
+
     [HttpPost("join-random-match")]
     public async Task<IActionResult> JoinRandomMatch()
     {

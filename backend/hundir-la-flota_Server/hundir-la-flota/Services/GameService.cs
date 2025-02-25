@@ -258,9 +258,11 @@ public class GameService : IGameService
 
             if (!game.IsBotGame)
             {
-                if ((game.State == GameState.WaitingForPlayer1Shot && currentPlayer.Role != ParticipantRole.Host) ||
-                    (game.State == GameState.WaitingForPlayer2Shot && currentPlayer.Role != ParticipantRole.Guest))
+                if ((game.State == GameState.WaitingForPlayer1Shot && currentPlayer.Role != ParticipantRole.Host)
+                    || (game.State == GameState.WaitingForPlayer2Shot && currentPlayer.Role != ParticipantRole.Guest))
+                {
                     return new ServiceResponse<string> { Success = false, Message = "No es tu turno." };
+                }
             }
             else
             {
@@ -271,8 +273,6 @@ public class GameService : IGameService
             Board opponentBoard = !game.IsBotGame
                 ? (currentPlayer.Role == ParticipantRole.Host ? game.Player2Board : game.Player1Board)
                 : game.Player2Board;
-
-            Console.WriteLine($"[AttackAsync] Opponent board ships count: {opponentBoard.Ships.Count}");
 
             if (!opponentBoard.Grid.ContainsKey((x, y)))
                 return new ServiceResponse<string> { Success = false, Message = "Coordenada fuera de los límites." };
@@ -305,15 +305,19 @@ public class GameService : IGameService
                 }
                 else
                 {
+                    attackResult = "hit";
                     actionDetails += " ¡Acierto!";
                 }
-                Console.WriteLine($"[AttackAsync] Se detectó barco: {hitShip.Name} (resultado: {attackResult})");
             }
             else
             {
                 actionDetails += " Fallo.";
                 if (!game.IsBotGame)
-                    game.State = (game.State == GameState.WaitingForPlayer1Shot) ? GameState.WaitingForPlayer2Shot : GameState.WaitingForPlayer1Shot;
+                {
+                    game.State = (game.State == GameState.WaitingForPlayer1Shot)
+                        ? GameState.WaitingForPlayer2Shot
+                        : GameState.WaitingForPlayer1Shot;
+                }
             }
 
             if (opponentBoard.AreAllShipsSunk())
@@ -349,6 +353,7 @@ public class GameService : IGameService
 
             var payload = JsonConvert.SerializeObject(new { x, y, result = attackResult });
             await _webSocketService.NotifyUserAsync(playerId, "AttackResult", payload);
+
             if (!game.IsBotGame)
             {
                 var opponent = participants.FirstOrDefault(p => p.UserId != playerId);
@@ -360,8 +365,10 @@ public class GameService : IGameService
                 game.State = GameState.WaitingForPlayer2Shot;
                 await _gameRepository.UpdateAsync(game);
                 await Task.Delay(1000);
+
                 var botAction = await _botService.ExecuteBotMove(game);
                 game.Actions.Add(botAction);
+
                 var humanBoard = game.Player1Board;
                 if (humanBoard.Grid.ContainsKey((botAction.X, botAction.Y)))
                 {
@@ -380,6 +387,7 @@ public class GameService : IGameService
                 else
                 {
                     game.State = GameState.WaitingForPlayer1Shot;
+                    await _gameRepository.UpdateAsync(game);
                     await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Es tu turno de atacar.");
                 }
                 await _gameRepository.UpdateAsync(game);
@@ -406,6 +414,7 @@ public class GameService : IGameService
             _turnLock.Release();
         }
     }
+
 
     public async Task<ServiceResponse<Game>> CreateBotGameAsync(string userId)
     {
