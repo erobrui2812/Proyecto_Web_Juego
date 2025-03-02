@@ -14,7 +14,7 @@ public class User
     [Required]
     public string PasswordHash { get; set; }
 
-    public string AvatarUrl { get; set; }
+    public string AvatarUrl { get; set; } = "https://localhost:7162/images/default/avatar-default.jpg";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

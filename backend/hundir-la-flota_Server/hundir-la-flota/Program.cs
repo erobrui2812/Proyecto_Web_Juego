@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using hundir_la_flota.Repositories;
 using hundir_la_flota.Services;
+using hundir_la_flota.Models.Seeder;
 
 namespace hundir_la_flota
 {
@@ -135,8 +136,17 @@ namespace hundir_la_flota
             using (var scope = app.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
-                dbContext.Database.EnsureCreated();
+                var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+
+                bool created = dbContext.Database.EnsureCreated();
+
+                if (!dbContext.Users.Any())
+                {
+                    var seeder = new SeederUsers(dbContext, authService);
+                    await seeder.Seeder();
+                }
             }
+
 
 
             if (app.Environment.IsDevelopment())

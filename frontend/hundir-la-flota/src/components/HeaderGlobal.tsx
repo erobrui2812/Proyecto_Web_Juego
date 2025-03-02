@@ -38,6 +38,14 @@ const Header = () => {
         >
           Menú
         </Link>
+        {auth.userDetail?.rol === "admin" ? (
+          <Link
+          href="/admin"
+          className="hover:text-secondary hover:tracking-[.15em] transition-all"
+          >
+            Admin
+          </Link>
+        ): ("")}
       </nav>
 
       <div className="w-full sm:w-1/3 flex justify-center sm:justify-end items-center space-x-4">
