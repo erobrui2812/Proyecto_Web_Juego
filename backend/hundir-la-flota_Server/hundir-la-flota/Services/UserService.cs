@@ -153,6 +153,7 @@ namespace hundir_la_flota.Services
                     u.Nickname,
                     u.Email,
                     u.AvatarUrl,
+                    u.Role
                 })
                 .FirstOrDefaultAsync();
 

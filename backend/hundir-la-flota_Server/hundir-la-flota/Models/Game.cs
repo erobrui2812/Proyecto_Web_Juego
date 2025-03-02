@@ -9,6 +9,7 @@ namespace hundir_la_flota.Models
         public GameState State { get; set; } = GameState.WaitingForPlayers;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int? WinnerId { get; set; }
+        public bool IsBotGame { get; set; }
 
         public Board Player1Board { get; set; } = new Board();
         public Board Player2Board { get; set; } = new Board();
@@ -20,7 +21,11 @@ namespace hundir_la_flota.Models
         [JsonIgnore]
         public List<GameAction> Actions { get; set; } = new List<GameAction>();
 
+        [JsonIgnore]
+        public List<int> RematchRequests { get; set; } = new List<int>();
 
+        [JsonIgnore]
+        public DateTime? RematchRequestedAt { get; set; }
     }
 
     public class GameAction

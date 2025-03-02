@@ -8,10 +8,8 @@ public class Board
 {
     public const int Size = 10;
 
-    // Se elimina el modificador readonly para poder reinicializarlo
     private Dictionary<(int, int), Cell> _grid;
 
-    // Al acceder a Grid se inicializa _grid si es null
     [NotMapped]
     [JsonIgnore]
     public IReadOnlyDictionary<(int, int), Cell> Grid
@@ -38,14 +36,11 @@ public class Board
         }
     }
 
-
-    // Propiedad para la serialización (EF Core la ignora)
     [JsonPropertyName("Grid")]
     public Dictionary<string, Cell> GridForSerialization
     {
         get
         {
-            // Aseguramos que el grid esté inicializado
             return Grid.ToDictionary(
                 kvp => $"{kvp.Key.Item1},{kvp.Key.Item2}",
                 kvp => kvp.Value

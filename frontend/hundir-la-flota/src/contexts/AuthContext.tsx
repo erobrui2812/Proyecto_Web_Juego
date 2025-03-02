@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     rol: string;
   } | null>(null);
   const [isAuthenticated, setAuthenticated] = useState(false);
-  const [rol, setRol] = useState<string>("usuario");
+  const [rol, setRol] = useState("");
 
   useEffect(() => {
     const token =
@@ -84,13 +84,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("Datos incompletos del usuario");
       }
 
+      setRol(data.role);
+
       setUserDetail({
         id: data.id,
         avatarUrl: data.avatarUrl,
         nickname: data.nickname,
         mail: data.email,
-        rol: "usuario",
+        rol: data.role,
       });
+      
     } catch (error: any) {
       console.error("Error obteniendo detalles del usuario:", error);
       toast.error(
@@ -105,7 +108,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         return {
-          role: payload["role"] || "usuario",
           userId: payload["id"] || 0,
         };
       } catch {
@@ -117,7 +119,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const decoded = decodeToken(auth.token);
       if (decoded) {
         setAuthenticated(true);
-        setRol(decoded.role);
         obtenerUserDetail();
       } else {
         toast.error(

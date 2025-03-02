@@ -13,7 +13,6 @@ public class MyDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        
         modelBuilder.Entity<GameParticipant>()
             .HasOne(gp => gp.Game)
             .WithMany(g => g.Participants)
@@ -33,20 +32,10 @@ public class MyDbContext : DbContext
         modelBuilder.Entity<PlayerStats>()
             .HasKey(ps => ps.UserId);
 
-        modelBuilder.Entity<User>().HasData(new User
-        {
-            Id = -1,
-            Nickname = "Bot",
-            Email = "bot@hundirlaflota.com",
-            PasswordHash = "hashdummy",
-            AvatarUrl = null,
-            CreatedAt = DateTime.UtcNow
-        });
 
         modelBuilder.Entity<Game>()
             .HasKey(g => g.GameId);
 
-      
         modelBuilder.Entity<Game>()
             .OwnsOne(g => g.Player1Board, board =>
             {
@@ -59,17 +48,14 @@ public class MyDbContext : DbContext
                     ship.Property(s => s.Id).ValueGeneratedOnAdd();
                     ship.OwnsMany(s => s.Coordinates, coord =>
                     {
-                       
                         coord.ToTable("Player1_Ships_Coordinates");
-                      
                         coord.WithOwner().HasForeignKey("ShipId");
-                       
                         coord.HasKey("ShipId", "X", "Y");
                     });
                 });
             });
 
-        // Configuración del Player2Board
+
         modelBuilder.Entity<Game>()
             .OwnsOne(g => g.Player2Board, board =>
             {
@@ -82,17 +68,13 @@ public class MyDbContext : DbContext
                     ship.Property(s => s.Id).ValueGeneratedOnAdd();
                     ship.OwnsMany(s => s.Coordinates, coord =>
                     {
-                        
                         coord.ToTable("Player2_Ships_Coordinates");
-                      
                         coord.WithOwner().HasForeignKey("ShipId");
-                       
                         coord.HasKey("ShipId", "X", "Y");
                     });
                 });
             });
 
-        
         modelBuilder.Entity<Game>()
             .OwnsMany(g => g.Actions, action =>
             {
