@@ -153,7 +153,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const handleGameOver = (message: string) => {
-    toast.success(`Juego terminado: ${message}`);
+    // toast.success(`Juego terminado: ${message}`);
   };
 
   const handleFriendRequest = async (senderId: string) => {

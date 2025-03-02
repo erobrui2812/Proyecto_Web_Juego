@@ -54,7 +54,7 @@ export default function GamePage() {
 
     const intervalId = setInterval(() => {
       fetchGameState();
-    }, 30000);
+    }, 300000);
 
     return () => clearInterval(intervalId);
   }, [auth, userDetail, gameId]);
