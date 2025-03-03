@@ -353,44 +353,76 @@ public class GameService : IGameService
 
             var payload = JsonConvert.SerializeObject(new { x, y, result = attackResult });
             await _webSocketService.NotifyUserAsync(playerId, "AttackResult", payload);
-
             if (!game.IsBotGame)
             {
                 var opponent = participants.FirstOrDefault(p => p.UserId != playerId);
                 await _webSocketService.NotifyUserAsync(opponent.UserId, "EnemyAttack", payload);
             }
 
-            if (game.IsBotGame && game.State != GameState.Finished)
+            if (game.IsBotGame)
             {
-                game.State = GameState.WaitingForPlayer2Shot;
-                await _gameRepository.UpdateAsync(game);
-                await Task.Delay(1000);
-
-                var botAction = await _botService.ExecuteBotMove(game);
-                game.Actions.Add(botAction);
-
-                var humanBoard = game.Player1Board;
-                if (humanBoard.Grid.ContainsKey((botAction.X, botAction.Y)))
+                if (attackResult == "miss" && game.State != GameState.Finished)
                 {
-                    var humanCell = humanBoard.Grid[(botAction.X, botAction.Y)];
-                    humanCell.IsHit = true;
-                    humanCell.Status = humanCell.HasShip ? CellStatus.Hit : CellStatus.Miss;
-                }
-                if (humanBoard.AreAllShipsSunk())
-                {
-                    game.State = GameState.Finished;
-                    game.WinnerId = 0;
-                    botAction.Details += " Fin del juego. Has perdido contra el bot.";
-                    await _webSocketService.NotifyUserAsync(playerId, "GameOver", "Has perdido contra el bot.");
-                    await UpdatePlayerStats(0, playerId);
-                }
-                else
-                {
-                    game.State = GameState.WaitingForPlayer1Shot;
+                    game.State = GameState.WaitingForPlayer2Shot;
                     await _gameRepository.UpdateAsync(game);
-                    await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Es tu turno de atacar.");
+                    await Task.Delay(1000);
+
+                    bool botContinues = true;
+                    while (botContinues && game.State != GameState.Finished)
+                    {
+                        var botAction = await _botService.ExecuteBotMove(game);
+                        game.Actions.Add(botAction);
+
+                        if (game.Player1Board.Grid.ContainsKey((botAction.X, botAction.Y)))
+                        {
+                            var humanCell = game.Player1Board.Grid[(botAction.X, botAction.Y)];
+                            humanCell.IsHit = true;
+                            humanCell.Status = humanCell.HasShip ? CellStatus.Hit : CellStatus.Miss;
+                        }
+
+                        var botPayload = JsonConvert.SerializeObject(new
+                        {
+                            x = botAction.X,
+                            y = botAction.Y,
+                            result = (game.Player1Board.Grid[(botAction.X, botAction.Y)].HasShip ? "hit" : "miss")
+                        });
+                        await _webSocketService.NotifyUserAsync(playerId, "EnemyAttack", botPayload);
+
+                        if (game.Player1Board.AreAllShipsSunk())
+                        {
+                            game.State = GameState.Finished;
+                            game.WinnerId = 0;
+                            botAction.Details += " Fin del juego. Has perdido contra el bot.";
+                            await _webSocketService.NotifyUserAsync(playerId, "GameOver", "Has perdido contra el bot.");
+                            await UpdatePlayerStats(0, playerId);
+                            botContinues = false;
+                        }
+                        else
+                        {
+                            if (botAction.Details.IndexOf("Fallo", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                botContinues = false;
+                            }
+                            else
+                            {
+                                await _gameRepository.UpdateAsync(game);
+                                await Task.Delay(1000);
+                            }
+                        }
+                        await _gameRepository.UpdateAsync(game);
+                    }
+
+                    if (game.State != GameState.Finished)
+                    {
+                        game.State = GameState.WaitingForPlayer1Shot;
+                        await _gameRepository.UpdateAsync(game);
+                        await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Es tu turno de atacar.");
+                    }
                 }
-                await _gameRepository.UpdateAsync(game);
+                else if (attackResult == "hit" || attackResult == "sunk")
+                {
+                    await _webSocketService.NotifyUserAsync(playerId, "YourTurn", "Continúa atacando.");
+                }
             }
             else if (!game.IsBotGame)
             {
