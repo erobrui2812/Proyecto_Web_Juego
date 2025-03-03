@@ -8,7 +8,7 @@ import { useFriendship } from "./FriendshipContext";
 
 type WebsocketContextType = {
   socket: WebSocket | null;
-  sendMessage: (type: string, payload: any) => void;
+  sendMessage: (type: string, payload: unknown) => void;
 };
 
 const WebsocketContext = createContext<WebsocketContextType | undefined>(
@@ -120,6 +120,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } catch (error) {
         console.error("Error procesando el mensaje WebSocket:", event.data);
+        console.log(error)
       }
     };
 
@@ -144,17 +145,13 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const handleAttackResult = (data: {
-    x: number;
-    y: number;
-    result: string;
-  }) => {
-    //toast.info(`Ataque en (${data.x}, ${data.y}): ${data.result}`);
-  };
-
-  const handleGameOver = (message: string) => {
-    // toast.success(`Juego terminado: ${message}`);
-  };
+  // const handleAttackResult = (data: {
+  //   x: number;
+  //   y: number;
+  //   result: string;
+  // }) => {
+  //   //toast.info(`Ataque en (${data.x}, ${data.y}): ${data.result}`);
+  // };
 
   const handleFriendRequest = async (senderId: string) => {
     if (!auth?.token) return;

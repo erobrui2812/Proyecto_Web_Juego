@@ -14,7 +14,7 @@ const MenuPage = () => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState("0");
-  const [playersInGame, setPlayersInGame] = useState<any[]>([]);
+  const [playersInGame, setPlayersInGame] = useState<unknown[]>([]);
   const [activeGames, setActiveGames] = useState("0");
   const [leaderboard, setLeaderboard] = useState([]);
 
@@ -117,7 +117,7 @@ const MenuPage = () => {
               <div>
                 <h2 className="text-xl font-bold mb-2">Top 3 del Servidor</h2>
                 <ul className="list-decimal list-inside">
-                  {leaderboard.slice(0, 3).map((item: any) => (
+                  {leaderboard.slice(0, 3).map((item: unknown) => (
                     <li key={item.userId}>
                       {item.nickname} ({item.gamesWon})
                     </li>

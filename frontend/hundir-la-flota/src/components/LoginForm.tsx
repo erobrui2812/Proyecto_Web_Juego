@@ -24,7 +24,7 @@ const LoginForm = () => {
         data.password,
         data.mantenerSesion
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al iniciar sesión:", error.message);
     }
   };

@@ -54,6 +54,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const { auth, isAuthenticated } = useAuth();
 
+  console.log(pendingRequests)
 const fetchFriends = async () => {
     if (!auth?.token) {
       console.warn("Token no disponible. No se pueden obtener amigos.");
@@ -68,7 +69,7 @@ const fetchFriends = async () => {
       );
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
       const result = await response.json();
-      const mappedFriends = result.map((friend: any) => ({
+      const mappedFriends = result.map((friend: unknown) => ({
         id: friend.friendId,
         nickname: friend.friendNickname,
         email: friend.friendMail,
@@ -201,7 +202,7 @@ const fetchFriends = async () => {
       }
       if (!response.ok) throw new Error(`Error: ${response.statusText}`);
       const data = await response.json();
-      const mapped = data.map((u: any) => ({
+      const mapped = data.map((u: unknown) => ({
         id: u.id.toString(),
         nickname: u.nickname,
         email: "",
@@ -286,7 +287,7 @@ const fetchFriends = async () => {
       }
 
       const data = await response.json();
-      return data.data.map((game: any) => ({
+      return data.data.map((game: unknown) => ({
         gameId: game.gameId,
         player1Nickname: game.player1Nickname,
         player2Nickname: game.player2Nickname,

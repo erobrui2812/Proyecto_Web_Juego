@@ -21,16 +21,20 @@ namespace hundir_la_flota
             var builder = WebApplication.CreateBuilder(args);
 
 
-            string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
-            string connectionString = $"Data Source={dbPath};";
+            //string dbPath = Path.Combine(AppContext.BaseDirectory, "hundir_la_flota.db");
+            //string connectionString = $"Data Source={dbPath};";
 
 
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
 
 
-            builder.Services.AddDbContext<MyDbContext>(options =>
-                options.UseSqlite(connectionString));
+            builder.Services.AddDbContext<MyDbContext>(options => {
+                string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+                options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 27)),
+                    mysqlOptions => mysqlOptions.EnableRetryOnFailure());
+            });
+
 
 
             builder.Services.AddSingleton<IAuthService>(sp =>
