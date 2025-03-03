@@ -7,6 +7,7 @@ import { useAuth } from "./AuthContext";
 import { useFriendship } from "./FriendshipContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL_WS = process.env.NEXT_PUBLIC_API_URL_WS;
 
 type WebsocketContextType = {
   socket: WebSocket | null;
@@ -29,7 +30,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!auth?.token) return;
 
     const newSocket = new WebSocket(
-      `wss://${API_URL}ws?token=${auth.token}`
+      `wss://${API_URL_WS}ws?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
