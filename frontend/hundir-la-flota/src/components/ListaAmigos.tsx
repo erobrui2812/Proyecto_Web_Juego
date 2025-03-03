@@ -9,12 +9,6 @@ import ReactPaginate from "react-paginate";
 import { SearchInput } from "@/components/SearchInput"; 
 import { useSearchParams } from "next/navigation";
 
-type ListaAmigosProps = {
-  searchParams?: {
-    search?: string;
-  };
-};
-
 const translateStatus = (status: string) => {
   switch (status) {
     case "Connected":
@@ -28,12 +22,12 @@ const translateStatus = (status: string) => {
   }
 };
 
-const ListaAmigos = (/* { searchParams }: ListaAmigosProps */) => {
+const ListaAmigos = () => {
   const { friends, removeFriend, fetchFriends } = useFriendship();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [selectedFriend, setSelectedFriend] = useState<unknown>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(0);
   const [friendsPerPage, setFriendsPerPage] = useState(3);
@@ -66,7 +60,7 @@ const ListaAmigos = (/* { searchParams }: ListaAmigosProps */) => {
     setIsProfileModalOpen(false);
   };
 
-  const openDeleteModal = (friend: any) => {
+  const openDeleteModal = (friend: unknown) => {
     setSelectedFriend(friend);
     setIsModalOpen(true);
   };

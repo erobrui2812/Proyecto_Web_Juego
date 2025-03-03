@@ -3,13 +3,12 @@ import Chat from "@/components/Chat";
 import GameGrid from "@/components/GameGrid";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWebsocket } from "@/contexts/WebsocketContext";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function GamePage() {
   const params = useParams();
   const gameId = params.gameId;
-  const router = useRouter();
   const { auth, userDetail } = useAuth();
   const { socket } = useWebsocket();
   const [gameOver, setGameOver] = useState(false);
@@ -54,7 +53,7 @@ export default function GamePage() {
 
     const intervalId = setInterval(() => {
       fetchGameState();
-    }, 30000);
+    }, 300000);
 
     return () => clearInterval(intervalId);
   }, [auth, userDetail, gameId]);

@@ -13,6 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={`antialiased bg-background text-foreground min-h-screen font-montserrat flex flex-col transition-all duration-300`}
       >

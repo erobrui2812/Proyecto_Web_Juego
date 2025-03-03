@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         rol: data.role,
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error obteniendo detalles del usuario:", error);
       toast.error(
         error.message || "Error al obtener los detalles del usuario."
@@ -158,7 +158,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       setAuthenticated(true);
       await obtenerUserDetail();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || "Error desconocido");
       throw error;
     }

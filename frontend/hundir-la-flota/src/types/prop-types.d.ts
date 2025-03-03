@@ -4,7 +4,7 @@ declare module 'prop-types';
 declare module "signalr";
 declare global {
   interface Window {
-    socket: any;
+    socket: unknown;
   }
 
   interface ButtonProps {

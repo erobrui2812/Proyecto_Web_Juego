@@ -1,6 +1,7 @@
 ﻿using hundir_la_flota.Models;
 using Microsoft.EntityFrameworkCore;
 
+
 public class MyDbContext : DbContext
 {
     public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
@@ -11,6 +12,16 @@ public class MyDbContext : DbContext
     public DbSet<GameParticipant> GameParticipants { get; set; }
     public DbSet<PlayerStats> PlayerStats { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    {
+        if (!options.IsConfigured)
+        {
+            options.UseMySql(
+                new MySqlServerVersion(new Version(8, 0, 27)),
+                builder => builder.MigrationsAssembly("hundir-la-flota")
+            );
+        }
+    }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<GameParticipant>()

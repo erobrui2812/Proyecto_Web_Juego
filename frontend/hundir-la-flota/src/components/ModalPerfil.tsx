@@ -154,7 +154,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
       }));
 
       setIsEditModalOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
       alert(error.message || "Error al actualizar el perfil.");
     }

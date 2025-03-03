@@ -1,0 +1,21 @@
+{
+  "name": "BattleshipsColle",
+  "short_name": "BattleshipsColle",
+  "description": "PWA de BattleshipsColle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f0f0f",
+  "icons": [
+    {
+      "src": "/BattleshipsColle.webp",
+      "sizes": "192x192",
+      "type": "image/webp"
+    },
+    {
+      "src": "/BattleshipsColle.webp",
+      "sizes": "512x512",
+      "type": "image/webp"
+    }
+  ]
+}

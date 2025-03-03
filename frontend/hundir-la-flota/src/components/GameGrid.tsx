@@ -145,6 +145,7 @@ const GameGrid = ({ gameId, playerId }) => {
               setGameSummary(summary);
             } catch (error) {
               setGameOverMessage(payload);
+              console.log(error)
             }
             break;
           default:
@@ -152,6 +153,7 @@ const GameGrid = ({ gameId, playerId }) => {
         }
       } catch (error) {
         console.warn("Error procesando mensaje WebSocket:", event.data);
+        console.log(error)
       }
     };
 

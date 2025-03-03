@@ -39,7 +39,7 @@ const MatchmakingPage = () => {
 
         const data = await response.json();
 
-        const friendsMapped: Friend[] = data.map((friend: any) => ({
+        const friendsMapped: Friend[] = data.map((friend: unknown) => ({
           id: friend.friendId,
           nickname: friend.friendNickname,
           email: friend.friendMail,

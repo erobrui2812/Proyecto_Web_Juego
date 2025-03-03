@@ -34,7 +34,6 @@ const ModalEditarPerfil: React.FC<ModalEditarPerfilProps> = ({ isOpen, onClose, 
     register,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<EditProfileFormInputs>({
     defaultValues: {
@@ -95,7 +94,7 @@ const ModalEditarPerfil: React.FC<ModalEditarPerfilProps> = ({ isOpen, onClose, 
 
       toast.success("Perfil actualizado exitosamente.");
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || "Error al actualizar el perfil.");
     }
   };
