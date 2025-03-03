@@ -159,7 +159,10 @@ namespace hundir_la_flota
                 app.UseSwaggerUI();
             }
 
-            app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            //DESARROLLO
+            //app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            
+            app.UseCors(options => options.WithOrigins("https://proyecto-web-juego.vercel.app/").AllowAnyMethod().AllowAnyHeader());
 
             app.UseWebSockets();
             app.UseMiddleware<WebSocketMiddleware>();
