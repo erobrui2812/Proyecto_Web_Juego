@@ -10,7 +10,7 @@ import {
 } from "react";
 import { toast } from "react-toastify";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type AuthContextType = {
   auth: { token: string | null };

@@ -13,7 +13,7 @@ import { useWebsocket } from "@/contexts/WebsocketContext";
 
 import { Friend } from "@/types/friendship";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const MatchmakingPage = () => {
   const { auth } = useAuth();

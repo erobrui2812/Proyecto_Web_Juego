@@ -6,7 +6,7 @@ import Modal from "@/components/Modal";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type EditProfileFormInputs = {
   nickname: string;

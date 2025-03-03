@@ -7,7 +7,7 @@ import ModalEditarPerfil from "@/components/ModalEditProfile";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type ModalPerfilProps = {
   isOpen: boolean;

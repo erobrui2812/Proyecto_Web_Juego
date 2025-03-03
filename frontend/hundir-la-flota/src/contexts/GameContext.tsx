@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type GameContextType = {
   Game: { token: string | null };

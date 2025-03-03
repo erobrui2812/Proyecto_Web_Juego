@@ -9,7 +9,7 @@ import { useFriendship } from "@/contexts/FriendshipContext";
 import "@fontsource/bebas-neue";
 import { useEffect, useState } from "react";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const MenuPage = () => {
   const { searchUsers, searchResults } = useFriendship();

@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "./AuthContext";
 import { useFriendship } from "./FriendshipContext";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type WebsocketContextType = {
   socket: WebSocket | null;

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useWebsocket } from "../contexts/WebsocketContext";
 
-const API_URL = apiUrl;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const shipSizes = [5, 4, 3, 3, 2];
 
