@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 export default function GamePage() {
   const params = useParams();
-  const gameId = params.gameId;
+  const gameId = Array.isArray(params.gameId) ? params.gameId[0] : params.gameId;
   const { auth, userDetail } = useAuth();
   const { socket } = useWebsocket();
   const [gameOver, setGameOver] = useState(false);
@@ -57,6 +57,11 @@ export default function GamePage() {
 
     return () => clearInterval(intervalId);
   }, [auth, userDetail, gameId]);
+
+  if (!gameId) {
+    return <div>No se pudo obtener el ID de la partida.</div>;
+  }
+  
 
   return (
     <div className="p-6 min-h-screen bg-[var(--background)]">
