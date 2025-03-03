@@ -161,8 +161,8 @@ namespace hundir_la_flota
 
             //DESARROLLO
             //app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-            
-            app.UseCors(options => options.WithOrigins("https://proyecto-web-juego.vercel.app/").AllowAnyMethod().AllowAnyHeader());
+
+            app.UseCors(options => options.WithOrigins("https://proyecto-web-juego.vercel.app/", "https://hundirlaflota-back.runasp.net/", "https://localhost:3000").AllowAnyMethod().AllowAnyHeader());
 
             app.UseWebSockets();
             app.UseMiddleware<WebSocketMiddleware>();

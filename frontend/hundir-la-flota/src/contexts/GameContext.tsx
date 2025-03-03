@@ -1,6 +1,8 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 
+const API_URL = apiUrl;
+
 type GameContextType = {
   Game: { token: string | null };
   iniciarSesion: (
@@ -49,7 +51,7 @@ export const GameProvider = ({ children }: { children: React.ReactNode }) => {
     mantenerSesion: boolean
   ) => {
     try {
-      const response = await fetch(`/api/Auth/login`, {
+      const response = await fetch(`${API_URL}api/Auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

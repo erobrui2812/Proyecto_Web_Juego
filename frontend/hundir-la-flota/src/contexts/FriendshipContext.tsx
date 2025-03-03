@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "./AuthContext";
 
+const API_URL = apiUrl;
+
 type UserProfile = {
   nickname: string;
   avatarUrl: string;
@@ -62,7 +64,7 @@ const fetchFriends = async () => {
     }
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/list",
+        `${API_URL}api/Friendship/list`,
         {
           headers: { Authorization: `Bearer ${auth.token}` },
         }
@@ -92,7 +94,7 @@ const fetchFriends = async () => {
     if (!auth?.token) return;
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/send",
+        `${API_URL}api/Friendship/send`,
         {
           method: "POST",
           headers: {
@@ -121,7 +123,7 @@ const fetchFriends = async () => {
     if (!auth?.token) return;
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/respond",
+        `${API_URL}api/Friendship/respond`,
         {
           method: "POST",
           headers: {
@@ -156,7 +158,7 @@ const fetchFriends = async () => {
     if (!auth?.token) return;
     try {
       const response = await fetch(
-        `https://localhost:7162/api/Friendship/remove/${friendId}`,
+        `${API_URL}api/Friendship/remove/${friendId}`,
         {
           method: "DELETE",
           headers: {
@@ -186,7 +188,7 @@ const fetchFriends = async () => {
     }
     try {
       const response = await fetch(
-        `https://localhost:7162/api/Friendship/search?nickname=${encodeURIComponent(
+        `${API_URL}api/Friendship/search?nickname=${encodeURIComponent(
           query
         )}`,
         {
@@ -220,7 +222,7 @@ const fetchFriends = async () => {
     if (!auth?.token) return [];
     try {
       const response = await fetch(
-        "https://localhost:7162/api/Friendship/pending",
+        `${API_URL}api/Friendship/pending`,
         {
           headers: {
             Authorization: `Bearer ${auth.token}`,
@@ -243,7 +245,7 @@ const fetchFriends = async () => {
     }
     try {
       const response = await fetch(
-        `https://localhost:7162/api/Users/perfil/${userId.toString()}`,
+        `${API_URL}api/Users/perfil/${userId.toString()}`,
         {
           headers: { Authorization: `Bearer ${auth.token}` },
         }
@@ -274,7 +276,7 @@ const fetchFriends = async () => {
 
     try {
       const response = await fetch(
-        `https://localhost:7162/api/Users/historial/${userId}`,
+        `${API_URL}api/Users/historial/${userId}`,
         {
           headers: { Authorization: `Bearer ${auth.token}` },
         }

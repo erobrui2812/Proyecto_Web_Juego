@@ -6,6 +6,8 @@ import { useWebsocket } from "@/contexts/WebsocketContext";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+const API_URL = apiUrl;
+
 export default function GamePage() {
   const params = useParams();
   const gameId = Array.isArray(params.gameId) ? params.gameId[0] : params.gameId;
@@ -17,7 +19,7 @@ export default function GamePage() {
   const fetchGameState = async () => {
     if (!auth?.token || !userDetail?.id) return;
     try {
-      const res = await fetch(`https://localhost:7162/api/game/${gameId}`, {
+      const res = await fetch(`${API_URL}api/game/${gameId}`, {
         headers: {
           Authorization: `Bearer ${auth.token}`,
         },

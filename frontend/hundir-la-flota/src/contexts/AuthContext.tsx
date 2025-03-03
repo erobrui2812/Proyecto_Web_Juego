@@ -10,6 +10,8 @@ import {
 } from "react";
 import { toast } from "react-toastify";
 
+const API_URL = apiUrl;
+
 type AuthContextType = {
   auth: { token: string | null };
   userDetail: {
@@ -64,7 +66,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/detail`, {
+      const response = await fetch(`${API_URL}api/Users/detail`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${auth.token}`,
@@ -139,7 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     mantenerSesion: boolean
   ) => {
     try {
-      const response = await fetch(`https://localhost:7162/api/Users/login`, {
+      const response = await fetch(`${API_URL}api/Users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -181,7 +183,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         formData.append("avatar", avatar);
       }
       const response = await fetch(
-        "https://localhost:7162/api/Users/register",
+        `${API_URL}api/Users/register`,
         {
           method: "POST",
           body: formData,

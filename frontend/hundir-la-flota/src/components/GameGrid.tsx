@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useWebsocket } from "../contexts/WebsocketContext";
 
+const API_URL = apiUrl;
+
 const shipSizes = [5, 4, 3, 3, 2];
 
 const generateEmptyGrid = () => {
@@ -328,7 +330,7 @@ const GameGrid = ({ gameId, playerId }) => {
 
   const handleRematch = async () => {
     if (!auth?.token) return;
-    const res = await fetch("https://localhost:7162/api/game/rematch", {
+    const res = await fetch(`${API_URL}api/game/rematch`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

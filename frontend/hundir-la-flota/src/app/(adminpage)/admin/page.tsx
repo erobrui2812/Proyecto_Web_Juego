@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "react-toastify";
 
-const API_URL = "https://localhost:7162/";
+const API_URL = apiUrl;
 
 interface User {
   id: number;

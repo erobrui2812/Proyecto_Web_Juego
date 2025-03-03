@@ -9,6 +9,8 @@ import { useFriendship } from "@/contexts/FriendshipContext";
 import "@fontsource/bebas-neue";
 import { useEffect, useState } from "react";
 
+const API_URL = apiUrl;
+
 const MenuPage = () => {
   const { searchUsers, searchResults } = useFriendship();
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -21,7 +23,7 @@ const MenuPage = () => {
   useEffect(() => {
     const fetchOnlineUsers = async () => {
       try {
-        const response = await fetch("https://localhost:7162/api/stats/global");
+        const response = await fetch(`${API_URL}api/stats/global`);
         const data = await response.json();
         setOnlineUsers(data.onlineUsers);
       } catch (error) {
@@ -31,7 +33,7 @@ const MenuPage = () => {
 
     const fetchActiveGames = async () => {
       try {
-        const response = await fetch("https://localhost:7162/api/stats/games");
+        const response = await fetch(`${API_URL}api/stats/games`);
         const data = await response.json();
         setActiveGames(data.activeGames || data.length.toString());
       } catch (error) {
@@ -42,7 +44,7 @@ const MenuPage = () => {
     const fetchPlayersInGame = async () => {
       try {
         const response = await fetch(
-          "https://localhost:7162/api/stats/players"
+          `${API_URL}api/stats/players`
         );
         const data = await response.json();
         setPlayersInGame(data);
@@ -54,7 +56,7 @@ const MenuPage = () => {
     const fetchLeaderboard = async () => {
       try {
         const response = await fetch(
-          "https://localhost:7162/api/stats/leaderboard"
+          `${API_URL}api/stats/leaderboard`
         );
         const data = await response.json();
         setLeaderboard(data);

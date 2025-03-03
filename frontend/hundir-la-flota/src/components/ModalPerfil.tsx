@@ -7,6 +7,8 @@ import ModalEditarPerfil from "@/components/ModalEditProfile";
 import { useFriendship } from "@/contexts/FriendshipContext";
 import { useAuth } from "@/contexts/AuthContext";
 
+const API_URL = apiUrl;
+
 type ModalPerfilProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -132,7 +134,7 @@ const ModalPerfil: React.FC<ModalPerfilProps> = ({ isOpen, onClose, userId }) =>
       }
 
       const token = auth.token;
-      const response = await fetch("https://localhost:7162/api/users/update", {
+      const response = await fetch(`${API_URL}api/users/update`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,

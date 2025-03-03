@@ -13,6 +13,8 @@ import { useWebsocket } from "@/contexts/WebsocketContext";
 
 import { Friend } from "@/types/friendship";
 
+const API_URL = apiUrl;
+
 const MatchmakingPage = () => {
   const { auth } = useAuth();
   const token = auth?.token || null;
@@ -30,7 +32,7 @@ const MatchmakingPage = () => {
 
       try {
         const response = await fetch(
-          "https://localhost:7162/api/Friendship/connected",
+          `${API_URL}api/Friendship/connected`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -67,7 +69,7 @@ const MatchmakingPage = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://localhost:7162/api/game/play-with-bot",
+        `${API_URL}api/game/play-with-bot`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -125,7 +127,7 @@ const MatchmakingPage = () => {
     try {
       const friendIdNumber = parseInt(amigoId, 10);
 
-      const response = await fetch("https://localhost:7162/api/game/invite", {
+      const response = await fetch(`${API_URL}api/game/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

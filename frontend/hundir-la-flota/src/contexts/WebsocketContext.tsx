@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import { useAuth } from "./AuthContext";
 import { useFriendship } from "./FriendshipContext";
 
+const API_URL = apiUrl;
+
 type WebsocketContextType = {
   socket: WebSocket | null;
   sendMessage: (type: string, payload: unknown) => void;
@@ -27,7 +29,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!auth?.token) return;
 
     const newSocket = new WebSocket(
-      `wss://localhost:7162/ws?token=${auth.token}`
+      `wss://${API_URL}ws?token=${auth.token}`
     );
 
     newSocket.onopen = () => {
@@ -272,7 +274,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!auth?.token) return;
   
     try {
-      const res = await fetch("https://localhost:7162/api/game/accept-invitation", {
+      const res = await fetch(`${API_URL}api/game/accept-invitation`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${auth.token}`,
@@ -299,7 +301,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
   async function userIdANickname(userId: string): Promise<string> {
     try {
       const resp = await fetch(
-        `https://localhost:7162/api/Friendship/get-nickname/${userId}`,
+        `${API_URL}api/Friendship/get-nickname/${userId}`,
         {
           headers: { Authorization: `Bearer ${auth?.token}` },
         }

@@ -6,6 +6,8 @@ import Modal from "@/components/Modal";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
 
+const API_URL = apiUrl;
+
 type EditProfileFormInputs = {
   nickname: string;
   email: string;
@@ -78,7 +80,7 @@ const ModalEditarPerfil: React.FC<ModalEditarPerfilProps> = ({ isOpen, onClose, 
     try {
       const token = auth.token;
 
-      const response = await fetch("https://localhost:7162/api/Users/update", {
+      const response = await fetch(`${API_URL}api/Users/update`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
