@@ -597,7 +597,7 @@ const GameGrid = ({ gameId, playerId }) => {
             </div>
           </>
         )}
-        Fin de la partida
+
         {gameOver && (
           <div className="mt-4 p-4 bg-gray-800 text-[var(--foreground)] rounded-lg shadow w-full max-w-lg">
             {gameSummary ? (
