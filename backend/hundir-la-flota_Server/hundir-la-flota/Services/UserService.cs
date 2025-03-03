@@ -49,7 +49,7 @@ namespace hundir_la_flota.Services
                     Nickname = dto.Nickname,
                     Email = dto.Email,
                     PasswordHash = _authService.HashPassword(dto.Password),
-                    AvatarUrl = "https://localhost:7162/images/default/avatar-default.jpg"
+                    AvatarUrl = "https://hundirlaflota-back.runasp.net/images/default/avatar-default.jpg"
                 };
 
                 _context.Users.Add(user);
@@ -79,7 +79,7 @@ namespace hundir_la_flota.Services
                             await avatar.CopyToAsync(fileStream);
                         }
 
-                        user.AvatarUrl = $"https://localhost:7162/images/{user.Id.ToString()}/avatar.jpg";
+                        user.AvatarUrl = $"https://hundirlaflota-back.runasp.net/images/{user.Id.ToString()}/avatar.jpg";
                         _context.Users.Update(user);
                         await _context.SaveChangesAsync();
                     }
@@ -256,7 +256,7 @@ namespace hundir_la_flota.Services
                         await avatar.CopyToAsync(stream);
                     }
 
-                    user.AvatarUrl = $"https://localhost:7162/images/{user.Id}/avatar.jpg";
+                    user.AvatarUrl = $"https://hundirlaflota-back.runasp.net/images/{user.Id}/avatar.jpg";
                 }
 
                 _context.Users.Update(user);
