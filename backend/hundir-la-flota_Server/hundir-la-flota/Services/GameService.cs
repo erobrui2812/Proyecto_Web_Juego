@@ -472,7 +472,7 @@ public class GameService : IGameService
         foreach (var ship in botShips)
         {
             newGame.Player2Board.Ships.Add(ship);
-            Console.WriteLine($"Bot coloca {ship.Name} en: {string.Join(", ", ship.Coordinates.Select(c => $"({c.X},{c.Y})"))}");
+
         }
         await _gameRepository.UpdateAsync(newGame);
         return new ServiceResponse<Game> { Success = true, Data = newGame };
@@ -796,7 +796,7 @@ public class GameService : IGameService
                         board.Grid[(x + i, y)].HasShip = true;
                     }
                     ships.Add(ship);
-                    Console.WriteLine($"[GenerateRandomShips] Colocado barco de tamaño {size} en ({x},{y}) horizontalmente.");
+
                     placed = true;
                 }
                 else
@@ -826,7 +826,7 @@ public class GameService : IGameService
                         board.Grid[(x, y + i)].HasShip = true;
                     }
                     ships.Add(ship);
-                    Console.WriteLine($"[GenerateRandomShips] Colocado barco de tamaño {size} en ({x},{y}) verticalmente.");
+
                     placed = true;
                 }
             }

@@ -177,7 +177,7 @@ namespace hundir_la_flota.Services
         {
             if (string.IsNullOrEmpty(nickname))
                 return new ServiceResponse<List<UserDto>> { Success = false, Message = "El nickname no puede estar vacío." };
-            
+
             var normalizedSearch = NormalizeString(nickname).Trim();
 
             var users = _dbContext.Users
@@ -253,9 +253,6 @@ namespace hundir_la_flota.Services
 
             return new ServiceResponse<List<FriendDto>> { Success = true, Data = result };
         }
-
-
-
 
 
         private string NormalizeString(string input)
