@@ -153,15 +153,17 @@ namespace hundir_la_flota
 
 
 
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+            
 
             //DESARROLLO
             //app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            //if (app.Environment.IsDevelopment())
+            //{
+            //    app.UseSwagger();
+            //    app.UseSwaggerUI();
+            //}
 
+            //PRODUCCIÓN
             app.UseCors(options =>
                 options.WithOrigins("https://proyecto-web-juego.vercel.app",
                                     "https://hundirlaflota-back.runasp.net",
