@@ -52,9 +52,9 @@ namespace hundir_la_flota.Services
             else
             {
                 details += " ¡Fallo!";
-                Console.WriteLine("BotService: Missed attack.");
+
             }
-            Console.WriteLine($"BotService: Attack details: {details}");
+
             return new GameAction
             {
                 PlayerId = 0,

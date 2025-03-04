@@ -19,12 +19,12 @@ public class Board
             if (_grid == null)
             {
                 InitializeGrid();
-                
+
                 foreach (var ship in Ships)
                 {
                     foreach (var coord in ship.Coordinates)
                     {
-                        
+
                         if (_grid.ContainsKey((coord.X, coord.Y)))
                         {
                             _grid[(coord.X, coord.Y)].HasShip = true;
@@ -61,13 +61,13 @@ public class Board
 
     public List<Ship> Ships { get; private set; } = new List<Ship>();
 
-    // El constructor se utiliza al crear la entidad manualmente, pero no siempre se invoca al materializarla desde la BD
+
     public Board()
     {
         InitializeGrid();
     }
 
-    // Inicializa el diccionario _grid con todas las celdas necesarias
+
     private void InitializeGrid()
     {
         _grid = new Dictionary<(int, int), Cell>();
