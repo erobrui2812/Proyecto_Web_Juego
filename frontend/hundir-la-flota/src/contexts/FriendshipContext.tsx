@@ -56,7 +56,7 @@ export const FriendshipProvider: React.FC<{ children: React.ReactNode }> = ({
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const { auth, isAuthenticated } = useAuth();
 
-  console.log(pendingRequests)
+  // console.log(pendingRequests)
 const fetchFriends = async () => {
     if (!auth?.token) {
       console.warn("Token no disponible. No se pueden obtener amigos.");

@@ -24,7 +24,7 @@ export default function GamePage() {
           Authorization: `Bearer ${auth.token}`,
         },
       });
-      console.log("Status de la petición:", res.status);
+      // console.log("Status de la petición:", res.status);
 
       if (res.status === 404) {
         setGameOver(true);

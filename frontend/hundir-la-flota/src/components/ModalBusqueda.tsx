@@ -30,7 +30,6 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const openProfileModal = () => {
-    console.log("Abriendo modal de perfil...");
     setIsProfileModalOpen(true);
   };
 
@@ -40,7 +39,6 @@ const ModalBusqueda: React.FC<ModalBusquedaProps> = ({
   };
 
   const closeProfileModal = () => {
-    console.log("Cerrando modal de perfil...");
     setIsProfileModalOpen(false);
   };
 

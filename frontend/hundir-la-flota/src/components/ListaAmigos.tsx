@@ -81,9 +81,9 @@ const ListaAmigos = () => {
     fetchFriends();
   }, []);
 
-  useEffect(() => {
-    console.log("Amigos actuales:", friends);
-  }, [friends]);
+  // useEffect(() => {
+  //   console.log("Amigos actuales:", friends);
+  // }, [friends]);
 
   return (
     <div>

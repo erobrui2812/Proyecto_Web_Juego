@@ -133,6 +133,7 @@ export const WebsocketProvider: React.FC<{ children: React.ReactNode }> = ({
       if (newSocket.readyState === WebSocket.OPEN) {
         newSocket.close();
         console.log("WebSocket cerrado correctamente.");
+        router.push("/");
       }
     };
   }, [auth?.token]);

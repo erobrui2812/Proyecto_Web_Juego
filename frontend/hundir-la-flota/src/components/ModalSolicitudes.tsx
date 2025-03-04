@@ -12,8 +12,6 @@ const ModalSolicitudes = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     if (isOpen) {
       fetchPendingRequests().then((data) => setPendingRequests(data));
     }
-
-    console.log(pendingRequests)
   }, [isOpen]);
 
   return (

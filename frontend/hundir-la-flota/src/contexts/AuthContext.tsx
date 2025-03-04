@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   } | null>(null);
   const [isAuthenticated, setAuthenticated] = useState(false);
   const [rol, setRol] = useState("");
-
+  const router = useRouter();
   useEffect(() => {
     const token =
       typeof window !== "undefined"
@@ -80,7 +80,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const result = await response.json();
       const data = result.data;
 
-      console.log("Datos obtenidos de la API:", data);
 
       if (!data.id || !data.nickname || !data.avatarUrl) {
         throw new Error("Datos incompletos del usuario");
@@ -174,6 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     avatar: File | null
   ) => {
     try {
+      
       const formData = new FormData();
       formData.append("nickname", nickname);
       formData.append("email", email);
@@ -193,7 +193,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("Error al registrar usuario.");
       }
       toast.success("Usuario registrado correctamente");
+      router.push("/login");
       await obtenerUserDetail();
+      
     } catch (error) {
       console.error("Error registrando usuario:", error);
       toast.error("Error al registrar usuario.");
@@ -207,6 +209,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAuthenticated(false);
     setUserDetail(null);
     setRol("usuario");
+    router.push("/login")
   };
 
   return (

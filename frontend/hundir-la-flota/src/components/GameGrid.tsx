@@ -121,7 +121,7 @@ const GameGrid = ({ gameId, playerId }) => {
         const type = parts[0];
         const payload = parts.slice(1).join("|");
 
-        console.log(`Evento recibido: ${type}`, payload);
+        // console.log(`Evento recibido: ${type}`, payload);
 
         switch (type) {
           case "YourTurn":
@@ -143,11 +143,9 @@ const GameGrid = ({ gameId, playerId }) => {
             setGameOver(true);
             try {
               const summary = JSON.parse(payload);
-              console.log(summary);
               setGameSummary(summary);
             } catch (error) {
               setGameOverMessage(payload);
-              console.log(error)
             }
             break;
           default:
@@ -155,7 +153,6 @@ const GameGrid = ({ gameId, playerId }) => {
         }
       } catch (error) {
         console.warn("Error procesando mensaje WebSocket:", event.data);
-        console.log(error)
       }
     };
 
@@ -282,13 +279,6 @@ const GameGrid = ({ gameId, playerId }) => {
     const attackData = typeof result === "string" ? JSON.parse(result) : result;
     const { x, y, result: attackOutcome } = attackData;
 
-    console.log(
-      "Actualizando ataque result en coordenadas reales:",
-      x,
-      y,
-      attackOutcome
-    );
-
     setOpponentBoard((prevBoard) => {
       const newBoard = prevBoard.map((row) => row.slice());
       newBoard[y][x] = { attacked: true, result: attackOutcome };
@@ -296,10 +286,8 @@ const GameGrid = ({ gameId, playerId }) => {
     });
 
     if (attackOutcome === "hit" || attackOutcome === "sunk") {
-      console.log("Ataque exitoso. Continúa tu turno.");
       setIsMyTurn(true);
     } else {
-      console.log("Ataque fallido. Fin del turno.");
       setIsMyTurn(false);
     }
   };
@@ -308,13 +296,6 @@ const GameGrid = ({ gameId, playerId }) => {
     const attackData =
       typeof payload === "string" ? JSON.parse(payload) : payload;
     const { x, y, result: attackOutcome } = attackData;
-
-    console.log(
-      "Recibiendo ataque enemigo en coordenadas reales:",
-      x,
-      y,
-      attackOutcome
-    );
 
     setMyBoard((prevBoard) => {
       const newGrid = prevBoard.grid.map((row) => row.slice());

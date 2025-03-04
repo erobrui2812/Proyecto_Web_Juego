@@ -31,7 +31,7 @@ type ModalEditarPerfilProps = {
 };
 
 const ModalEditarPerfil: React.FC<ModalEditarPerfilProps> = ({ isOpen, onClose, initialData }) => {
-  const { auth } = useAuth();
+  const { auth, cerrarSesion } = useAuth();
   const {
     register,
     handleSubmit,
@@ -95,7 +95,14 @@ const ModalEditarPerfil: React.FC<ModalEditarPerfilProps> = ({ isOpen, onClose, 
       }
 
       toast.success("Perfil actualizado exitosamente.");
+      if(data.newPassword) {
+        toast.info("Has modificado la contraseña, debes volver a iniciar sesión.")
+        cerrarSesion();
+      }
       onClose();
+
+      
+
     } catch (error: unknown) {
       toast.error(error.message || "Error al actualizar el perfil.");
     }
